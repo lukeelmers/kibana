@@ -19,3 +19,4 @@
 
 export * from './create_store';
 export * from './react';
+export * from './sync';
