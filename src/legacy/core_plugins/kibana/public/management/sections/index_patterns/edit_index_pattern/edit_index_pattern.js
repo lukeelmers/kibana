@@ -213,6 +213,12 @@ uiModules.get('apps/management')
     });
     handleTabChange($scope, store.get().tab);
 
+    $scope.crazyBatchUpdate = () => {
+      store.set({ ...store.get(), tab: 'indexedFiles' });
+      store.set({ ...store.get() });
+      store.set({ ...store.get(), fieldFilter: 'BATCH!' });
+    };
+
     $scope.$$postDigest(() => {
       // just an artificial example of advanced syncState util setup
       // 1. different strategies are used for different slices

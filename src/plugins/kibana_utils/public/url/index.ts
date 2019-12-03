@@ -35,8 +35,9 @@ import {
 
 const parseUrl = (url: string) => _parseUrl(url, true);
 const parseUrlHash = (url: string) => parseUrl(parseUrl(url).hash!.slice(1));
-const parseCurrentUrl = () => parseUrl(window.location.href);
-const parseCurrentUrlHash = () => parseUrlHash(window.location.href);
+const getCurrentUrl = () => window.location.href;
+const parseCurrentUrl = () => parseUrl(getCurrentUrl());
+const parseCurrentUrlHash = () => parseUrlHash(getCurrentUrl());
 
 // encodeUriQuery implements the less-aggressive encoding done naturally by
 // the browser. We use it to generate the same urls the browser would
@@ -140,30 +141,52 @@ export function setStateToUrl<T extends BaseState>(
  * listen(cb) - accepts a callback which will be called whenever url has changed
  * update(url: string, replace: boolean) - get an absolute / relative url to update the location to
  */
-export const createUrlControls = () => {
+interface IUrlControls {
+  listen: (cb: () => void) => () => void;
+  update: (updater: (currentUrl: string) => string, replace: boolean) => Promise<string>;
+}
+
+let urlControls: IUrlControls;
+export const getUrlControls = () => {
+  if (urlControls) return urlControls;
+
   const history = createBrowserHistory();
-  return {
+  const updateQueue: Array<(currentUrl: string) => string> = [];
+  return (urlControls = {
     listen: (cb: () => void) =>
       history.listen(() => {
         cb();
       }),
-    update: (url: string, replace = false) => {
-      const { pathname, search } = parseUrl(url);
-      const parsedHash = parseUrlHash(url);
-      const searchQueryString = stringifyQueryString(parsedHash.query);
-      const location = {
-        pathname,
-        hash: formatUrl({
-          pathname: parsedHash.pathname,
-          search: searchQueryString,
-        }),
-        search,
-      };
-      if (replace) {
-        history.replace(location);
-      } else {
-        history.push(location);
-      }
+    update: (updater: (currentUrl: string) => string, replace = false) => {
+      updateQueue.push(updater);
+
+      return Promise.resolve().then(() => {
+        if (updater.length === 0) return getCurrentUrl();
+
+        const resultUrl = updateQueue.reduce((url, nextUpdate) => nextUpdate(url), getCurrentUrl());
+
+        updateQueue.splice(0, updateQueue.length);
+
+        if (resultUrl === getCurrentUrl()) return getCurrentUrl();
+
+        const { pathname, search } = parseUrl(resultUrl);
+        const parsedHash = parseUrlHash(resultUrl);
+        const searchQueryString = stringifyQueryString(parsedHash.query);
+        const location = {
+          pathname,
+          hash: formatUrl({
+            pathname: parsedHash.pathname,
+            search: searchQueryString,
+          }),
+          search,
+        };
+        if (replace) {
+          history.replace(location);
+        } else {
+          history.push(location);
+        }
+        return getCurrentUrl();
+      });
     },
-  };
+  });
 };
