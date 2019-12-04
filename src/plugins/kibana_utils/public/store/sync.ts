@@ -19,7 +19,7 @@
 
 import { MonoTypeOperatorFunction, Observable, Subscription } from 'rxjs';
 import { distinctUntilChanged, map, share, skip, startWith } from 'rxjs/operators';
-import { getUrlControls, getStateFromUrl, setStateToUrl } from '../url';
+import { createUrlControls, getStateFromUrl, setStateToUrl } from '../url';
 
 /**
  * Configuration of StateSync utility
@@ -33,7 +33,7 @@ export interface IStateSyncConfig<
 > {
   /**
    * Storage key to use for syncing,
-   * e.g. having syncKey '_a' will sync state to ?_a query param
+   * e.g. syncKey '_a' should be synced state to ?_a query param
    */
   syncKey: string;
   /**
@@ -199,10 +199,10 @@ export function isSyncStrategyFactory(
 const createUrlSyncStrategyFactory = (
   { useHash = false }: { useHash: boolean } = { useHash: false }
 ): SyncStrategyFactory => (syncKey: string): ISyncStrategy => {
-  const { update: updateUrl, listen: listenUrl } = getUrlControls();
+  const { updateAsync: updateUrlAsync, listen: listenUrl } = createUrlControls();
   return {
     toStorage: async (state: BaseState, { replace = false } = { replace: false }) => {
-      await updateUrl(
+      await updateUrlAsync(
         currentUrl => setStateToUrl(syncKey, state, { useHash }, currentUrl),
         replace
       );
@@ -224,19 +224,13 @@ const createUrlSyncStrategyFactory = (
   };
 };
 
-/**
- * SyncStrategy.Url: the same as old persisting of expanded state in rison format to url
- * SyncStrategy.HashedUrl: the same as old persisting of hashed state using sessionStorage for storing expanded state
- *
- * Possible to provide own custom SyncStrategy by implementing ISyncStrategy
- *
- * SyncStrategy.Url is default
- */
-const Strategies: { [key in SyncStrategy]: (syncKey: string) => ISyncStrategy } = {
+const createStrategies: () => {
+  [key in SyncStrategy]: (syncKey: string) => ISyncStrategy;
+} = () => ({
   [SyncStrategy.Url]: createUrlSyncStrategyFactory({ useHash: false }),
   [SyncStrategy.HashedUrl]: createUrlSyncStrategyFactory({ useHash: true }),
   // Other SyncStrategies: LocalStorage, es, somewhere else...
-};
+});
 
 /**
  * Utility for syncing application state wrapped in IState container shape
@@ -333,7 +327,9 @@ export function syncState(config: IStateSyncConfig[] | IStateSyncConfig): Destro
   const stateSyncConfigs = Array.isArray(config) ? config : [config];
   const subscriptions: Subscription[] = [];
 
-  stateSyncConfigs.forEach(async stateSyncConfig => {
+  const syncStrategies = createStrategies();
+
+  stateSyncConfigs.forEach(stateSyncConfig => {
     const toStorageMapper = stateSyncConfig.toStorageMapper || (s => s);
     const fromStorageMapper = stateSyncConfig.fromStorageMapper || (s => s);
 
@@ -341,7 +337,7 @@ export function syncState(config: IStateSyncConfig[] | IStateSyncConfig): Destro
       stateSyncConfig.syncStrategy
     )
       ? stateSyncConfig.syncStrategy
-      : Strategies[stateSyncConfig.syncStrategy || SyncStrategy.Url])(stateSyncConfig.syncKey);
+      : syncStrategies[stateSyncConfig.syncStrategy || SyncStrategy.Url])(stateSyncConfig.syncKey);
 
     // returned boolean indicates if update happen
     const updateState = async (): Promise<boolean> => {
@@ -368,19 +364,7 @@ export function syncState(config: IStateSyncConfig[] | IStateSyncConfig): Destro
       return true;
     };
 
-    // initial syncing of store state and storage state
-    const initialTruthSource = stateSyncConfig.initialTruthSource ?? InitialTruthSource.Storage;
-    if (initialTruthSource === InitialTruthSource.Storage) {
-      const hasUpdated = updateState();
-      // if there is nothing by state key in storage
-      // then we should fallback and consider state source of truth
-      if (!hasUpdated) {
-        await updateStorage({ replace: true });
-      }
-    } else if (initialTruthSource === InitialTruthSource.Store) {
-      await updateStorage({ replace: true });
-    }
-
+    // subscribe to state and storage updates
     subscriptions.push(
       stateSyncConfig.store.state$
         .pipe(
@@ -397,6 +381,20 @@ export function syncState(config: IStateSyncConfig[] | IStateSyncConfig): Destro
         updateState();
       })
     );
+
+    // initial syncing of store state and storage state
+    const initialTruthSource = stateSyncConfig.initialTruthSource ?? InitialTruthSource.Storage;
+    if (initialTruthSource === InitialTruthSource.Storage) {
+      updateState().then(hasUpdated => {
+        // if there is nothing by state key in storage
+        // then we should fallback and consider state source of truth
+        if (!hasUpdated) {
+          updateStorage({ replace: true });
+        }
+      });
+    } else if (initialTruthSource === InitialTruthSource.Store) {
+      updateStorage({ replace: true });
+    }
   });
 
   return () => {

@@ -137,56 +137,74 @@ export function setStateToUrl<T extends BaseState>(
 /**
  * A tiny wrapper around history library to listen for url changes and update url
  * History library handles a bunch of cross browser edge cases
- *
- * listen(cb) - accepts a callback which will be called whenever url has changed
- * update(url: string, replace: boolean) - get an absolute / relative url to update the location to
  */
 interface IUrlControls {
+  /**
+   * Allows to listen for url changes
+   * @param cb - get's called when url has been changed
+   */
   listen: (cb: () => void) => () => void;
-  update: (updater: (currentUrl: string) => string, replace: boolean) => Promise<string>;
+
+  /**
+   * Updates url synchronously
+   * @param url - url to update to
+   * @param replace - use replace instead of push
+   */
+  update: (url: string, replace: boolean) => string;
+
+  /**
+   * Schedules url update to next microtask,
+   * Useful to ignore sync changes to url
+   * @param updater - fn which receives current url and should return next url to update to
+   * @param replace - use replace instead of push
+   */
+  updateAsync: (updater: UrlUpdaterFnType, replace: boolean) => Promise<string>;
 }
+type UrlUpdaterFnType = (currentUrl: string) => string;
 
-let urlControls: IUrlControls;
-export const getUrlControls = () => {
-  if (urlControls) return urlControls;
-
+export const createUrlControls = (): IUrlControls => {
   const history = createBrowserHistory();
   const updateQueue: Array<(currentUrl: string) => string> = [];
-  return (urlControls = {
+  return {
     listen: (cb: () => void) =>
       history.listen(() => {
         cb();
       }),
-    update: (updater: (currentUrl: string) => string, replace = false) => {
+    update: (newUrl: string, replace = false) => updateUrl(newUrl, replace),
+    updateAsync: (updater: (currentUrl: string) => string, replace = false) => {
       updateQueue.push(updater);
 
+      // Schedule url update to the next microtask
       return Promise.resolve().then(() => {
         if (updater.length === 0) return getCurrentUrl();
-
         const resultUrl = updateQueue.reduce((url, nextUpdate) => nextUpdate(url), getCurrentUrl());
-
         updateQueue.splice(0, updateQueue.length);
-
-        if (resultUrl === getCurrentUrl()) return getCurrentUrl();
-
-        const { pathname, search } = parseUrl(resultUrl);
-        const parsedHash = parseUrlHash(resultUrl);
-        const searchQueryString = stringifyQueryString(parsedHash.query);
-        const location = {
-          pathname,
-          hash: formatUrl({
-            pathname: parsedHash.pathname,
-            search: searchQueryString,
-          }),
-          search,
-        };
-        if (replace) {
-          history.replace(location);
-        } else {
-          history.push(location);
-        }
-        return getCurrentUrl();
+        return updateUrl(resultUrl, replace);
       });
     },
-  });
+  };
+
+  function updateUrl(newUrl: string, replace = false): string {
+    if (newUrl === getCurrentUrl()) return getCurrentUrl();
+
+    const { pathname, search } = parseUrl(newUrl);
+    const parsedHash = parseUrlHash(newUrl);
+    const searchQueryString = stringifyQueryString(parsedHash.query);
+    const location = {
+      pathname,
+      hash: formatUrl({
+        pathname: parsedHash.pathname,
+        search: searchQueryString,
+      }),
+      search,
+    };
+    if (replace) {
+      history.replace(location);
+    } else {
+      history.push(location);
+    }
+    return getCurrentUrl();
+
+    return newUrl;
+  }
 };
