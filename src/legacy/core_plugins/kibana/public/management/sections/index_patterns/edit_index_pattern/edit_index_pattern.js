@@ -42,7 +42,7 @@ import { getEditBreadcrumbs } from '../breadcrumbs';
 import {
   createStore,
   syncState,
-  InitialTruthSource, SyncStrategy,
+  SyncStrategy,
 } from '../../../../../../../../plugins/kibana_utils/public';
 
 const REACT_SOURCE_FILTERS_DOM_ELEMENT_ID = 'reactSourceFiltersTable';
@@ -220,23 +220,59 @@ uiModules.get('apps/management')
     };
 
     $scope.$$postDigest(() => {
-      // just an artificial example of advanced syncState util setup
-      // 1. different strategies are used for different slices
-      // 2. to/from storage mappers are used to shorten state keys
+      // 1. the simplest use case
+      // $scope.destroyStateSync = syncState({
+      //   syncKey: '_s',
+      //   store,
+      // });
+
+      // 2. conditionally picking sync strategy
+      // $scope.destroyStateSync = syncState({
+      //   syncKey: '_s',
+      //   store,
+      //   syncStrategy: config.get('state:storeInSessionStorage') ? SyncStrategy.HashedUrl : SyncStrategy.Url
+      // });
+
+      // 3. implementing custom sync strategy
+      // const localStorageSyncStrategyFactory = (syncKey) => ({
+      //   toStorage: (state, syncKey) => localStorage.setItem(syncKey, JSON.stringify(state)),
+      //   fromStorage: (syncKey) => localStorage.getItem(syncKey) ? JSON.parse(localStorage.getItem(syncKey)) : null
+      // });
+      // $scope.destroyStateSync = syncState({
+      //   syncKey: '_s',
+      //   store,
+      //   syncStrategy: localStorageSyncStrategyFactory
+      // });
+
+      // 4. syncing only part of state
+      // $scope.destroyStateSync = syncState({
+      //   syncKey: '_s',
+      //   store,
+      //   toStorageMapper: s => ({ tab: s.tab })
+      // });
+
+      // 5. transform state before serialising
+      // this could be super useful for backward compatibility
+      // $scope.destroyStateSync = syncState({
+      //   syncKey: '_s',
+      //   store,
+      //   toStorageMapper: s => ({ t: s.tab }),
+      //   fromStorageMapper: s => ({ tab: s.t })
+      // });
+
+      // 6. multiple different sync configs
       $scope.destroyStateSync = syncState([
         {
           syncKey: '_a',
           store,
-          initialTruthSource: InitialTruthSource.Storage,
           syncStrategy: SyncStrategy.Url,
-          toStorageMapper: state => ({ t: state.tab }),
-          fromStorageMapper: storageState => ({ tab: storageState.t || 'indexedFields' }),
+          toStorageMapper: s => ({ t: s.tab }),
+          fromStorageMapper: s => ({ tab: s.t })
         },
         {
           syncKey: '_b',
           store,
-          initialTruthSource: InitialTruthSource.Storage,
-          syncStrategy: config.get('state:storeInSessionStorage') ? SyncStrategy.HashedUrl : SyncStrategy.Url,
+          syncStrategy: SyncStrategy.HashedUrl,
           toStorageMapper: state => ({ f: state.fieldFilter, i: state.indexedFieldTypeFilter, l: state.scriptedFieldLanguageFilter }),
           fromStorageMapper: storageState => (
             {

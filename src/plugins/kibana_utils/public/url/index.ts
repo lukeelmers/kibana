@@ -33,11 +33,11 @@ import {
   HashedItemStoreSingleton,
 } from '../../../../legacy/ui/public/state_management/state_storage';
 
-const parseUrl = (url: string) => _parseUrl(url, true);
-const parseUrlHash = (url: string) => parseUrl(parseUrl(url).hash!.slice(1));
-const getCurrentUrl = () => window.location.href;
-const parseCurrentUrl = () => parseUrl(getCurrentUrl());
-const parseCurrentUrlHash = () => parseUrlHash(getCurrentUrl());
+export const parseUrl = (url: string) => _parseUrl(url, true);
+export const parseUrlHash = (url: string) => parseUrl(parseUrl(url).hash!.slice(1));
+export const getCurrentUrl = () => window.location.href;
+export const parseCurrentUrl = () => parseUrl(getCurrentUrl());
+export const parseCurrentUrlHash = () => parseUrlHash(getCurrentUrl());
 
 // encodeUriQuery implements the less-aggressive encoding done naturally by
 // the browser. We use it to generate the same urls the browser would
@@ -138,7 +138,7 @@ export function setStateToUrl<T extends BaseState>(
  * A tiny wrapper around history library to listen for url changes and update url
  * History library handles a bunch of cross browser edge cases
  */
-interface IUrlControls {
+export interface IUrlControls {
   /**
    * Allows to listen for url changes
    * @param cb - get's called when url has been changed
@@ -160,11 +160,16 @@ interface IUrlControls {
    */
   updateAsync: (updater: UrlUpdaterFnType, replace: boolean) => Promise<string>;
 }
-type UrlUpdaterFnType = (currentUrl: string) => string;
+export type UrlUpdaterFnType = (currentUrl: string) => string;
 
 export const createUrlControls = (): IUrlControls => {
   const history = createBrowserHistory();
   const updateQueue: Array<(currentUrl: string) => string> = [];
+
+  // if we should replace or push with next async update,
+  // if any call in a queue asked to push, then we should push
+  let shouldReplace = true;
+
   return {
     listen: (cb: () => void) =>
       history.listen(() => {
@@ -173,13 +178,20 @@ export const createUrlControls = (): IUrlControls => {
     update: (newUrl: string, replace = false) => updateUrl(newUrl, replace),
     updateAsync: (updater: (currentUrl: string) => string, replace = false) => {
       updateQueue.push(updater);
+      if (shouldReplace) {
+        shouldReplace = replace;
+      }
 
       // Schedule url update to the next microtask
       return Promise.resolve().then(() => {
         if (updater.length === 0) return getCurrentUrl();
         const resultUrl = updateQueue.reduce((url, nextUpdate) => nextUpdate(url), getCurrentUrl());
+        const newUrl = updateUrl(resultUrl, shouldReplace);
+        // queue clean up
         updateQueue.splice(0, updateQueue.length);
-        return updateUrl(resultUrl, replace);
+        shouldReplace = true;
+
+        return newUrl;
       });
     },
   };
