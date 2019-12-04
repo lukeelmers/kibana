@@ -42,7 +42,6 @@ import { getEditBreadcrumbs } from '../breadcrumbs';
 import {
   createStore,
   syncState,
-  SyncStrategy,
 } from '../../../../../../../../plugins/kibana_utils/public';
 
 const REACT_SOURCE_FILTERS_DOM_ELEMENT_ID = 'reactSourceFiltersTable';
@@ -221,10 +220,10 @@ uiModules.get('apps/management')
 
     $scope.$$postDigest(() => {
       // 1. the simplest use case
-      // $scope.destroyStateSync = syncState({
-      //   syncKey: '_s',
-      //   store,
-      // });
+      $scope.destroyStateSync = syncState({
+        syncKey: '_s',
+        store,
+      });
 
       // 2. conditionally picking sync strategy
       // $scope.destroyStateSync = syncState({
@@ -234,14 +233,14 @@ uiModules.get('apps/management')
       // });
 
       // 3. implementing custom sync strategy
-      // const localStorageSyncStrategyFactory = (syncKey) => ({
-      //   toStorage: (state, syncKey) => localStorage.setItem(syncKey, JSON.stringify(state)),
+      // const localStorageSyncStrategy = {
+      //   toStorage: (syncKey, state) => localStorage.setItem(syncKey, JSON.stringify(state)),
       //   fromStorage: (syncKey) => localStorage.getItem(syncKey) ? JSON.parse(localStorage.getItem(syncKey)) : null
-      // });
+      // };
       // $scope.destroyStateSync = syncState({
       //   syncKey: '_s',
       //   store,
-      //   syncStrategy: localStorageSyncStrategyFactory
+      //   syncStrategy: localStorageSyncStrategy
       // });
 
       // 4. syncing only part of state
@@ -261,28 +260,28 @@ uiModules.get('apps/management')
       // });
 
       // 6. multiple different sync configs
-      $scope.destroyStateSync = syncState([
-        {
-          syncKey: '_a',
-          store,
-          syncStrategy: SyncStrategy.Url,
-          toStorageMapper: s => ({ t: s.tab }),
-          fromStorageMapper: s => ({ tab: s.t })
-        },
-        {
-          syncKey: '_b',
-          store,
-          syncStrategy: SyncStrategy.HashedUrl,
-          toStorageMapper: state => ({ f: state.fieldFilter, i: state.indexedFieldTypeFilter, l: state.scriptedFieldLanguageFilter }),
-          fromStorageMapper: storageState => (
-            {
-              fieldFilter: storageState.f || '',
-              indexedFieldTypeFilter: storageState.i || '',
-              scriptedFieldLanguageFilter: storageState.l || ''
-            }
-          ),
-        },
-      ]);
+      // $scope.destroyStateSync = syncState([
+      //   {
+      //     syncKey: '_a',
+      //     store,
+      //     syncStrategy: SyncStrategy.Url,
+      //     toStorageMapper: s => ({ t: s.tab }),
+      //     fromStorageMapper: s => ({ tab: s.t })
+      //   },
+      //   {
+      //     syncKey: '_b',
+      //     store,
+      //     syncStrategy: SyncStrategy.HashedUrl,
+      //     toStorageMapper: state => ({ f: state.fieldFilter, i: state.indexedFieldTypeFilter, l: state.scriptedFieldLanguageFilter }),
+      //     fromStorageMapper: storageState => (
+      //       {
+      //         fieldFilter: storageState.f || '',
+      //         indexedFieldTypeFilter: storageState.i || '',
+      //         scriptedFieldLanguageFilter: storageState.l || ''
+      //       }
+      //     ),
+      //   },
+      // ]);
     });
 
     const indexPatternListProvider = Private(IndexPatternListFactory)();

@@ -228,6 +228,7 @@ export function isSyncStrategy(
   return typeof syncStrategy === 'object';
 }
 
+// strategies provided out of the box
 const createStrategies: () => {
   [key in SyncStrategy]: ISyncStrategy;
 } = () => {
@@ -240,7 +241,7 @@ const createStrategies: () => {
 };
 
 /**
- * Utility for syncing application state wrapped in IState container shape
+ * Utility for syncing application state wrapped in IStore container
  * with some kind of storage (e.g. URL)
  *
  * Minimal usage example:
