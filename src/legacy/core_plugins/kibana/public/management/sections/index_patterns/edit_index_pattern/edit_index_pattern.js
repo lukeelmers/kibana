@@ -20,6 +20,7 @@
 import _ from 'lodash';
 import './index_header';
 import './create_edit_field';
+import { map } from 'rxjs/operators';
 import { docTitle } from 'ui/doc_title';
 import { KbnUrlProvider } from 'ui/url';
 import { IndicesEditSectionsProvider } from './edit_sections';
@@ -42,6 +43,7 @@ import { getEditBreadcrumbs } from '../breadcrumbs';
 import {
   createStore,
   syncState,
+  SyncStrategy
 } from '../../../../../../../../plugins/kibana_utils/public';
 
 const REACT_SOURCE_FILTERS_DOM_ELEMENT_ID = 'reactSourceFiltersTable';
@@ -220,18 +222,18 @@ uiModules.get('apps/management')
 
     $scope.$$postDigest(() => {
       // 1. the simplest use case
-      $scope.destroyStateSync = syncState({
-        syncKey: '_s',
-        store,
-      });
-
+      // $scope.destroyStateSync = syncState({
+      //   syncKey: '_s',
+      //   store,
+      // });
+      //
       // 2. conditionally picking sync strategy
       // $scope.destroyStateSync = syncState({
       //   syncKey: '_s',
       //   store,
       //   syncStrategy: config.get('state:storeInSessionStorage') ? SyncStrategy.HashedUrl : SyncStrategy.Url
       // });
-
+      //
       // 3. implementing custom sync strategy
       // const localStorageSyncStrategy = {
       //   toStorage: (syncKey, state) => localStorage.setItem(syncKey, JSON.stringify(state)),
@@ -242,46 +244,58 @@ uiModules.get('apps/management')
       //   store,
       //   syncStrategy: localStorageSyncStrategy
       // });
-
+      //
       // 4. syncing only part of state
+      // const stateToStorage = (s) => ({ tab: s.tab });
       // $scope.destroyStateSync = syncState({
       //   syncKey: '_s',
-      //   store,
-      //   toStorageMapper: s => ({ tab: s.tab })
+      //   store: {
+      //     get: () => stateToStorage(store.get()),
+      //     set: store.set(({ tab }) => ({ ...store.get(), tab }),
+      //     state$: store.state$.pipe(map(stateToStorage))
+      //   }
       // });
-
+      //
       // 5. transform state before serialising
       // this could be super useful for backward compatibility
+      // const stateToStorage = (s) => ({ t: s.tab });
       // $scope.destroyStateSync = syncState({
       //   syncKey: '_s',
-      //   store,
-      //   toStorageMapper: s => ({ t: s.tab }),
-      //   fromStorageMapper: s => ({ tab: s.t })
+      //   store: {
+      //     get: () => stateToStorage(store.get()),
+      //     set: ({ t }) => store.set({ ...store.get(), tab: t }),
+      //     state$: store.state$.pipe(map(stateToStorage))
+      //   }
       // });
-
+      //
       // 6. multiple different sync configs
-      // $scope.destroyStateSync = syncState([
-      //   {
-      //     syncKey: '_a',
-      //     store,
-      //     syncStrategy: SyncStrategy.Url,
-      //     toStorageMapper: s => ({ t: s.tab }),
-      //     fromStorageMapper: s => ({ tab: s.t })
-      //   },
-      //   {
-      //     syncKey: '_b',
-      //     store,
-      //     syncStrategy: SyncStrategy.HashedUrl,
-      //     toStorageMapper: state => ({ f: state.fieldFilter, i: state.indexedFieldTypeFilter, l: state.scriptedFieldLanguageFilter }),
-      //     fromStorageMapper: storageState => (
-      //       {
-      //         fieldFilter: storageState.f || '',
-      //         indexedFieldTypeFilter: storageState.i || '',
-      //         scriptedFieldLanguageFilter: storageState.l || ''
-      //       }
-      //     ),
-      //   },
-      // ]);
+      const stateAToStorage = s => ({ t: s.tab });
+      const stateBToStorage = s => ({ f: s.fieldFilter, i: s.indexedFieldTypeFilter, l: s.scriptedFieldLanguageFilter });
+      $scope.destroyStateSync = syncState([
+        {
+          syncKey: '_a',
+          syncStrategy: SyncStrategy.Url,
+          store: {
+            get: () => stateAToStorage(store.get()),
+            set: s => store.set(({ ...store.get(), tab: s.t })),
+            state$: store.state$.pipe(map(stateAToStorage))
+          },
+        },
+        {
+          syncKey: '_b',
+          syncStrategy: SyncStrategy.HashedUrl,
+          store: {
+            get: () => stateBToStorage(store.get()),
+            set: s => store.set({
+              ...store.get(),
+              fieldFilter: s.f || '',
+              indexedFieldTypeFilter: s.i || '',
+              scriptedFieldLanguageFilter: s.l || ''
+            }),
+            state$: store.state$.pipe(map(stateBToStorage))
+          },
+        },
+      ]);
     });
 
     const indexPatternListProvider = Private(IndexPatternListFactory)();
