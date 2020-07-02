@@ -22,8 +22,9 @@ import { AggConfig } from './agg_config';
 import { AggConfigs } from './agg_configs';
 import { AggTypesRegistryStart } from './agg_types_registry';
 import { mockAggTypesRegistry } from './test_helpers';
-import { Field as IndexPatternField, IndexPattern } from '../../index_patterns';
-import { stubIndexPattern, stubIndexPatternWithFields } from '../../../public/stubs';
+import type { Field as IndexPatternField } from '../../index_patterns/fields';
+import { IndexPattern } from '../../index_patterns/index_patterns/index_pattern';
+import { stubIndexPattern, stubIndexPatternWithFields } from '../../../common/stubs';
 
 describe('AggConfigs', () => {
   let indexPattern: IndexPattern;
