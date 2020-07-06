@@ -33,7 +33,6 @@ import {
   DataPublicPluginStart,
   DataSetupDependencies,
   DataStartDependencies,
-  InternalStartServices,
 } from './types';
 import { AutocompleteService } from './autocomplete';
 import { SearchService } from './search/search_service';
@@ -119,17 +118,6 @@ export class DataPublicPlugin
   ): DataPublicPluginSetup {
     const startServices = createStartServicesGetter(core.getStartServices);
 
-    const getInternalStartServices = (): InternalStartServices => {
-      const { core: coreStart, self } = startServices();
-      return {
-        fieldFormats: self.fieldFormats,
-        notifications: coreStart.notifications,
-        uiSettings: coreStart.uiSettings,
-        searchService: self.search,
-        injectedMetadata: coreStart.injectedMetadata,
-      };
-    };
-
     expressions.registerFunction(esaggs);
     expressions.registerFunction(indexPatternLoad);
 
@@ -161,8 +149,12 @@ export class DataPublicPlugin
       search: this.searchService.setup(core, {
         expressions,
         usageCollection,
-        getInternalStartServices,
+        getFieldFormatsStart: () => ({
+          deserialize: startServices().self.fieldFormats.deserialize,
+          getDefaultInstance: startServices().self.fieldFormats.getDefaultInstance,
+        }),
         packageInfo: this.packageInfo,
+        registerFunction: expressions.registerFunction,
       }),
       fieldFormats: this.fieldFormatsService.setup(core),
       query: queryService,

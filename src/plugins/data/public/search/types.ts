@@ -67,7 +67,7 @@ export interface ISearchSetup {
 }
 
 export interface ISearchStart {
-  aggs: SearchAggsStart;
+  aggs: AggsStart;
   setInterceptor: (searchInterceptor: SearchInterceptor) => void;
   search: ISearchGeneric;
   searchSource: {
