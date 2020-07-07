@@ -49,6 +49,13 @@ describe('AggTypesRegistry', () => {
       setup.registerBucket(bucketType);
       setup.registerBucket(bucketType);
     }).toThrow(/already been registered with name: terms/);
+
+    const fooBucket = { name: 'foo', type: 'bucket' } as BucketAggType<any>;
+    const fooMetric = { name: 'foo', type: 'metric' } as MetricAggType<any>;
+    expect(() => {
+      setup.registerBucket(fooBucket);
+      setup.registerMetric(fooMetric);
+    }).toThrow(/already been registered with name: foo/);
   });
 
   it('registerMetric adds new metrics', () => {
@@ -61,6 +68,13 @@ describe('AggTypesRegistry', () => {
       setup.registerMetric(metricType);
       setup.registerMetric(metricType);
     }).toThrow(/already been registered with name: count/);
+
+    const fooBucket = { name: 'foo', type: 'bucket' } as BucketAggType<any>;
+    const fooMetric = { name: 'foo', type: 'metric' } as MetricAggType<any>;
+    expect(() => {
+      setup.registerMetric(fooMetric);
+      setup.registerBucket(fooBucket);
+    }).toThrow(/already been registered with name: foo/);
   });
 
   it('gets either buckets or metrics by id', () => {

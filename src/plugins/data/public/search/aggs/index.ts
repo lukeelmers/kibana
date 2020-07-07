@@ -17,4 +17,5 @@
  * under the License.
  */
 
-export * from './create_kibana_utils_core';
+export * from './aggs_service';
+export * from './types';

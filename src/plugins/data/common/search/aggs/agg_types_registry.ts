@@ -31,15 +31,15 @@ export class AggTypesRegistry {
     return {
       registerBucket: <T extends BucketAggType<any>>(type: T): void => {
         const { name } = type;
-        if (this.bucketAggs.get(name)) {
-          throw new Error(`Bucket agg has already been registered with name: ${name}`);
+        if (this.bucketAggs.get(name) || this.metricAggs.get(name)) {
+          throw new Error(`Agg has already been registered with name: ${name}`);
         }
         this.bucketAggs.set(name, type);
       },
       registerMetric: <T extends MetricAggType<any>>(type: T): void => {
         const { name } = type;
-        if (this.metricAggs.get(name)) {
-          throw new Error(`Metric agg has already been registered with name: ${name}`);
+        if (this.bucketAggs.get(name) || this.metricAggs.get(name)) {
+          throw new Error(`Agg has already been registered with name: ${name}`);
         }
         this.metricAggs.set(name, type);
       },

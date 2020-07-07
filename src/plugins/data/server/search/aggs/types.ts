@@ -17,4 +17,11 @@
  * under the License.
  */
 
-export * from './create_kibana_utils_core';
+import { SavedObjectsClientContract } from 'src/core/server';
+import { AggsCommonSetup, AggsCommonStart } from '../../../common';
+
+export type AggsSetup = AggsCommonSetup;
+
+export interface AggsStart {
+  asScopedToClient: (savedObjectsClient: SavedObjectsClientContract) => Promise<AggsCommonStart>;
+}

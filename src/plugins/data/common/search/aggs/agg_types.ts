@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { AggsServiceSetupDependencies } from './aggs_service';
+import { FieldFormatsStartCommon } from '../../field_formats';
 
 import { getCountMetricAgg } from './metrics/count';
 import { getAvgMetricAgg } from './metrics/avg';
@@ -37,7 +37,7 @@ import { getCumulativeSumMetricAgg } from './metrics/cumulative_sum';
 import { getMovingAvgMetricAgg } from './metrics/moving_avg';
 import { getSerialDiffMetricAgg } from './metrics/serial_diff';
 
-import { getDateHistogramBucketAgg } from './buckets/date_histogram';
+import { getDateHistogramBucketAgg, CalculateBoundsFn } from './buckets/date_histogram';
 import { getHistogramBucketAgg } from './buckets/histogram';
 import { getRangeBucketAgg } from './buckets/range';
 import { getDateRangeBucketAgg } from './buckets/date_range';
@@ -54,10 +54,12 @@ import { getBucketMinMetricAgg } from './metrics/bucket_min';
 import { getBucketMaxMetricAgg } from './metrics/bucket_max';
 
 /** @internal */
-export type AggTypesDependencies = Pick<
-  AggsServiceSetupDependencies,
-  'calculateBounds' | 'getFieldFormatsStart' | 'getConfig' | 'isDefaultTimezone'
->;
+export interface AggTypesDependencies {
+  calculateBounds: CalculateBoundsFn;
+  getConfig: <T = any>(key: string) => T;
+  getFieldFormatsStart: () => Pick<FieldFormatsStartCommon, 'deserialize' | 'getDefaultInstance'>;
+  isDefaultTimezone: () => boolean;
+}
 
 export const getAggTypes = ({
   calculateBounds,

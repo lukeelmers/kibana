@@ -312,8 +312,6 @@ import {
   tabifyGetColumns,
 } from '../common';
 
-export { EsaggsExpressionFunctionDefinition, ParsedInterval } from '../common';
-
 export {
   // aggs
   AggGroupLabels,
@@ -324,6 +322,7 @@ export {
   AggParamType,
   AggConfigOptions,
   BUCKET_TYPES,
+  EsaggsExpressionFunctionDefinition,
   IAggConfig,
   IAggConfigs,
   IAggType,

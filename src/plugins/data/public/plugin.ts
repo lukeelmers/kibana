@@ -147,7 +147,6 @@ export class DataPublicPlugin
     return {
       autocomplete: this.autocomplete.setup(core),
       search: this.searchService.setup(core, {
-        expressions,
         usageCollection,
         getFieldFormatsStart: () => ({
           deserialize: startServices().self.fieldFormats.deserialize,
@@ -233,5 +232,7 @@ export class DataPublicPlugin
 
   public stop() {
     this.autocomplete.clearProviders();
+    this.queryService.stop();
+    this.searchService.stop();
   }
 }

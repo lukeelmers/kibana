@@ -18,7 +18,7 @@
  */
 
 import { coreMock } from '../../../../core/public/mocks';
-import { CoreSetup } from '../../../../core/public';
+import { CoreSetup, CoreStart } from '../../../../core/public';
 
 import { SearchService, SearchServiceSetupDependencies } from './search_service';
 
@@ -40,6 +40,17 @@ describe('Search service', () => {
         registerFunction: jest.fn(),
       } as unknown) as SearchServiceSetupDependencies);
       expect(setup).toHaveProperty('aggs');
+    });
+  });
+
+  describe('start()', () => {
+    it('exposes proper contract', async () => {
+      const start = searchService.start(mockCoreStart, {
+        indexPatterns: {},
+      } as any);
+      expect(start).toHaveProperty('aggs');
+      expect(start).toHaveProperty('setInterceptor');
+      expect(start).toHaveProperty('search');
     });
   });
 });

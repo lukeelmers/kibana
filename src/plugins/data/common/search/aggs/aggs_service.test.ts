@@ -17,27 +17,34 @@
  * under the License.
  */
 
-import { omit } from 'lodash';
-
-import { getAggTypes } from './agg_types';
 import {
-  AggsService,
-  AggsServiceSetupDependencies,
-  AggsServiceStartDependencies,
+  AggsCommonService,
+  AggsCommonSetupDependencies,
+  AggsCommonStartDependencies,
 } from './aggs_service';
+import { getAggTypes } from './agg_types';
+import { BucketAggType } from './buckets/bucket_agg_type';
+import { MetricAggType } from './metrics/metric_agg_type';
 
 describe('Aggs service', () => {
-  let service: AggsService;
-  let setupDeps: AggsServiceSetupDependencies;
-  let startDeps: AggsServiceStartDependencies;
+  let service: AggsCommonService;
+  let setupDeps: AggsCommonSetupDependencies;
+  let startDeps: AggsCommonStartDependencies;
 
   beforeEach(() => {
-    service = new AggsService();
+    service = new AggsCommonService();
     setupDeps = {
-      calculateBounds: jest.fn(),
-      getConfig: jest.fn(),
-      getFieldFormatsStart: jest.fn(),
-      isDefaultTimezone: jest.fn(),
+      aggTypes: {
+        buckets: [
+          { name: 'date_histogram', type: 'bucket' },
+          { name: 'range', type: 'bucket' },
+          { name: 'terms', type: 'bucket' },
+        ] as Array<BucketAggType<any>>,
+        metrics: [
+          { name: 'avg', type: 'metric' },
+          { name: 'count', type: 'metric' },
+        ] as Array<MetricAggType<any>>,
+      },
       registerFunction: jest.fn(),
     };
     startDeps = {
@@ -45,29 +52,96 @@ describe('Aggs service', () => {
     };
   });
 
+  describe('constructor()', () => {
+    test('instantiates a new registry', () => {
+      const a = new AggsCommonService();
+      const b = new AggsCommonService();
+      const bSetupDeps = {
+        aggTypes: {
+          buckets: [{ name: 'ip_range', type: 'bucket' }] as Array<BucketAggType<any>>,
+          metrics: [{ name: 'percentiles', type: 'metric' }] as Array<MetricAggType<any>>,
+        },
+        registerFunction: jest.fn(),
+      };
+
+      a.setup(setupDeps);
+      const aStart = a.start(startDeps);
+      expect(aStart.types.getAll()).toMatchInlineSnapshot(`
+        Object {
+          "buckets": Array [
+            Object {
+              "name": "date_histogram",
+              "type": "bucket",
+            },
+            Object {
+              "name": "range",
+              "type": "bucket",
+            },
+            Object {
+              "name": "terms",
+              "type": "bucket",
+            },
+          ],
+          "metrics": Array [
+            Object {
+              "name": "avg",
+              "type": "metric",
+            },
+            Object {
+              "name": "count",
+              "type": "metric",
+            },
+          ],
+        }
+      `);
+
+      b.setup(bSetupDeps);
+      const bStart = b.start(startDeps);
+      expect(bStart.types.getAll()).toMatchInlineSnapshot(`
+        Object {
+          "buckets": Array [
+            Object {
+              "name": "ip_range",
+              "type": "bucket",
+            },
+          ],
+          "metrics": Array [
+            Object {
+              "name": "percentiles",
+              "type": "metric",
+            },
+          ],
+        }
+      `);
+    });
+  });
+
   describe('setup()', () => {
     test('exposes proper contract', () => {
       const setup = service.setup(setupDeps);
-      expect(Object.keys(setup).length).toBe(2);
-      expect(setup).toHaveProperty('calculateAutoTimeExpression');
+      expect(Object.keys(setup).length).toBe(1);
       expect(setup).toHaveProperty('types');
     });
 
     test('registers all agg types', () => {
       service.setup(setupDeps);
-      const start = service.start(setupDeps);
-      const aggTypes = getAggTypes(omit(setupDeps, 'registerFunction'));
+      const start = service.start(startDeps);
       expect(start.types.getAll().buckets.map((b) => b.name)).toEqual(
-        aggTypes.buckets.map((b) => b.name)
+        setupDeps.aggTypes.buckets.map((b) => b.name)
       );
       expect(start.types.getAll().metrics.map((m) => m.name)).toEqual(
-        aggTypes.metrics.map((m) => m.name)
+        setupDeps.aggTypes.metrics.map((m) => m.name)
       );
     });
 
     test('registers all agg type expression functions', () => {
       service.setup(setupDeps);
-      const aggTypes = getAggTypes(omit(setupDeps, 'registerFunction'));
+      const aggTypes = getAggTypes({
+        calculateBounds: jest.fn(),
+        getConfig: jest.fn(),
+        getFieldFormatsStart: jest.fn(),
+        isDefaultTimezone: jest.fn(),
+      });
       expect(setupDeps.registerFunction).toHaveBeenCalledTimes(
         aggTypes.buckets.length + aggTypes.metrics.length
       );

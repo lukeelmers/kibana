@@ -21,6 +21,7 @@ import {
   AggConfigs,
   AggTypesRegistrySetup,
   AggTypesRegistryStart,
+  AggsCommonStart,
   getCalculateAutoTimeExpression,
 } from '../../../common';
 import { AggsSetup, AggsStart } from './types';
@@ -67,7 +68,7 @@ export const searchAggsSetupMock = (): AggsSetup => ({
   types: aggTypesRegistrySetupMock(),
 });
 
-export const searchAggsStartMock = (): AggsStart => ({
+const commonStartMock = (): AggsCommonStart => ({
   calculateAutoTimeExpression: getCalculateAutoTimeExpression(getConfig),
   createAggConfigs: jest.fn().mockImplementation((indexPattern, configStates = [], schemas) => {
     return new AggConfigs(indexPattern, configStates, {
@@ -75,4 +76,8 @@ export const searchAggsStartMock = (): AggsStart => ({
     });
   }),
   types: mockAggTypesRegistry(),
+});
+
+export const searchAggsStartMock = (): AggsStart => ({
+  asScopedToClient: jest.fn().mockResolvedValue(commonStartMock()),
 });

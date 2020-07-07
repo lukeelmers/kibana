@@ -19,16 +19,14 @@
 
 import { ExpressionsServiceSetup } from 'src/plugins/expressions/common';
 import { UI_SETTINGS } from '../../../common';
-import { FieldFormatsStartCommon } from '../../field_formats';
 import {
-  getAggTypes,
-  getAggTypesFunctions,
-  AggTypesRegistry,
   AggConfigs,
+  AggTypesRegistry,
+  AggTypesRegistryStart,
+  getAggTypesFunctions,
   getCalculateAutoTimeExpression,
 } from './';
-import { AggsSetup, AggsStart } from './types';
-import { CalculateBoundsFn } from './buckets/date_histogram';
+import { AggsCommonSetup, AggsCommonStart } from './types';
 
 /** @internal */
 export const aggsRequiredUiSettings = [
@@ -44,16 +42,13 @@ export const aggsRequiredUiSettings = [
 ];
 
 /** @internal */
-export interface AggsServiceSetupDependencies {
-  calculateBounds: CalculateBoundsFn;
-  getConfig: <T = any>(key: string) => T;
-  getFieldFormatsStart: () => Pick<FieldFormatsStartCommon, 'deserialize' | 'getDefaultInstance'>;
-  isDefaultTimezone: () => boolean;
+export interface AggsCommonSetupDependencies {
+  aggTypes: ReturnType<AggTypesRegistryStart['getAll']>;
   registerFunction: ExpressionsServiceSetup['registerFunction'];
 }
 
 /** @internal */
-export interface AggsServiceStartDependencies {
+export interface AggsCommonStartDependencies {
   getConfig: <T = any>(key: string) => T;
 }
 
@@ -62,25 +57,13 @@ export interface AggsServiceStartDependencies {
  * Elasticsearch aggregations supported by Kibana, providing the ability to
  * output the correct DSL when you are ready to send your request to ES.
  */
-export class AggsService {
+export class AggsCommonService {
   private readonly aggTypesRegistry = new AggTypesRegistry();
 
-  public setup({
-    calculateBounds,
-    getConfig,
-    getFieldFormatsStart,
-    isDefaultTimezone,
-    registerFunction,
-  }: AggsServiceSetupDependencies): AggsSetup {
+  public setup({ aggTypes, registerFunction }: AggsCommonSetupDependencies): AggsCommonSetup {
     const aggTypesSetup = this.aggTypesRegistry.setup();
 
     // register each agg type
-    const aggTypes = getAggTypes({
-      calculateBounds,
-      getFieldFormatsStart,
-      getConfig,
-      isDefaultTimezone,
-    });
     aggTypes.buckets.forEach((b) => aggTypesSetup.registerBucket(b));
     aggTypes.metrics.forEach((m) => aggTypesSetup.registerMetric(m));
 
@@ -89,12 +72,11 @@ export class AggsService {
     aggFunctions.forEach((fn) => registerFunction(fn));
 
     return {
-      calculateAutoTimeExpression: getCalculateAutoTimeExpression(getConfig),
       types: aggTypesSetup,
     };
   }
 
-  public start({ getConfig }: AggsServiceStartDependencies): AggsStart {
+  public start({ getConfig }: AggsCommonStartDependencies): AggsCommonStart {
     const aggTypesStart = this.aggTypesRegistry.start();
 
     return {
@@ -107,6 +89,4 @@ export class AggsService {
       types: aggTypesStart,
     };
   }
-
-  public stop() {}
 }

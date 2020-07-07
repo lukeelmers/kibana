@@ -20,21 +20,17 @@
 import { i18n } from '@kbn/i18n';
 // @ts-ignore
 import { ObjDefine } from './obj_define';
-import { IIndexPattern } from '../../types';
-import {
-  IFieldType,
-  getKbnFieldType,
-  IFieldSubType,
-  FieldFormat,
-  shortenDottedString,
-} from '../../../common';
+import { IIndexPattern, IFieldSubType } from '../../types';
 import {
   OnNotification,
   FieldSpec,
   FieldSpecConflictDescriptions,
   FieldSpecExportFmt,
 } from '../types';
-import { FieldFormatsStartCommon } from '../../field_formats';
+import { IFieldType } from './types';
+import { getKbnFieldType } from '../../kbn_field_types';
+import { FieldFormat, FieldFormatsStartCommon } from '../../field_formats';
+import { shortenDottedString } from '../../utils';
 
 interface FieldDependencies {
   fieldFormats: FieldFormatsStartCommon;

@@ -17,4 +17,7 @@
  * under the License.
  */
 
-export * from './create_kibana_utils_core';
+import { AggsCommonSetup, AggsCommonStart } from '../../../common';
+
+export type AggsSetup = AggsCommonSetup;
+export type AggsStart = AggsCommonStart;
