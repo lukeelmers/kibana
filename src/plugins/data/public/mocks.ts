@@ -78,7 +78,7 @@ const createStartContract = (): Start => {
 };
 
 export { createSearchSourceMock } from './search/mocks';
-export { getCalculateAutoTimeExpression } from './search/aggs';
+export { getCalculateAutoTimeExpression } from '../common/search/aggs';
 
 export const dataPluginMock = {
   createSetupContract,

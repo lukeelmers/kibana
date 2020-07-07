@@ -295,15 +295,6 @@ import {
   propFilter,
   siblingPipelineType,
   termsAggFilter,
-  // expressions utils
-  getRequestInspectorStats,
-  getResponseInspectorStats,
-  // tabify
-  tabifyAggResponse,
-  tabifyGetColumns,
-} from './search';
-
-import {
   dateHistogramInterval,
   InvalidEsCalendarIntervalError,
   InvalidEsIntervalFormatError,
@@ -313,6 +304,12 @@ import {
   parseEsInterval,
   parseInterval,
   toAbsoluteDates,
+  // expressions utils
+  getRequestInspectorStats,
+  getResponseInspectorStats,
+  // tabify
+  tabifyAggResponse,
+  tabifyGetColumns,
 } from '../common';
 
 export { EsaggsExpressionFunctionDefinition, ParsedInterval } from '../common';
@@ -335,36 +332,40 @@ export {
   METRIC_TYPES,
   OptionedParamType,
   OptionedValueProp,
-  // search
-  ES_SEARCH_STRATEGY,
-  getEsPreference,
-  getSearchErrorType,
-  ISearch,
-  ISearchOptions,
-  ISearchGeneric,
-  IEsSearchResponse,
-  IEsSearchRequest,
-  IKibanaSearchResponse,
-  IKibanaSearchRequest,
-  SearchRequest,
-  SearchResponse,
-  SearchError,
-  ISearchSource,
-  parseSearchSourceJSON,
-  injectSearchSourceReferences,
-  getSearchParamsFromRequest,
-  extractSearchSourceReferences,
-  SearchSourceFields,
-  EsQuerySortValue,
-  SortDirection,
-  FetchOptions,
+  ParsedInterval,
   // tabify
   TabbedAggColumn,
   TabbedAggRow,
   TabbedTable,
+} from '../common';
+
+export {
+  // search
+  ES_SEARCH_STRATEGY,
+  EsQuerySortValue,
+  extractSearchSourceReferences,
+  FetchOptions,
+  getEsPreference,
+  getSearchErrorType,
+  getSearchParamsFromRequest,
+  IEsSearchRequest,
+  IEsSearchResponse,
+  IKibanaSearchRequest,
+  IKibanaSearchResponse,
+  injectSearchSourceReferences,
+  ISearch,
+  ISearchGeneric,
+  ISearchOptions,
+  ISearchSource,
+  parseSearchSourceJSON,
+  RequestTimeoutError,
+  SearchError,
   SearchInterceptor,
   SearchInterceptorDeps,
-  RequestTimeoutError,
+  SearchRequest,
+  SearchResponse,
+  SearchSourceFields,
+  SortDirection,
 } from './search';
 
 // Search namespace
