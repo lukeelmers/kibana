@@ -17,11 +17,4 @@
  * under the License.
  */
 
-export {
-  createGetterSetter,
-  createStartServicesGetter,
-  Get,
-  Set,
-  StartServicesGetter,
-  url,
-} from '../common';
+export { Get, Set, createGetterSetter, url } from '../common';
