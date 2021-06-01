@@ -104,7 +104,7 @@ function createRoot({ logFileName }: CreateRootConfig) {
   });
 }
 
-describe('migration v2', () => {
+describe.only('migration v2', () => {
   let esServer: kbnTestServer.TestElasticsearchUtils;
   let rootA: Root;
   let rootB: Root;
