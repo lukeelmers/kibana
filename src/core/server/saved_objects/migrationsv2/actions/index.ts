@@ -742,7 +742,10 @@ export const waitForReindexTask = flow(
     > => {
       const failureIsAWriteBlock = ({ cause: { type, reason } }: WaitForReindexTaskFailure) =>
         type === 'cluster_block_exception' &&
-        reason.match(/index \[.+] blocked by: \[FORBIDDEN\/8\/index write \(api\)\]/);
+        (reason.match(/index \[.+] blocked by: \[FORBIDDEN\/8\/index write \(api\)\]/) ||
+          reason.match(
+            /index \[.+] blocked by: \[FORBIDDEN\/8\/moving to block index write \(api\)\]/
+          ));
 
       const failureIsIncompatibleMappingException = ({
         cause: { type, reason },
