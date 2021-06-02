@@ -110,7 +110,7 @@ describe.only('migration v2', () => {
   let rootB: Root;
   let rootC: Root;
 
-  const migratedIndex = `.kibana_${pkg.version}_001`;
+  const migratedIndex = `.kibana_2`;
   const fooType: SavedObjectsType = {
     name: 'foo',
     hidden: false,
