@@ -99,7 +99,7 @@ function createRoot({ logFileName, hosts }: RootConfig) {
   });
 }
 
-describe('migration v2', () => {
+describe.only('migration v2', () => {
   let esServer: kbnTestServer.TestElasticsearchUtils;
   let root: Root;
   const migratedIndex = `.kibana_${pkg.version}_001`;
