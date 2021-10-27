@@ -311,7 +311,9 @@ export class SavedObjectsService
       getSavedObjectsDeprecationsProvider({
         kibanaConfig,
         savedObjectsConfig: this.config,
-        kibanaVersion: this.coreContext.env.packageInfo.version,
+        kibanaVersion: SavedObjectsService.stripVersionQualifier(
+          this.coreContext.env.packageInfo.version
+        ),
         typeRegistry: this.typeRegistry,
       })
     );
@@ -512,5 +514,13 @@ export class SavedObjectsService
       client,
       migrationsRetryDelay,
     });
+  }
+
+  /**
+   * Coerce a semver-like string (x.y.z-SNAPSHOT) or prerelease version (x.y.z-alpha)
+   * to regular semver (x.y.z).
+   */
+  private static stripVersionQualifier(version: string) {
+    return version.split('-')[0];
   }
 }
