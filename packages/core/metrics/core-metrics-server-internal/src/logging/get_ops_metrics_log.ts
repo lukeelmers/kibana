@@ -55,6 +55,11 @@ export function getEcsOpsMetricsLog(metrics: OpsMetrics) {
       ).format('0.000')} }`
     : '';
 
+  const eventLoopUtilizationVal = process?.event_loop_utilization;
+  const eventLoopUtilizationValMsg = eventLoopUtilizationVal
+    ? ` utilization: ${JSON.stringify(process?.event_loop_utilization)}`
+    : '';
+
   const loadEntries = {
     '1m': os?.load ? os?.load['1m'] : undefined,
     '5m': os?.load ? os?.load['5m'] : undefined,
@@ -85,6 +90,7 @@ export function getEcsOpsMetricsLog(metrics: OpsMetrics) {
       },
       eventLoopDelay: eventLoopDelayVal,
       eventLoopDelayHistogram: eventLoopDelayHistVals,
+      eventLoopUtilization: eventLoopUtilizationVal,
     },
     host: {
       os: {
@@ -101,6 +107,7 @@ export function getEcsOpsMetricsLog(metrics: OpsMetrics) {
       loadValsMsg,
       eventLoopDelayValMsg,
       eventLoopDelayHistMsg,
+      eventLoopUtilizationValMsg,
     ].join(''),
     meta,
   };
