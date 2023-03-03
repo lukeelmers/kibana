@@ -38,14 +38,6 @@ export function getEcsOpsMetricsLog(metrics: OpsMetrics) {
 
   const eventLoopDelayPercentiles = process?.event_loop_delay_histogram?.percentiles;
 
-  // Extract 50th, 95th and 99th percentiles for log meta
-  const eventLoopDelayHistVals = eventLoopDelayPercentiles
-    ? {
-        50: eventLoopDelayPercentiles[50],
-        95: eventLoopDelayPercentiles[95],
-        99: eventLoopDelayPercentiles[99],
-      }
-    : undefined;
   // Format message from 50th, 95th and 99th percentiles
   const eventLoopDelayHistMsg = eventLoopDelayPercentiles
     ? ` delay histogram: { 50: ${numeral(eventLoopDelayPercentiles['50']).format(
@@ -60,12 +52,6 @@ export function getEcsOpsMetricsLog(metrics: OpsMetrics) {
     ? ` utilization: ${JSON.stringify(process?.event_loop_utilization)}`
     : '';
 
-  const loadEntries = {
-    '1m': os?.load ? os?.load['1m'] : undefined,
-    '5m': os?.load ? os?.load['5m'] : undefined,
-    '15m': os?.load ? os?.load['15m'] : undefined,
-  };
-
   const loadVals = [...Object.values(os?.load ?? [])];
   const loadValsMsg =
     loadVals.length > 0
@@ -75,29 +61,7 @@ export function getEcsOpsMetricsLog(metrics: OpsMetrics) {
       : '';
 
   const meta: LogMeta = {
-    event: {
-      kind: 'metric',
-      category: ['process', 'host'],
-      type: ['info'],
-    },
-    process: {
-      uptime: uptimeVal,
-      // @ts-expect-error custom fields not yet part of ECS
-      memory: {
-        heap: {
-          usedInBytes: processMemoryUsedInBytes,
-        },
-      },
-      eventLoopDelay: eventLoopDelayVal,
-      eventLoopDelayHistogram: eventLoopDelayHistVals,
-      eventLoopUtilization: eventLoopUtilizationVal,
-    },
-    host: {
-      os: {
-        // @ts-expect-error custom fields not yet part of ECS
-        load: loadEntries,
-      },
-    },
+    ...metrics,
   };
 
   return {
