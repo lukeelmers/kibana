@@ -148,6 +148,10 @@
 # Supported languages are the following: English (default) "en", Chinese "zh-CN", Japanese "ja-JP", French "fr-FR", German "de-DE".
 #i18n.locale: "en"
 
+# =================== Feature Flags ===================
+feature_flags.overrides:
+  lens.apiFormat: true
+
 # =================== Frequently used (Optional)===================
 
 # =================== Saved Objects: Migrations ===================
