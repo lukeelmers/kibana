@@ -1,0 +1,53 @@
+# Lightweight CI for the agent-factory POC fork (M1.c).
+# Conventional GitHub Actions only — no internal endpoints or secrets.
+
+name: Kibana Agent Factory (fork CI)
+
+on:
+  pull_request:
+    branches:
+      - poc/agent-factory
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+  workflow_dispatch:
+
+concurrency:
+  group: kibana-agent-ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Bootstrap, typecheck, eslint (scoped)
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      CI: 'true'
+      # Bootstrap and TS can exceed default heap on ubuntu-latest.
+      NODE_OPTIONS: --max-old-space-size=8192
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Setup Node (from .nvmrc)
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
+        with:
+          node-version-file: '.nvmrc'
+          cache: yarn
+
+      - name: Enable Yarn classic
+        run: corepack enable && corepack prepare yarn@1.22.22 --activate
+
+      - name: Install and link (kbn bootstrap)
+        run: yarn kbn bootstrap
+
+      - name: Type check @kbn/repo-info
+        run: node scripts/type_check --project src/platform/packages/shared/kbn-repo-info/tsconfig.json
+
+      - name: ESLint @kbn/repo-info sources
+        run: node scripts/eslint.js src/platform/packages/shared/kbn-repo-info
