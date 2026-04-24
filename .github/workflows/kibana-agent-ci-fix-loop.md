@@ -29,7 +29,7 @@ engine:
   env:
     CODEX_API_KEY: ${{ steps.mint_litellm_token.outputs.api_key || 'gh-aw-activation-placeholder' }}
     OPENAI_API_KEY: ${{ steps.mint_litellm_token.outputs.api_key || 'gh-aw-activation-placeholder' }}
-    OPENAI_BASE_URL: https://elastic.litellm-prod.ai/v1
+    OPENAI_BASE_URL: ${{ vars.KIBANA_AGENT_OPENAI_BASE_URL }}/v1
     RUST_LOG: warn
 
 steps:
@@ -37,7 +37,7 @@ steps:
     id: mint_litellm_token
     uses: elastic/github-actions/litellm-token@v3
     with:
-      base-url: https://elastic.litellm-prod.ai
+      base-url: ${{ secrets.LITELLM_BASE_URL }}
       master-key: ${{ secrets.LITELLM_API_KEY }}
       models: llm-gateway/gpt-5.4
       key-ttl: 30m
@@ -53,7 +53,7 @@ post-steps:
     uses: elastic/github-actions/litellm-token@v3
     with:
       operation: revoke
-      base-url: https://elastic.litellm-prod.ai
+      base-url: ${{ secrets.LITELLM_BASE_URL }}
       master-key: ${{ secrets.LITELLM_API_KEY }}
       api-key: ${{ steps.mint_litellm_token.outputs.api_key }}
 
@@ -68,11 +68,9 @@ network:
     - defaults
     - buildkite.com
     - "*.buildkite.com"
-    - ci-stats.kibana.dev
     - github.com
     - api.github.com
     - chatgpt.com
-    - elastic.litellm-prod.ai
   firewall: true
 
 safe-outputs:
