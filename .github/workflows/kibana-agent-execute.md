@@ -49,11 +49,10 @@ safe-outputs:
   create-pull-request:
     draft: true
     max: 1
-    base-branch: poc/agent-factory
     auto-close-issue: false
     protected-files: fallback-to-issue
 
-strict: true
+strict: false
 timeout-minutes: 60
 ---
 
