@@ -43,7 +43,7 @@ safe-outputs:
   activation-comments: false
   report-failure-as-issue: false
   threat-detection:
-    engine: false
+    enabled: true
   add-comment:
     max: 1
     target: "*"
