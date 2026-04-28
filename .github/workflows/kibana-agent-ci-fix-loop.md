@@ -25,7 +25,7 @@ imports:
 engine:
   id: claude
   version: "2.1.70"
-  model: claude-sonnet-4-5-20250514
+  model: claude-opus-4-6
   env:
     ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 

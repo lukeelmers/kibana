@@ -23,4 +23,4 @@ Do not hand-edit lockfiles.
 
 ## Current default
 
-This branch uses **Claude** with repository secret **`ANTHROPIC_API_KEY`**. No short-lived mint step is required for Anthropic’s native API key pattern.
+This branch uses **Claude** with repository secret **`ANTHROPIC_API_KEY`**. Workflows default to model **`claude-opus-4-6`** (Opus 4.6). No short-lived mint step is required for Anthropic’s native API key pattern.
