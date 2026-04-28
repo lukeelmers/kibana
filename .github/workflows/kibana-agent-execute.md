@@ -80,31 +80,68 @@ Before implementation, post **one** acknowledgment on the issue via **`add_comme
 
 This gives humans a checkpoint before code changes land.
 
-## 4. Planning phase (architect)
+## 4. Planning — architect
 
-From the spec, produce a concise, factual plan:
+**Split boundary (planning):** Everything through the end of this section is **planning only**. A future workflow split could lift this section into a standalone planning prompt without changing behavior; keep outputs structured enough to hand off verbatim.
 
-- **Affected packages** — discover via **`kibana.jsonc`** (and related package metadata), not by guessing from `src/<area>` paths alone
-- **Entry points and files** to touch (concrete paths and symbols where known)
-- **Test strategy** (what to run or add)
-- **Ordering / dependencies** between edits
+**Purpose:** Produce one **Internal Execution Plan** — a structured, factual artifact that **§5 Implementation** will treat as the only technical source for *what* to build and *in what order*. Do not write or edit production code while drafting the plan. Do not begin **§5** until the plan is complete.
 
-Keep it operational: lists and steps, not long prose.
+**Inputs:** The **approved spec** as identified in **§2** (the latest kibana-agent spec comment on the issue). Other issue text and comments are not scope input unless the spec itself cites them.
 
-## 5. Implementation phase (engineer)
+Write the Internal Execution Plan in your working notes using the following structure. (In a future split into separate planning and build workflows, this plan would be serialized as an artifact for the build step to consume; for now, keeping it structured and factual is sufficient.)
 
-1. Implement on the **current workflow branch** following Kibana conventions (TypeScript, imports, file placement per monorepo layout).
-2. Run local checks where practical before finishing:
-   - `node scripts/type_check --project <relevant tsconfig>` for affected packages
-   - `node scripts/eslint --fix <changed-files>` for touched files
-3. Fix failures you introduce or expose.
-4. Use **clear commits** with descriptive messages.
+### 4.1 Affected packages
+
+- Enumerate packages using **`kibana.jsonc`** and related package metadata in the repo (root and package manifests). **Do not** infer package membership from `src/<area>`-style paths alone.
+
+### 4.2 Files and entry points
+
+- Bullet list of **concrete file paths** to add or change.
+- For each path, list **symbols** you expect to touch (exports, classes, functions, route ids, saved-object types, etc.) when known from the spec.
+- If something is still ambiguous after reading the spec, add a single **Open points** sub-list with one line per item (narrow assumption or explicit blocker) — no long narrative.
+
+### 4.3 Ordered steps with dependencies
+
+- Numbered implementation steps in **execution order**.
+- Mark dependencies explicitly (e.g. “After step N: …”).
+
+### 4.4 Test strategy
+
+- Follow the **testing pyramid**: prefer **unit** tests, then **integration** tests, then **end-to-end** only when necessary.
+- For end-to-end work, prefer **Scout** as the runner — not the legacy Functional Test Runner — unless the code you are extending already uses the legacy runner and Scout is not a fit for that case.
+- Separate bullets for **tests to run** (concrete targets or file paths) and **tests to add** (paths and the behavior each locks in).
+
+### 4.5 Validation plan (local checks before PR)
+
+- The primary pre-push gate is **`node scripts/check`**. It runs lint (with auto-fix), affected Jest tests, and type-checking in one pass, automatically scoped to changed files. Use it as the default validation command.
+- When `node scripts/check` reports a failure, note the targeted re-run command it prints (e.g. `node scripts/jest --config <path>`, `node scripts/type_check --project <tsconfig>`, `node scripts/eslint <files>`) so you can iterate on specific failures without re-running everything.
+- Keep this section operational: command lines and scope, not prose.
+
+**Style:** Factual-first — paths, lists, ordered steps, and one-line notes. Avoid analytical essays.
+
+**Planning complete.** Only then proceed to **§5**.
+
+---
+
+## 5. Implementation — engineer
+
+**Split boundary (implementation):** From here through the end of **§5** is **implementation only**. A future workflow split could lift this block into a standalone build prompt; it must assume a completed Internal Execution Plan exists.
+
+**Purpose:** Execute the **Internal Execution Plan** from **§4**. The approved spec was consumed during planning to build that plan; during implementation, **do not re-derive file lists, ordering, or scope from the spec.** Treat the plan as the checklist. If the plan is wrong or cannot be executed as written, stop with **`add_comment`** and **`report_incomplete`** instead of silently expanding scope by re-reading the spec.
+
+1. Work on the **current workflow branch**.
+2. Follow the numbered steps and dependencies from the plan.
+3. Match **patterns and style of the surrounding code in the same plugin or package** (TypeScript usage, imports, layout). Different areas use different conventions — follow local examples, not a single global template.
+4. Run the **validation plan** from the plan. The default is **`node scripts/check`** (lint + jest + tsc, auto-scoped to changed files). Add and fix tests per the test strategy.
+5. If `node scripts/check` fails, use the targeted re-run commands it prints to iterate on specific failures.
+6. Fix failures you introduce or expose.
+7. Use **clear commits** with descriptive messages.
 
 ## 6. PR creation
 
 When implementation is complete:
 
-1. Use **`create_pull_request`** to open a **draft** PR (per workflow safe-output config: base branch `poc/agent-factory`, draft, protected-path behavior as configured).
+1. Use **`create_pull_request`** to open a **draft** PR per this workflow’s safe-output configuration (including draft default, base branch as configured by gh-aw, and protected-path behavior).
 2. **PR title:** include the issue number and a short, accurate summary.
 3. **PR body:** short summary of changes, link to the source issue, brief test plan.
 4. **Branch name:** `agent/<issue-number>-<slug>` (short kebab-case slug from the task).
