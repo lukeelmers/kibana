@@ -76,11 +76,11 @@ Structure findings around four concerns:
 
 ## 2. Input gathering
 
-- Use `gh pr diff <number>` and `gh pr view <number> --json files` to read the PR diff and changed file list.
-- Read the PR description for context.
+- Use the GitHub MCP tools to read the PR diff and changed file list (e.g. `get_pull_request_diff`, `get_pull_request_files`).
+- Read the PR description via `get_pull_request` or `pull_request_read` for context.
 - If the PR references a source issue, read the issue and find the latest **kibana-agent**-authored comment that contains the **approved spec**. That spec anchors what the PR should accomplish. If no spec is found, proceed with a general correctness review based on the diff and PR description alone.
 - Gather deterministic signals where available:
-  - Check CI status via `gh pr checks <number>` or workflow run APIs.
+  - Check CI status via `get_pull_request_status` or workflow run APIs.
   - Review lint or type-check output in check logs when present.
 
 ## 3. Review criteria
