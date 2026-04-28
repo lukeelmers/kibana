@@ -26,9 +26,10 @@ imports:
 engine:
   id: claude
   version: "2.1.70"
-  model: claude-opus-4-6
+  model: llm-gateway/claude-opus-4-6
   env:
     ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+    ANTHROPIC_BASE_URL: https://elastic.litellm-prod.ai
 
 tools:
   github:

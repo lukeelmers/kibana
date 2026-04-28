@@ -9,6 +9,7 @@ network:
     - api.github.com
     - anthropic.com
     - api.anthropic.com
+    - elastic.litellm-prod.ai
     - elastic.co
     - "*.elastic.co"
     - elastic.dev
