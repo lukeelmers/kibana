@@ -5,11 +5,6 @@
       "version": "v9",
       "sha": "373c709c69115d41ff229c7e5df9f8788daa9553"
     },
-    "elastic/github-actions/litellm-token@v3": {
-      "repo": "elastic/github-actions/litellm-token",
-      "version": "v3",
-      "sha": "3dd351017132da9ad55a4f8bccef616c91568a0f"
-    },
     "github/gh-aw-actions/setup@v0.68.3": {
       "repo": "github/gh-aw-actions/setup",
       "version": "v0.68.3",
