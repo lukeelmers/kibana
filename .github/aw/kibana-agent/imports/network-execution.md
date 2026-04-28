@@ -4,4 +4,4 @@ description: Shared POC fragment — execution-phase network expectations (stub)
 
 ## Network — execution (stub)
 
-- Respect the parent workflow `network.allowed` list and firewall defaults; add any LLM gateway hostnames required for your fork via that allowlist (not hardcoded here).
+- Canonical egress lives in **`factory-network.md`** (imported by each entry workflow). Add workflow-only hosts there unless a single workflow truly needs an extra domain (the compiler unions `network.allowed`).

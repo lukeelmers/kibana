@@ -24,3 +24,5 @@ Do not hand-edit lockfiles.
 ## Current default
 
 This branch uses **Claude** with repository secret **`ANTHROPIC_API_KEY`**. Workflows default to model **`claude-opus-4-6`** (Opus 4.6). No short-lived mint step is required for Anthropic’s native API key pattern.
+
+Shared outbound domains for all factory workflows are centralized in **`factory-network.md`** (imported after this file). When you add a provider-specific API hostname, update that file once, then `gh aw compile`.

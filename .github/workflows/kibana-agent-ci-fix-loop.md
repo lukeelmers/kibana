@@ -17,6 +17,7 @@ imports:
   - .github/aw/kibana-agent/imports/trusted-user-gating.md
   - .github/aw/kibana-agent/imports/comment-routing.md
   - .github/aw/kibana-agent/imports/engine-provider.md
+  - .github/aw/kibana-agent/imports/factory-network.md
   - .github/aw/kibana-agent/imports/network-execution.md
   - .github/aw/kibana-agent/imports/network-review.md
   - .github/aw/kibana-agent/imports/safe-outputs-pr.md
@@ -35,16 +36,6 @@ tools:
   web-fetch:
   bash: true
 
-network:
-  allowed:
-    - defaults
-    - buildkite.com
-    - "*.buildkite.com"
-    - github.com
-    - api.github.com
-    - anthropic.com
-    - api.anthropic.com
-  firewall: true
 
 safe-outputs:
   activation-comments: false
