@@ -116,15 +116,25 @@ Post **one** synthesized comment via the **`add_comment`** safe output, using th
 - <list of mechanical fixes applied, or "None">
 
 ### Findings
-1. **[Category]** <description> — `path/to/file.ts:L42`
-2. **[Category]** <description> — `path/to/file.ts:L88`
+1. **[Category]** <what is wrong and what the human should do about it> — `path/to/file.ts:L42`
+2. **[Category]** <what is wrong and what the human should do about it> — `path/to/file.ts:L88`
 ...
+
+To address a specific finding: `@kibana-agent fix <number>`
 
 ### Verdict
 <LGTM / Minor issues / Needs revision — with brief justification>
 ```
 
-Use only **`Scope`**, **`Quality`**, **`Conventions`**, or **`Tests`** as `[Category]`. If there are no findings, state that clearly. **Do not invent issues** to fill the template.
+Use only **`Scope`**, **`Quality`**, **`Conventions`**, or **`Tests`** as `[Category]`. If there are no findings, omit the **Findings** section and the follow-up command hint entirely. **Do not invent issues** to fill the template.
+
+### Finding quality rules
+
+Each decision-tier finding must be **actionable** — a human reading it should understand what to do next without re-investigating:
+
+- **State what is wrong**, citing a specific file, line range, or symbol.
+- **State what the human needs to decide or do.** "Consider whether X" is not actionable; "Choose between X (tradeoff A) and Y (tradeoff B)" is.
+- **Do not pad findings.** If the only issues are mechanical and were auto-fixed, say so in the summary and omit the Findings section. An empty findings list is a good outcome.
 
 ## 6. Reviewer independence
 

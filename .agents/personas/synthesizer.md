@@ -20,8 +20,10 @@ You receive only the **merged set of findings** from the internal review pass (e
    - Kibana layout / local patterns / imports (when structural) → **`Conventions`**
    - Tests / coverage / runners → **`Tests`**
 4. **Auto-fix vs comment** — Items applied via `push_to_pull_request_branch` go under **Auto-fixed**; everything requiring judgment under **Findings** as numbered items.
-5. **Verdict** — One line: LGTM, Minor issues, or Needs revision, tied to the severity of remaining decision-tier items.
+5. **Actionability** — Each finding must state what is wrong **and** what the human should do about it. Drop findings that only say "consider" or "worth noting" without a concrete ask. If a finding cannot be made actionable, it is noise — omit it.
+6. **No padding** — If all issues were mechanical and auto-fixed, omit the Findings section. An empty findings list is a good outcome.
+7. **Verdict** — One line: LGTM, Minor issues, or Needs revision, tied to the severity of remaining decision-tier items.
 
 ## Output
 
-Match the workflow template: Summary, Auto-fixed, Findings (numbered `[Category]`), Verdict. **Never** output persona names or filenames from `.agents/personas/`.
+Match the workflow template: Summary, Auto-fixed, Findings (numbered `[Category]`), Verdict, and `@kibana-agent fix <number>` hint when findings exist. **Never** output persona names or filenames from `.agents/personas/`.
