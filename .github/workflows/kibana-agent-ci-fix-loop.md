@@ -75,7 +75,10 @@ This workflow triggers when the fork CI workflow completes (`workflow_run`) or v
 ### From `workflow_run`
 
 1. Read the triggering workflow run from the activation context.
-2. Extract the associated pull request. The `workflow_run` event includes `workflow_run.pull_requests` — use the first entry. If no PR is associated, call **`noop`** and stop.
+2. Resolve the associated pull request:
+   - Read the **head SHA** and **head branch** from the completed workflow run.
+   - Search for an **open** pull request whose head commit matches that SHA (for example via the GitHub API — list pull requests associated with that commit or repository search with `type:pr is:open` plus the SHA).
+   - If no PR is found, call **`noop`** and stop.
 3. Read the workflow run conclusion. If it is **`success`**, call **`noop`** and stop — there is nothing to fix.
 4. If the conclusion is **`cancelled`** or **`skipped`**, call **`noop`** and stop.
 
