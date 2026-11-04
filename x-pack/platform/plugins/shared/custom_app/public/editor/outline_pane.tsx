@@ -47,6 +47,7 @@ const summarize = (node: AppNode): string => {
     case 'stat':
     case 'metric':
     case 'flyout':
+    case 'page_header':
       return node.title;
     case 'card':
       return node.title ?? '';

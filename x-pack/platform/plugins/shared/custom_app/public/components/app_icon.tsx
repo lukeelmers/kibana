@@ -18,11 +18,23 @@ const isDataUri = (icon: string): boolean => icon.startsWith('data:');
  * mark is a mask filled with the colour of the text around it, as an icon of EUI is, so it follows
  * the theme and is never an image that does anything.
  */
-export const AppIcon = ({ icon, size = 'm' }: { icon: string; size?: IconSize }) => {
+export const AppIcon = ({
+  icon,
+  size = 'm',
+}: {
+  icon: string;
+  /** A size of EUI, or, for a mark of the app's own, its width in pixels. */
+  size?: IconSize | number;
+}) => {
   const { euiTheme } = useEuiTheme();
-  if (!isDataUri(icon)) return <EuiIcon type={icon} size={size} aria-hidden={true} />;
+  if (!isDataUri(icon)) {
+    return <EuiIcon type={icon} size={typeof size === 'number' ? 'l' : size} aria-hidden={true} />;
+  }
 
-  const side = { m: euiTheme.size.base, l: euiTheme.size.l, xl: euiTheme.size.xl }[size];
+  const side =
+    typeof size === 'number'
+      ? `${size}px`
+      : { m: euiTheme.size.base, l: euiTheme.size.l, xl: euiTheme.size.xl }[size];
   const url = `url("${icon.replace(/"/g, '%22')}")`;
   return (
     <span

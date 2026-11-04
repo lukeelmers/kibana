@@ -42,7 +42,7 @@ export const SearchNode = ({ node }: { node: AppNodeOfType<'search'> }) => {
   }, [text, apply]);
 
   return (
-    <EuiFormRow label={node.label} data-node-id={node.id}>
+    <EuiFormRow label={node.label} fullWidth data-node-id={node.id}>
       <EuiFieldSearch
         compressed
         fullWidth

@@ -24,4 +24,5 @@ export const INTERPOLATED_PROPS: Readonly<Record<string, readonly string[]>> = {
   section: ['label'],
   link: ['label'],
   list: ['emptyMessage'],
+  page_header: ['eyebrow', 'title'],
 };

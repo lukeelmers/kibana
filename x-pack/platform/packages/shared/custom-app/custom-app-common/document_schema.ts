@@ -15,7 +15,10 @@ import {
   MAX_CHIP_SEPARATOR_LENGTH,
   MAX_CHIPS,
   MAX_TRUNCATE_LINES,
+  MAX_REFRESH_INTERVAL_SECONDS,
+  MIN_REFRESH_INTERVAL_SECONDS,
   STAT_COLORS,
+  THEME_WIDTHS,
   CUSTOM_APP_STATE_VERSION,
   MAX_ACTIONS_PER_EVENT,
   MAX_BUTTON_GROUP_OPTIONS,
@@ -252,9 +255,22 @@ const casesSourceSchema = z.object({
  * What a component that shows data gets it from: a query, or a source. One of the two, which
  * validation checks, since the schema alone cannot say that.
  */
+/**
+ * How often, in seconds, what a source gives is fetched again on its own while it is shown, as a
+ * page that follows something under way does. Left out, it is fetched when something it reads
+ * changes, and when the page is refreshed.
+ */
+const refreshIntervalSchema = z
+  .number()
+  .int()
+  .min(MIN_REFRESH_INTERVAL_SECONDS)
+  .max(MAX_REFRESH_INTERVAL_SECONDS)
+  .optional();
+
 const dataFields = {
   query: querySchema.optional(),
   source: casesSourceSchema.optional(),
+  refreshInterval: refreshIntervalSchema,
 };
 
 const statNodeSchema = z.object({
@@ -607,6 +623,19 @@ const sectionFields = {
 
 const tabsFields = { type: z.literal('tabs'), id: nodeIdSchema, visibleWhen: visibleWhenSchema };
 
+/**
+ * The header of a page: an icon, a line above the title, the title, and at the end of the row the
+ * links and buttons it holds, which are what it holds and all it holds.
+ */
+const pageHeaderFields = {
+  type: z.literal('page_header'),
+  id: nodeIdSchema,
+  visibleWhen: visibleWhenSchema,
+  icon: appIconSchema.optional(),
+  eyebrow: z.string().max(MAX_HEADING_LENGTH).optional(),
+  title: z.string().max(MAX_HEADING_LENGTH),
+};
+
 /** Something that can be done with a row, beside what a click on it does. */
 const rowActionSchema = z.object({
   label: z.string().min(1).max(MAX_HEADING_LENGTH),
@@ -671,6 +700,7 @@ type ColumnsNode = WithChildren<typeof columnsFields>;
 type SectionNode = WithChildren<typeof sectionFields> & { titleNode?: AppNode };
 /** A list holds one node, its template, which is drawn for each row and is not a child. */
 type ListNode = z.output<z.ZodObject<typeof listFields>> & { template: AppNode };
+type PageHeaderNode = WithChildren<typeof pageHeaderFields>;
 type TabsNode = WithChildren<typeof tabsFields>;
 type AccordionNode = WithChildren<typeof accordionFields>;
 
@@ -682,7 +712,8 @@ export type ContainerNode =
   | ColumnsNode
   | SectionNode
   | TabsNode
-  | AccordionNode;
+  | AccordionNode
+  | PageHeaderNode;
 
 /**
  * Written out by hand because TypeScript cannot infer a union that contains itself. The
@@ -695,8 +726,10 @@ export type Action = z.output<typeof actionSchema>;
 export type FormField = z.output<typeof formFieldSchema>;
 export type CasesSource = z.output<typeof casesSourceSchema>;
 export type ValueFormat = z.output<typeof valueFormatSchema>;
-/** Where a component gets what it shows. */
-export type DataSource = { type: 'esql'; query: string } | CasesSource;
+/** Where a component gets what it shows, and how often it is fetched again on its own. */
+export type DataSource = ({ type: 'esql'; query: string } | CasesSource) & {
+  refreshInterval?: number;
+};
 
 const stackNodeSchema = z.object({
   ...stackFields,
@@ -738,6 +771,13 @@ const sectionNodeSchema = z.object({
 
 const tabsNodeSchema = z.object({
   ...tabsFields,
+  get children(): z.ZodArray<z.ZodType<AppNode>> {
+    return z.array(nodeSchema).max(MAX_CHILDREN_PER_NODE);
+  },
+});
+
+const pageHeaderNodeSchema = z.object({
+  ...pageHeaderFields,
   get children(): z.ZodArray<z.ZodType<AppNode>> {
     return z.array(nodeSchema).max(MAX_CHILDREN_PER_NODE);
   },
@@ -786,6 +826,7 @@ export const nodeSchema = z.discriminatedUnion('type', [
   tabsNodeSchema,
   accordionNodeSchema,
   listNodeSchema,
+  pageHeaderNodeSchema,
 ]) satisfies z.ZodType<AppNode>;
 
 const CONTAINER_TYPES: ReadonlySet<string> = new Set([
@@ -796,6 +837,7 @@ const CONTAINER_TYPES: ReadonlySet<string> = new Set([
   'section',
   'tabs',
   'accordion',
+  'page_header',
 ]);
 
 /** Whether a node holds other nodes. */
@@ -830,6 +872,8 @@ export const getNodeSlots = (node: AppNode): readonly AppNode[] => {
 export const themeSchema = z.object({
   accent: bindable(themeAccentSchema),
   shape: bindable(themeShapeSchema),
+  /** How wide the page is: all the room there is, or that of a page of Kibana, in the middle. */
+  width: z.enum(THEME_WIDTHS).optional(),
 });
 
 /**
@@ -837,7 +881,10 @@ export const themeSchema = z.object({
  * by its columns, as `{{query.<id>.<column>}}` and `{ "$query": "<id>", "field": "<column>" }`. It
  * runs for as long as the app is shown, with the values of the app as parameters, as any other.
  */
-export const declaredQuerySchema = z.object({ query: querySchema });
+export const declaredQuerySchema = z.object({
+  query: querySchema,
+  refreshInterval: refreshIntervalSchema,
+});
 
 export const appDocumentShapeSchema = z.object({
   state: z.record(stateKeySchema, stateDeclarationSchema).default({}),

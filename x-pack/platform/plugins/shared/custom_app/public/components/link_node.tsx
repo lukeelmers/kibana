@@ -6,7 +6,8 @@
  */
 
 import React, { useMemo, type MouseEvent } from 'react';
-import { EuiLink, EuiText, EuiToolTip } from '@elastic/eui';
+import { EuiButtonEmpty, EuiLink, EuiText, EuiToolTip, useEuiTheme } from '@elastic/eui';
+import { css } from '@emotion/react';
 import type { AppNodeOfType } from '@kbn/custom-app-common';
 import { useDataLayer } from '../data/data_layer_context';
 import { toEsqlVariables } from '../data/esql_variables';
@@ -22,7 +23,15 @@ import { resolveLink } from './link_target';
  * plain click goes there without leaving the page. A link that cannot be followed, because what it
  * points at is not there or not allowed, is shown as text that says why.
  */
-export const LinkNode = ({ node }: { node: AppNodeOfType<'link'> }) => {
+export const LinkNode = ({
+  node,
+  appearance = 'link',
+}: {
+  node: AppNodeOfType<'link'>;
+  /** As a quiet button, as the actions at the end of a page header are. */
+  appearance?: 'link' | 'button';
+}) => {
+  const { euiTheme } = useEuiTheme();
   const { core, share } = getServices();
   const layer = useDataLayer();
   const state = useStateValues();
@@ -61,20 +70,31 @@ export const LinkNode = ({ node }: { node: AppNodeOfType<'link'> }) => {
     );
   }
 
+  const follow = (event: MouseEvent) => {
+    // Another tab, or a window, is what the address is for.
+    if (event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0) return;
+    event.preventDefault();
+    link.navigate();
+  };
+
   return (
     <div data-node-id={node.id}>
-      <EuiLink
-        href={link.href}
-        onClick={(event: MouseEvent) => {
-          // Another tab, or a window, is what the address is for.
-          if (event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0) return;
-          event.preventDefault();
-          link.navigate();
-        }}
-        data-test-subj="customAppLink"
-      >
-        {label}
-      </EuiLink>
+      {appearance === 'button' ? (
+        <EuiButtonEmpty
+          color="text"
+          size="s"
+          href={link.href}
+          onClick={follow}
+          css={css({ color: euiTheme.colors.textSubdued })}
+          data-test-subj="customAppLink"
+        >
+          {label}
+        </EuiButtonEmpty>
+      ) : (
+        <EuiLink href={link.href} onClick={follow} data-test-subj="customAppLink">
+          {label}
+        </EuiLink>
+      )}
     </div>
   );
 };

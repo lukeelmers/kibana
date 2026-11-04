@@ -651,6 +651,27 @@ describe('the custom apps page', () => {
     });
   });
 
+  describe('a saved app shown with less of the frame', () => {
+    it('has no frame at all with chrome=hidden: no back, no name, no actions', async () => {
+      setup({ path: '/view/app-1?chrome=hidden', agentBuilder: makeAgentBuilder() });
+      await screen.findByTestId('liveApp');
+
+      expect(screen.queryByText('Service explorer')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('customAppEdit')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('customAppRefineWithAi')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('customAppAddToDashboard')).not.toBeInTheDocument();
+    });
+
+    it('has only the name of the app with chrome=title', async () => {
+      setup({ path: '/view/app-1?chrome=title', agentBuilder: makeAgentBuilder() });
+      await screen.findByTestId('liveApp');
+
+      expect(screen.getAllByText('Service explorer').length).toBeGreaterThan(0);
+      expect(screen.queryByTestId('customAppEdit')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('customAppAddToDashboard')).not.toBeInTheDocument();
+    });
+  });
+
   describe('a saved app when the editor is turned off', () => {
     it('is not offered to change in the editor, but can still be refined with the assistant', async () => {
       setup({ path: '/view/app-1', isEditorEnabled: false, agentBuilder: makeAgentBuilder() });

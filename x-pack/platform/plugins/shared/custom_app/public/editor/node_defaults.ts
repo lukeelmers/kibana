@@ -176,6 +176,15 @@ export const createDefaultNode = (
       };
     case 'stack':
       return { type, id, direction: 'vertical', children: [] };
+    case 'page_header':
+      return {
+        type,
+        id,
+        title: i18n.translate('xpack.customApp.defaults.pageHeader', {
+          defaultMessage: 'Page title',
+        }),
+        children: [],
+      };
     case 'flyout':
       return {
         type,

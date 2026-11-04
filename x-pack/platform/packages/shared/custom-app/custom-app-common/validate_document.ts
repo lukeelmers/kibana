@@ -321,6 +321,16 @@ export const validateDocument = (document: DocumentToValidate, ctx: z.Refinement
           )
         );
     }
+    if (node.type === 'page_header') {
+      node.children
+        .filter((child) => child.type !== 'link' && child.type !== 'button')
+        .forEach((child) =>
+          issue(
+            `Node "${node.id}" is a page header and holds only links and buttons, not "${child.id}" (${child.type})`,
+            node.id
+          )
+        );
+    }
     if (node.type === 'section' && !sectionParents.has(node.id)) {
       issue(`Node "${node.id}" is a section, which is only part of tabs or an accordion`, node.id);
     }

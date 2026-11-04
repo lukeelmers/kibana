@@ -36,6 +36,7 @@ import { useBindingScope } from '../runtime/binding_scope';
 import { TEXT_FILTER_IMPLEMENTATIONS } from '../runtime/text_filters';
 import { FormattedValue, isCompactFormat } from './formatted_value';
 import { LoadingBadge } from './loading_badge';
+import { PageHeaderNode } from './page_header_node';
 import { escapeMarkdownScope, escapeMarkdownValues } from '../utils/escape_markdown';
 import { ChartNode } from './chart_node';
 import {
@@ -257,6 +258,8 @@ export const NodeRenderer = ({ node: written }: NodeRendererProps) => {
       return <TableNode node={node} />;
     case 'list':
       return <ListNode node={node} />;
+    case 'page_header':
+      return <PageHeaderNode node={node} />;
     case 'key_value':
       return <KeyValueNode node={node} />;
     case 'select':

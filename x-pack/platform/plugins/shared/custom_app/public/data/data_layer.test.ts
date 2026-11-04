@@ -524,3 +524,50 @@ describe('createDataLayer with a source of cases', () => {
     expect(queryCalls.map(({ query }) => query)).toEqual([queries.users]);
   });
 });
+
+const settle = async () => {
+  for (let tick = 0; tick < 5; tick++) await Promise.resolve();
+};
+
+describe('a source that is fetched again on its own', () => {
+  beforeEach(() => jest.useFakeTimers());
+  afterEach(() => jest.useRealTimers());
+
+  it('runs again after its interval while it is read, keeping its rows meanwhile', async () => {
+    const { runQuery, calls } = createControlledRunner();
+    const layer = createDataLayer({ runQuery, getParameterNames });
+    layer.setSources({ running: { type: 'esql', query: 'FROM x', refreshInterval: 10 } });
+    const release = layer.acquire('running');
+    layer.refresh(context);
+
+    calls[0].resolve(result(1));
+    await settle();
+    expect(layer.getSource$('running').getValue()).toEqual({ status: 'success', data: result(1) });
+
+    jest.advanceTimersByTime(10_000);
+    expect(calls).toHaveLength(2);
+    // What it showed stays until the new rows are there.
+    expect(layer.getSource$('running').getValue().status).toBe('success');
+
+    calls[1].resolve(result(2));
+    await settle();
+    expect(layer.getSource$('running').getValue()).toEqual({ status: 'success', data: result(2) });
+
+    release();
+    jest.advanceTimersByTime(60_000);
+    expect(calls).toHaveLength(2);
+  });
+
+  it('does not run again on its own without an interval', async () => {
+    const { runQuery, calls } = createControlledRunner();
+    const layer = createDataLayer({ runQuery, getParameterNames });
+    layer.setSources({ once: { type: 'esql', query: 'FROM x' } });
+    layer.acquire('once');
+    layer.refresh(context);
+    calls[0].resolve(result(1));
+    await settle();
+
+    jest.advanceTimersByTime(3_600_000);
+    expect(calls).toHaveLength(1);
+  });
+});

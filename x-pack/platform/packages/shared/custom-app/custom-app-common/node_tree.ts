@@ -79,6 +79,11 @@ export const getInterpolatedText = (
       ];
     case 'chart':
       return node.title === undefined ? [] : [{ prop: 'title', text: node.title }];
+    case 'page_header':
+      return [
+        ...(node.eyebrow === undefined ? [] : [{ prop: 'eyebrow', text: node.eyebrow }]),
+        { prop: 'title', text: node.title },
+      ];
     case 'link':
       return [
         { prop: 'label', text: node.label },
@@ -114,7 +119,10 @@ export const getNodeSource = (node: AppNode): DataSource | undefined => {
     node.type === 'key_value' ||
     node.type === 'list'
   ) {
-    if (node.source) return node.source;
+    const { refreshInterval } = node;
+    const polled = refreshInterval === undefined ? {} : { refreshInterval };
+    if (node.source) return { ...node.source, ...polled };
+    if (node.query !== undefined) return { type: 'esql', query: node.query, ...polled };
   }
   const query = getNodeQuery(node);
   return query === undefined ? undefined : { type: 'esql', query };
@@ -136,9 +144,13 @@ export const collectDeclaredSources = (document: {
   queries?: Readonly<Record<string, DeclaredQuery>>;
 }): Record<string, DataSource> =>
   Object.fromEntries(
-    Object.entries(document.queries ?? {}).map(([id, { query }]) => [
+    Object.entries(document.queries ?? {}).map(([id, { query, refreshInterval }]) => [
       getDeclaredQuerySourceId(id),
-      { type: 'esql' as const, query },
+      {
+        type: 'esql' as const,
+        query,
+        ...(refreshInterval === undefined ? {} : { refreshInterval }),
+      },
     ])
   );
 

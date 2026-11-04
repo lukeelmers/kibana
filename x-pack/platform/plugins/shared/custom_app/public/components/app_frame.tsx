@@ -18,6 +18,9 @@ import {
 import { AppRuntimeContext } from '../runtime/app_runtime_context';
 import { useSubjectValue } from '../utils/use_subject_value';
 
+/** How wide a page is that is as wide as a page of Kibana. */
+const PAGE_WIDTH = 1000;
+
 /** The accent of the page the component is in, for what is drawn by something other than EUI. */
 const PageAccentContext = createContext<AppTheme['accent']>(undefined);
 
@@ -94,7 +97,22 @@ const ThemedFrame = ({
         padding: euiTheme.size.base,
       })}
     >
-      {children}
+      {theme?.width === 'page' ? (
+        // The width a page of Kibana gives what it shows, in the middle of the room there is, and
+        // the room a page leaves above it.
+        <div
+          data-test-subj="customAppPageWidth"
+          css={css({
+            maxWidth: PAGE_WIDTH,
+            marginInline: 'auto',
+            paddingBlockStart: euiTheme.size.s,
+          })}
+        >
+          {children}
+        </div>
+      ) : (
+        children
+      )}
     </div>
   );
 

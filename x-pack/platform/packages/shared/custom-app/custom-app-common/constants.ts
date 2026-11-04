@@ -108,6 +108,11 @@ export const BADGE_COLORS = [
   'neutral',
   'risk',
 ] as const;
+/** How often a source can be run again on its own, in seconds: not more than every few seconds. */
+export const MIN_REFRESH_INTERVAL_SECONDS = 5;
+export const MAX_REFRESH_INTERVAL_SECONDS = 3_600;
+/** The widths a page can have: all of it, or that of a page of Kibana. */
+export const THEME_WIDTHS = ['full', 'page'] as const;
 /** The colours a stat can have, which its icon is drawn in, on a light fill of the same. */
 export const STAT_COLORS = [
   'primary',

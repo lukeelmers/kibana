@@ -6,7 +6,7 @@
  */
 
 import React, { useCallback, useEffect, useId, useMemo, useState } from 'react';
-import { useHistory, useParams } from 'react-router-dom';
+import { useHistory, useLocation, useParams } from 'react-router-dom';
 import isEqual from 'lodash/isEqual';
 import { EuiConfirmModal, EuiFlyout, EuiLoadingSpinner, EuiPageTemplate } from '@elastic/eui';
 import { i18n } from '@kbn/i18n';
@@ -43,6 +43,19 @@ const toMessage = (error: unknown): string =>
   (error as { body?: { message?: string } })?.body?.message ??
   (error instanceof Error ? error.message : String(error));
 
+/**
+ * How much of the frame of the page is shown around the app, from `?chrome=` in its address: all of
+ * it, by default; only the name of the app, with `title`; or none, with `hidden`, for an app that is
+ * the whole page, such as one shown on a screen or in a demo. Nothing is taken from the app itself:
+ * the same address without it shows the frame, with its Edit, again.
+ */
+export type ChromeMode = 'full' | 'title' | 'hidden';
+
+export const getChromeMode = (search: string): ChromeMode => {
+  const mode = new URLSearchParams(search).get('chrome');
+  return mode === 'title' || mode === 'hidden' ? mode : 'full';
+};
+
 const toViewState = (app: SavedApp): ViewState => {
   const parsed = appDocumentSchema.safeParse(app.document);
   return parsed.success
@@ -65,6 +78,7 @@ export const ViewPage = ({
   const canEdit = canSave && isEditorEnabled;
   const { id } = useParams<{ id: string }>();
   const history = useHistory();
+  const chromeMode = getChromeMode(useLocation().search);
   const flyoutTitleId = useId();
   const discardTitleId = useId();
   const [state, setState] = useState<ViewState>({ status: 'loading' });
@@ -378,34 +392,37 @@ export const ViewPage = ({
 
   return (
     <EuiPageTemplate offset={0} restrictWidth={false} data-test-subj="customAppViewPage">
-      <AppHeader
-        back={listBack}
-        title={
-          canSave && state.status === 'ready'
-            ? {
-                text: app.title,
-                onSave: renameApp,
-                ariaLabel: i18n.translate('xpack.customApp.standalone.renameAria', {
-                  defaultMessage: 'Name of the app',
-                }),
-              }
-            : app.title
-        }
-        description={app.description}
-        badges={
-          hasDraft
-            ? [
-                {
-                  label: i18n.translate('xpack.customApp.standalone.unsaved', {
-                    defaultMessage: 'Unsaved',
+      {chromeMode === 'title' && <AppHeader title={app.title} spacing="compact" />}
+      {chromeMode === 'full' && (
+        <AppHeader
+          back={listBack}
+          title={
+            canSave && state.status === 'ready'
+              ? {
+                  text: app.title,
+                  onSave: renameApp,
+                  ariaLabel: i18n.translate('xpack.customApp.standalone.renameAria', {
+                    defaultMessage: 'Name of the app',
                   }),
-                  color: 'warning',
-                },
-              ]
-            : undefined
-        }
-        menu={menu}
-      />
+                }
+              : app.title
+          }
+          description={app.description}
+          badges={
+            hasDraft
+              ? [
+                  {
+                    label: i18n.translate('xpack.customApp.standalone.unsaved', {
+                      defaultMessage: 'Unsaved',
+                    }),
+                    color: 'warning',
+                  },
+                ]
+              : undefined
+          }
+          menu={menu}
+        />
+      )}
       <EuiPageTemplate.Section>
         {state.status === 'invalid' ? (
           <KbnDangerCallout
