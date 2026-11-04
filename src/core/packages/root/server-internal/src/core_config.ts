@@ -24,6 +24,35 @@ const coreConfigSchema = schema.object({
    * between our kibana-controller and the Kibana versions.
    */
   enableStripUnknownConfigWorkaround: schema.boolean({ defaultValue: false }),
+  /**
+   * Backend for `core.remote`. Workflows register a graph; they do not choose this value.
+   * `worker_thread` is the proof backend. `in_process` runs the same graph on the coordinator
+   * and does not isolate the event loop.
+   */
+  remote: schema.object({
+    backend: schema.oneOf(
+      [schema.literal('worker_thread'), schema.literal('in_process'), schema.literal('lambda_rie')],
+      { defaultValue: 'worker_thread' }
+    ),
+    faas: schema.maybe(
+      schema.object({
+        artifactPath: schema.string(),
+        expectedArtifactHash: schema.string(),
+        image: schema.string(),
+        memoryMiB: schema.oneOf(
+          [schema.literal(128), schema.literal(256), schema.literal(512)],
+          { defaultValue: 128 }
+        ),
+        warm: schema.boolean({ defaultValue: false }),
+        addedRttMs: schema.oneOf(
+          [schema.literal(0), schema.literal(1), schema.literal(5), schema.literal(10)],
+          { defaultValue: 0 }
+        ),
+        callbackHost: schema.string({ defaultValue: 'host.docker.internal' }),
+        measurementPath: schema.string(),
+      })
+    ),
+  }),
 });
 
 export type CoreConfigType = TypeOf<typeof coreConfigSchema>;
