@@ -24,6 +24,15 @@ inputs:
 triggers:
   - type: manual
 steps:
+  # The app does not pass the verdict, so it is read from the synced investigation.
+  - name: get_investigation
+    type: elasticsearch.search
+    with:
+      index: nightshift-app-investigations
+      size: 1
+      query:
+        term:
+          _id: "{{ inputs.investigation_id }}"
   - name: create_case
     type: cases.createCase
     with:
@@ -37,7 +46,7 @@ steps:
 
         **Verdict**
 
-        {{ inputs.verdict | default: "(no verdict yet)" }}
+        {{ inputs.verdict | default: steps.get_investigation.output.hits.hits[0]._source.verdict | default: "(no verdict yet)" }}
 
         Investigation: {{ inputs.investigation_id }}
       tags:

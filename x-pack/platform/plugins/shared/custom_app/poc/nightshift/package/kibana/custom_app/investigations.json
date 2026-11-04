@@ -3,7 +3,8 @@
   "type": "custom_app",
   "attributes": {
     "title": "Nightshift investigations",
-    "description": "Investigations grouped by severity, with a details flyout and a Create case action.",
+    "description": "Investigations grouped by severity, with the conversation of each a click away and a Create case action.",
+    "showInNav": true,
     "version": 1,
     "document": {
       "state": {
@@ -28,21 +29,31 @@
           "default": ""
         }
       },
+      "queries": {
+        "hero": {
+          "query": "FROM nightshift-app-investigations | STATS active = COUNT(*) WHERE in_progress == true | EVAL headline = CASE(active > 0, \"Investigations are underway\", \"You're all caught up\")",
+          "refreshInterval": 10
+        },
+        "counts": {
+          "query": "FROM nightshift-app-investigations | WHERE (?q == \"\" OR TO_LOWER(title) LIKE CONCAT(\"*\", TO_LOWER(?q), \"*\") OR TO_LOWER(summary) LIKE CONCAT(\"*\", TO_LOWER(?q), \"*\")) | STATS in_progress = COUNT(*) WHERE in_progress == true, critical = COUNT(*) WHERE severity == \"critical\" AND in_progress == false, high = COUNT(*) WHERE severity == \"high\" AND in_progress == false, medium = COUNT(*) WHERE severity == \"medium\" AND in_progress == false, low = COUNT(*) WHERE severity == \"low\" AND in_progress == false, not_rated = COUNT(*) WHERE severity IS NULL AND in_progress == false",
+          "refreshInterval": 10
+        }
+      },
+      "theme": {
+        "width": "page"
+      },
       "root": {
         "type": "stack",
         "id": "page",
         "direction": "vertical",
         "children": [
           {
-            "type": "stack",
+            "type": "page_header",
             "id": "header",
-            "direction": "horizontal",
+            "icon": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyMCAxOSI+PHBhdGggZmlsbD0iYmxhY2siIGQ9Ik0xOS40OTM2IDYuNzVDMTkuNDkzNiA2Ljk0ODkxIDE5LjQxNDYgNy4xMzk2OCAxOS4yNzM5IDcuMjgwMzNDMTkuMTMzMyA3LjQyMDk4IDE4Ljk0MjUgNy41IDE4Ljc0MzYgNy41SDE3LjI0MzZWOUMxNy4yNDM2IDkuMTk4OTEgMTcuMTY0NiA5LjM4OTY4IDE3LjAyMzkgOS41MzAzM0MxNi44ODMzIDkuNjcwOTggMTYuNjkyNSA5Ljc1IDE2LjQ5MzYgOS43NUMxNi4yOTQ3IDkuNzUgMTYuMTAzOSA5LjY3MDk4IDE1Ljk2MzMgOS41MzAzM0MxNS44MjI2IDkuMzg5NjggMTUuNzQzNiA5LjE5ODkxIDE1Ljc0MzYgOVY3LjVIMTQuMjQzNkMxNC4wNDQ3IDcuNSAxMy44NTM5IDcuNDIwOTggMTMuNzEzMyA3LjI4MDMzQzEzLjU3MjYgNy4xMzk2OCAxMy40OTM2IDYuOTQ4OTEgMTMuNDkzNiA2Ljc1QzEzLjQ5MzYgNi41NTEwOSAxMy41NzI2IDYuMzYwMzIgMTMuNzEzMyA2LjIxOTY3QzEzLjg1MzkgNi4wNzkwMiAxNC4wNDQ3IDYgMTQuMjQzNiA2SDE1Ljc0MzZWNC41QzE1Ljc0MzYgNC4zMDEwOSAxNS44MjI2IDQuMTEwMzIgMTUuOTYzMyAzLjk2OTY3QzE2LjEwMzkgMy44MjkwMiAxNi4yOTQ3IDMuNzUgMTYuNDkzNiAzLjc1QzE2LjY5MjUgMy43NSAxNi44ODMzIDMuODI5MDIgMTcuMDIzOSAzLjk2OTY3QzE3LjE2NDYgNC4xMTAzMiAxNy4yNDM2IDQuMzAxMDkgMTcuMjQzNiA0LjVWNkgxOC43NDM2QzE4Ljk0MjUgNiAxOS4xMzMzIDYuMDc5MDIgMTkuMjczOSA2LjIxOTY3QzE5LjQxNDYgNi4zNjAzMiAxOS40OTM2IDYuNTUxMDkgMTkuNDkzNiA2Ljc1Wk0xMC40OTM2IDNIMTEuMjQzNlYzLjc1QzExLjI0MzYgMy45NDg5MSAxMS4zMjI2IDQuMTM5NjggMTEuNDYzMyA0LjI4MDMzQzExLjYwMzkgNC40MjA5OCAxMS43OTQ3IDQuNSAxMS45OTM2IDQuNUMxMi4xOTI1IDQuNSAxMi4zODMzIDQuNDIwOTggMTIuNTIzOSA0LjI4MDMzQzEyLjY2NDYgNC4xMzk2OCAxMi43NDM2IDMuOTQ4OTEgMTIuNzQzNiAzLjc1VjNIMTMuNDkzNkMxMy42OTI1IDMgMTMuODgzMyAyLjkyMDk4IDE0LjAyMzkgMi43ODAzM0MxNC4xNjQ2IDIuNjM5NjggMTQuMjQzNiAyLjQ0ODkxIDE0LjI0MzYgMi4yNUMxNC4yNDM2IDIuMDUxMDkgMTQuMTY0NiAxLjg2MDMyIDE0LjAyMzkgMS43MTk2N0MxMy44ODMzIDEuNTc5MDIgMTMuNjkyNSAxLjUgMTMuNDkzNiAxLjVIMTIuNzQzNlYwLjc1QzEyLjc0MzYgMC41NTEwODggMTIuNjY0NiAwLjM2MDMyMiAxMi41MjM5IDAuMjE5NjdDMTIuMzgzMyAwLjA3OTAxNzYgMTIuMTkyNSAwIDExLjk5MzYgMEMxMS43OTQ3IDAgMTEuNjAzOSAwLjA3OTAxNzYgMTEuNDYzMyAwLjIxOTY3QzExLjMyMjYgMC4zNjAzMjIgMTEuMjQzNiAwLjU1MTA4OCAxMS4yNDM2IDAuNzVWMS41SDEwLjQ5MzZDMTAuMjk0NyAxLjUgMTAuMTAzOSAxLjU3OTAyIDkuOTYzMjcgMS43MTk2N0M5LjgyMjYyIDEuODYwMzIgOS43NDM2IDIuMDUxMDkgOS43NDM2IDIuMjVDOS43NDM2IDIuNDQ4OTEgOS44MjI2MiAyLjYzOTY4IDkuOTYzMjcgMi43ODAzM0MxMC4xMDM5IDIuOTIwOTggMTAuMjk0NyAzIDEwLjQ5MzYgM1pNMTcuMzE1OCAxMi4wOTM4QzE3LjQwMzEgMTIuMTk1NCAxNy40NjE2IDEyLjMxODYgMTcuNDg1MSAxMi40NTA1QzE3LjUwODcgMTIuNTgyNCAxNy40OTY1IDEyLjcxODIgMTcuNDQ5OSAxMi44NDM4QzE2LjkyOTQgMTQuMjYzIDE2LjA1OTkgMTUuNTI4NCAxNC45MjE1IDE2LjUyM0MxMy43ODMxIDE3LjUxNzYgMTIuNDEyNSAxOC4yMDk0IDEwLjkzNjIgMTguNTM0NkM5LjQ1OTkxIDE4Ljg1OTggNy45MjU0OSAxOC44MDggNi40NzQ1MyAxOC4zODM4QzUuMDIzNTggMTcuOTU5NiAzLjcwMjg1IDE3LjE3NjcgMi42MzQyMyAxNi4xMDc1QzEuNTY1NjEgMTUuMDM4MyAwLjc4MzUyOCAxMy43MTcxIDAuMzYwMTYyIDEyLjI2NTlDLTAuMDYzMjAzNiAxMC44MTQ3IC0wLjExNDIxMyA5LjI4MDI3IDAuMjExODQxIDcuODA0MTZDMC41Mzc4OTUgNi4zMjgwNiAxLjIzMDUxIDQuOTU3ODYgMi4yMjU3NiAzLjgyMDAyQzMuMjIxMDEgMi42ODIxOCA0LjQ4Njg0IDEuODEzMzcgNS45MDY0MSAxLjI5Mzc1QzYuMDMxMzYgMS4yNDc5OSA2LjE2NjIzIDEuMjM2MyA2LjI5NzE5IDEuMjU5ODdDNi40MjgxNSAxLjI4MzQ0IDYuNTUwNDggMS4zNDE0MiA2LjY1MTYzIDEuNDI3ODhDNi43NTI3OCAxLjUxNDM0IDYuODI5MTEgMS42MjYxNCA2Ljg3Mjc5IDEuNzUxODRDNi45MTY0NiAxLjg3NzUzIDYuOTI1OTEgMi4wMTI1OCA2LjkwMDE2IDIuMTQzMTNDNi42MzczNCAzLjQ3MzQxIDYuNzA2MiA0Ljg0Nzk1IDcuMTAwNjYgNi4xNDUzQzcuNDk1MTIgNy40NDI2NiA4LjIwMzA0IDguNjIyODkgOS4xNjE4OCA5LjU4MTcyQzEwLjEyMDcgMTAuNTQwNiAxMS4zMDA5IDExLjI0ODUgMTIuNTk4MyAxMS42NDI5QzEzLjg5NTcgMTIuMDM3NCAxNS4yNzAyIDEyLjEwNjMgMTYuNjAwNSAxMS44NDM0QzE2LjczMTIgMTEuODE3OSAxNi44NjY0IDExLjgyNzYgMTYuOTkyMSAxMS44NzE2QzE3LjExNzggMTEuOTE1NiAxNy4yMjk1IDExLjk5MjMgMTcuMzE1OCAxMi4wOTM4Wk0xNS40OTggMTMuNDg4OEMxNS4zMzAyIDEzLjQ5NzIgMTUuMTYxNCAxMy41MDE5IDE0Ljk5MzYgMTMuNTAxOUMxMi40MDgzIDEzLjQ5OTEgOS45Mjk2MSAxMi40NzA4IDguMTAxNjYgMTAuNjQyNUM2LjI3MzcyIDguODE0MTkgNS4yNDU4MyA2LjMzNTM1IDUuMjQzNiAzLjc1QzUuMjQzNiAzLjU4MjE5IDUuMjQzNiAzLjQxMzQ0IDUuMjU2NzMgMy4yNDU2MkM0LjI1ODg0IDMuODE5ODUgMy40MDY1NCA0LjYxNjExIDIuNzY1ODggNS41NzI3MUMyLjEyNTIyIDYuNTI5MyAxLjcxMzM4IDcuNjIwNTUgMS41NjIyOSA4Ljc2MTkxQzEuNDExMiA5LjkwMzI2IDEuNTI0OSAxMS4wNjQxIDEuODk0NTkgMTIuMTU0NEMyLjI2NDI3IDEzLjI0NDggMi44ODAwMiAxNC4yMzU0IDMuNjk0MTIgMTUuMDQ5NUM0LjUwODIyIDE1Ljg2MzYgNS40OTg4MiAxNi40NzkzIDYuNTg5MTcgMTYuODQ5QzcuNjc5NTIgMTcuMjE4NyA4Ljg0MDM0IDE3LjMzMjQgOS45ODE2OSAxNy4xODEzQzExLjEyMyAxNy4wMzAyIDEyLjIxNDMgMTYuNjE4NCAxMy4xNzA5IDE1Ljk3NzdDMTQuMTI3NSAxNS4zMzcxIDE0LjkyMzcgMTQuNDg0OCAxNS40OTggMTMuNDg2OVYxMy40ODg4WiIvPjwvc3ZnPg==",
+            "eyebrow": "{{now | greeting}}!",
+            "title": "{{query.hero.headline}}",
             "children": [
-              {
-                "type": "heading",
-                "id": "title",
-                "text": "Investigations"
-              },
               {
                 "type": "link",
                 "id": "show_all_events",
@@ -56,115 +67,233 @@
             ]
           },
           {
-            "type": "text",
-            "id": "greeting",
-            "text": "Nightshift watches your data and opens an investigation when something looks wrong."
-          },
-          {
-            "type": "search",
-            "id": "search",
-            "label": "Search investigations",
-            "placeholder": "Search",
-            "bind": "q"
-          },
-          {
-            "type": "columns",
-            "id": "severity_tiles",
-            "columns": 4,
+            "type": "stack",
+            "id": "filters",
+            "direction": "vertical",
+            "spacing": "compact",
             "children": [
               {
-                "type": "stat",
-                "id": "tile_critical",
-                "title": "Critical",
-                "query": "FROM nightshift-app-investigations | WHERE severity == \"critical\" AND (?q == \"\" OR TO_LOWER(title) LIKE CONCAT(\"*\", TO_LOWER(?q), \"*\")) | STATS investigations = COUNT(*)"
+                "type": "search",
+                "id": "search",
+                "label": "",
+                "placeholder": "Search",
+                "bind": "q"
               },
               {
-                "type": "stat",
-                "id": "tile_high",
-                "title": "High",
-                "query": "FROM nightshift-app-investigations | WHERE severity == \"high\" AND (?q == \"\" OR TO_LOWER(title) LIKE CONCAT(\"*\", TO_LOWER(?q), \"*\")) | STATS investigations = COUNT(*)"
-              },
-              {
-                "type": "stat",
-                "id": "tile_medium",
-                "title": "Medium",
-                "query": "FROM nightshift-app-investigations | WHERE severity == \"medium\" AND (?q == \"\" OR TO_LOWER(title) LIKE CONCAT(\"*\", TO_LOWER(?q), \"*\")) | STATS investigations = COUNT(*)"
-              },
-              {
-                "type": "stat",
-                "id": "tile_low",
-                "title": "Low",
-                "query": "FROM nightshift-app-investigations | WHERE severity == \"low\" AND (?q == \"\" OR TO_LOWER(title) LIKE CONCAT(\"*\", TO_LOWER(?q), \"*\")) | STATS investigations = COUNT(*)"
+                "type": "stack",
+                "id": "severity_tiles",
+                "direction": "horizontal",
+                "children": [
+                  {
+                    "type": "stat",
+                    "id": "tile_critical",
+                    "title": "Critical",
+                    "icon": "bolt",
+                    "color": "danger",
+                    "query": "FROM nightshift-app-investigations | WHERE severity == \"critical\" AND (?q == \"\" OR TO_LOWER(title) LIKE CONCAT(\"*\", TO_LOWER(?q), \"*\") OR TO_LOWER(summary) LIKE CONCAT(\"*\", TO_LOWER(?q), \"*\")) | STATS investigations = COUNT(*)"
+                  },
+                  {
+                    "type": "stat",
+                    "id": "tile_high",
+                    "title": "High",
+                    "icon": "warning",
+                    "color": "risk",
+                    "query": "FROM nightshift-app-investigations | WHERE severity == \"high\" AND (?q == \"\" OR TO_LOWER(title) LIKE CONCAT(\"*\", TO_LOWER(?q), \"*\") OR TO_LOWER(summary) LIKE CONCAT(\"*\", TO_LOWER(?q), \"*\")) | STATS investigations = COUNT(*)"
+                  },
+                  {
+                    "type": "stat",
+                    "id": "tile_medium",
+                    "title": "Medium",
+                    "icon": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxNiAxNiI+PGcgdHJhbnNmb3JtPSJyb3RhdGUoLTkwIDggOCkiIGZpbGw9ImJsYWNrIj48cGF0aCBmaWxsLXJ1bGU9ImV2ZW5vZGQiIGQ9Ik0xMy4yOTMgOCA3LjY0NiAyLjM1NGwuNzA4LS43MDhMMTQuNzA3IDhsLTYuMzUzIDYuMzU0LS43MDgtLjcwN0wxMy4yOTMgOFoiLz48cGF0aCBmaWxsLXJ1bGU9ImV2ZW5vZGQiIGQ9Ik04LjI5MyA4IDIuNjQ2IDIuMzU0bC43MDgtLjcwOEw5LjcwNyA4bC02LjM1MyA2LjM1NC0uNzA4LS43MDdMOC4yOTMgOFoiLz48L2c+PC9zdmc+",
+                    "color": "warning",
+                    "query": "FROM nightshift-app-investigations | WHERE severity == \"medium\" AND (?q == \"\" OR TO_LOWER(title) LIKE CONCAT(\"*\", TO_LOWER(?q), \"*\") OR TO_LOWER(summary) LIKE CONCAT(\"*\", TO_LOWER(?q), \"*\")) | STATS investigations = COUNT(*)"
+                  },
+                  {
+                    "type": "stat",
+                    "id": "tile_low",
+                    "title": "Low",
+                    "icon": "chevronSingleUp",
+                    "color": "neutral",
+                    "query": "FROM nightshift-app-investigations | WHERE severity == \"low\" AND (?q == \"\" OR TO_LOWER(title) LIKE CONCAT(\"*\", TO_LOWER(?q), \"*\") OR TO_LOWER(summary) LIKE CONCAT(\"*\", TO_LOWER(?q), \"*\")) | STATS investigations = COUNT(*)"
+                  }
+                ]
               }
             ]
           },
           {
             "type": "accordion",
             "id": "sections",
+            "variant": "cards",
             "children": [
               {
                 "type": "section",
                 "id": "section_in_progress",
                 "label": "In progress",
                 "open": true,
+                "visibleWhen": {
+                  "$query": "counts",
+                  "field": "in_progress",
+                  "gt": 0
+                },
+                "titleNode": {
+                  "type": "badge",
+                  "id": "in_progress_count",
+                  "text": "{{query.counts.in_progress}}",
+                  "color": "default"
+                },
                 "children": [
                   {
-                    "type": "table",
-                    "id": "table_in_progress",
-                    "caption": "Investigations in progress",
-                    "query": "FROM nightshift-app-investigations | WHERE in_progress == true AND (?q == \"\" OR TO_LOWER(title) LIKE CONCAT(\"*\", TO_LOWER(?q), \"*\")) | KEEP id, created_at, title, summary, entities, severity, status, verdict | SORT created_at DESC | LIMIT 100",
-                    "columns": [
-                      {
-                        "field": "created_at",
-                        "label": "Started"
-                      },
-                      {
-                        "field": "title",
-                        "label": "Investigation"
-                      },
-                      {
-                        "field": "summary",
-                        "label": "Summary"
-                      },
-                      {
-                        "field": "entities",
-                        "label": "Impacted"
-                      }
-                    ],
+                    "type": "list",
+                    "id": "in_progress_list",
+                    "query": "FROM nightshift-app-investigations | WHERE in_progress == true AND (?q == \"\" OR TO_LOWER(title) LIKE CONCAT(\"*\", TO_LOWER(?q), \"*\") OR TO_LOWER(summary) LIKE CONCAT(\"*\", TO_LOWER(?q), \"*\")) | KEEP id, created_at, title, summary, entities, severity, in_progress, agent_id | SORT created_at DESC | LIMIT 100",
+                    "pageSize": 10,
                     "onRowClick": [
                       {
-                        "type": "setState",
-                        "key": "selected_id",
-                        "value": {
+                        "type": "openConversation",
+                        "conversationId": {
                           "fromColumn": "id"
                         }
-                      },
-                      {
-                        "type": "setState",
-                        "key": "selected_title",
-                        "value": {
-                          "fromColumn": "title"
-                        }
-                      },
-                      {
-                        "type": "setState",
-                        "key": "selected_severity",
-                        "value": {
-                          "fromColumn": "severity"
-                        }
-                      },
-                      {
-                        "type": "setState",
-                        "key": "selected_summary",
-                        "value": {
-                          "fromColumn": "summary"
-                        }
-                      },
-                      {
-                        "type": "openFlyout",
-                        "flyout": "investigation_flyout"
                       }
-                    ]
+                    ],
+                    "rowActions": [
+                      {
+                        "label": "Open in chat",
+                        "icon": "productAgent",
+                        "onClick": [
+                          {
+                            "type": "openConversation",
+                            "conversationId": {
+                              "fromColumn": "id"
+                            }
+                          }
+                        ]
+                      },
+                      {
+                        "label": "Create case",
+                        "icon": "casesApp",
+                        "onClick": [
+                          {
+                            "type": "setState",
+                            "key": "selected_id",
+                            "value": {
+                              "fromColumn": "id"
+                            }
+                          },
+                          {
+                            "type": "setState",
+                            "key": "selected_title",
+                            "value": {
+                              "fromColumn": "title"
+                            }
+                          },
+                          {
+                            "type": "setState",
+                            "key": "selected_severity",
+                            "value": {
+                              "fromColumn": "severity"
+                            }
+                          },
+                          {
+                            "type": "setState",
+                            "key": "selected_summary",
+                            "value": {
+                              "fromColumn": "summary"
+                            }
+                          },
+                          {
+                            "type": "runWorkflow",
+                            "workflowRefName": "workflow_0",
+                            "inputs": {
+                              "investigation_id": {
+                                "fromState": "selected_id"
+                              },
+                              "title": {
+                                "fromState": "selected_title"
+                              },
+                              "severity": {
+                                "fromState": "selected_severity"
+                              },
+                              "summary": {
+                                "fromState": "selected_summary"
+                              }
+                            }
+                          }
+                        ]
+                      }
+                    ],
+                    "template": {
+                      "type": "stack",
+                      "id": "in_progress_row",
+                      "direction": "vertical",
+                      "spacing": "tight",
+                      "children": [
+                        {
+                          "type": "stack",
+                          "id": "in_progress_row_meta",
+                          "direction": "horizontal",
+                          "spacing": "tight",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "in_progress_row_age",
+                              "text": "{{row.created_at}}",
+                              "variant": "caption",
+                              "format": {
+                                "type": "relative_time"
+                              }
+                            },
+                            {
+                              "type": "badge",
+                              "id": "in_progress_row_running",
+                              "text": "In progress",
+                              "loading": true,
+                              "visibleWhen": {
+                                "$row": "in_progress"
+                              }
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "in_progress_row_title",
+                          "text": "{{row.title}}",
+                          "variant": "emphasis",
+                          "format": {
+                            "type": "truncate",
+                            "lines": 1
+                          }
+                        },
+                        {
+                          "type": "text",
+                          "id": "in_progress_row_summary",
+                          "text": "{{row.summary}}",
+                          "variant": "caption",
+                          "format": {
+                            "type": "truncate",
+                            "lines": 1
+                          },
+                          "visibleWhen": {
+                            "$row": "summary",
+                            "isNotEmpty": true
+                          }
+                        },
+                        {
+                          "type": "text",
+                          "id": "in_progress_row_entities",
+                          "text": "{{row.entities}}",
+                          "format": {
+                            "type": "chips",
+                            "max": 3,
+                            "dot": "danger"
+                          },
+                          "visibleWhen": {
+                            "$row": "entities",
+                            "isNotEmpty": true
+                          }
+                        }
+                      ]
+                    },
+                    "refreshInterval": 10
                   }
                 ]
               },
@@ -173,64 +302,169 @@
                 "id": "section_critical",
                 "label": "Critical",
                 "open": true,
+                "visibleWhen": {
+                  "$query": "counts",
+                  "field": "critical",
+                  "gt": 0
+                },
+                "titleNode": {
+                  "type": "badge",
+                  "id": "critical_count",
+                  "text": "{{query.counts.critical}}",
+                  "color": "danger"
+                },
                 "children": [
                   {
-                    "type": "table",
-                    "id": "table_critical",
-                    "caption": "Critical investigations",
-                    "query": "FROM nightshift-app-investigations | WHERE in_progress == false AND severity == \"critical\" AND (?q == \"\" OR TO_LOWER(title) LIKE CONCAT(\"*\", TO_LOWER(?q), \"*\")) | KEEP id, created_at, title, summary, entities, severity, status, verdict | SORT created_at DESC | LIMIT 100",
-                    "columns": [
-                      {
-                        "field": "created_at",
-                        "label": "Started"
-                      },
-                      {
-                        "field": "title",
-                        "label": "Investigation"
-                      },
-                      {
-                        "field": "summary",
-                        "label": "Summary"
-                      },
-                      {
-                        "field": "entities",
-                        "label": "Impacted"
-                      }
-                    ],
+                    "type": "list",
+                    "id": "critical_list",
+                    "query": "FROM nightshift-app-investigations | WHERE severity == \"critical\" AND in_progress == false AND (?q == \"\" OR TO_LOWER(title) LIKE CONCAT(\"*\", TO_LOWER(?q), \"*\") OR TO_LOWER(summary) LIKE CONCAT(\"*\", TO_LOWER(?q), \"*\")) | KEEP id, created_at, title, summary, entities, severity, in_progress, agent_id | SORT created_at DESC | LIMIT 100",
+                    "pageSize": 10,
                     "onRowClick": [
                       {
-                        "type": "setState",
-                        "key": "selected_id",
-                        "value": {
+                        "type": "openConversation",
+                        "conversationId": {
                           "fromColumn": "id"
                         }
-                      },
-                      {
-                        "type": "setState",
-                        "key": "selected_title",
-                        "value": {
-                          "fromColumn": "title"
-                        }
-                      },
-                      {
-                        "type": "setState",
-                        "key": "selected_severity",
-                        "value": {
-                          "fromColumn": "severity"
-                        }
-                      },
-                      {
-                        "type": "setState",
-                        "key": "selected_summary",
-                        "value": {
-                          "fromColumn": "summary"
-                        }
-                      },
-                      {
-                        "type": "openFlyout",
-                        "flyout": "investigation_flyout"
                       }
-                    ]
+                    ],
+                    "rowActions": [
+                      {
+                        "label": "Open in chat",
+                        "icon": "productAgent",
+                        "onClick": [
+                          {
+                            "type": "openConversation",
+                            "conversationId": {
+                              "fromColumn": "id"
+                            }
+                          }
+                        ]
+                      },
+                      {
+                        "label": "Create case",
+                        "icon": "casesApp",
+                        "onClick": [
+                          {
+                            "type": "setState",
+                            "key": "selected_id",
+                            "value": {
+                              "fromColumn": "id"
+                            }
+                          },
+                          {
+                            "type": "setState",
+                            "key": "selected_title",
+                            "value": {
+                              "fromColumn": "title"
+                            }
+                          },
+                          {
+                            "type": "setState",
+                            "key": "selected_severity",
+                            "value": {
+                              "fromColumn": "severity"
+                            }
+                          },
+                          {
+                            "type": "setState",
+                            "key": "selected_summary",
+                            "value": {
+                              "fromColumn": "summary"
+                            }
+                          },
+                          {
+                            "type": "runWorkflow",
+                            "workflowRefName": "workflow_0",
+                            "inputs": {
+                              "investigation_id": {
+                                "fromState": "selected_id"
+                              },
+                              "title": {
+                                "fromState": "selected_title"
+                              },
+                              "severity": {
+                                "fromState": "selected_severity"
+                              },
+                              "summary": {
+                                "fromState": "selected_summary"
+                              }
+                            }
+                          }
+                        ]
+                      }
+                    ],
+                    "template": {
+                      "type": "stack",
+                      "id": "critical_row",
+                      "direction": "vertical",
+                      "spacing": "tight",
+                      "children": [
+                        {
+                          "type": "stack",
+                          "id": "critical_row_meta",
+                          "direction": "horizontal",
+                          "spacing": "tight",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "critical_row_age",
+                              "text": "{{row.created_at}}",
+                              "variant": "caption",
+                              "format": {
+                                "type": "relative_time"
+                              }
+                            },
+                            {
+                              "type": "badge",
+                              "id": "critical_row_running",
+                              "text": "In progress",
+                              "loading": true,
+                              "visibleWhen": {
+                                "$row": "in_progress"
+                              }
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "critical_row_title",
+                          "text": "{{row.title}}",
+                          "variant": "emphasis",
+                          "format": {
+                            "type": "truncate",
+                            "lines": 1
+                          }
+                        },
+                        {
+                          "type": "text",
+                          "id": "critical_row_summary",
+                          "text": "{{row.summary}}",
+                          "variant": "caption",
+                          "format": {
+                            "type": "truncate",
+                            "lines": 1
+                          },
+                          "visibleWhen": {
+                            "$row": "summary",
+                            "isNotEmpty": true
+                          }
+                        },
+                        {
+                          "type": "text",
+                          "id": "critical_row_entities",
+                          "text": "{{row.entities}}",
+                          "format": {
+                            "type": "chips",
+                            "max": 3,
+                            "dot": "danger"
+                          },
+                          "visibleWhen": {
+                            "$row": "entities",
+                            "isNotEmpty": true
+                          }
+                        }
+                      ]
+                    }
                   }
                 ]
               },
@@ -239,64 +473,169 @@
                 "id": "section_high",
                 "label": "High",
                 "open": true,
+                "visibleWhen": {
+                  "$query": "counts",
+                  "field": "high",
+                  "gt": 0
+                },
+                "titleNode": {
+                  "type": "badge",
+                  "id": "high_count",
+                  "text": "{{query.counts.high}}",
+                  "color": "risk"
+                },
                 "children": [
                   {
-                    "type": "table",
-                    "id": "table_high",
-                    "caption": "High investigations",
-                    "query": "FROM nightshift-app-investigations | WHERE in_progress == false AND severity == \"high\" AND (?q == \"\" OR TO_LOWER(title) LIKE CONCAT(\"*\", TO_LOWER(?q), \"*\")) | KEEP id, created_at, title, summary, entities, severity, status, verdict | SORT created_at DESC | LIMIT 100",
-                    "columns": [
-                      {
-                        "field": "created_at",
-                        "label": "Started"
-                      },
-                      {
-                        "field": "title",
-                        "label": "Investigation"
-                      },
-                      {
-                        "field": "summary",
-                        "label": "Summary"
-                      },
-                      {
-                        "field": "entities",
-                        "label": "Impacted"
-                      }
-                    ],
+                    "type": "list",
+                    "id": "high_list",
+                    "query": "FROM nightshift-app-investigations | WHERE severity == \"high\" AND in_progress == false AND (?q == \"\" OR TO_LOWER(title) LIKE CONCAT(\"*\", TO_LOWER(?q), \"*\") OR TO_LOWER(summary) LIKE CONCAT(\"*\", TO_LOWER(?q), \"*\")) | KEEP id, created_at, title, summary, entities, severity, in_progress, agent_id | SORT created_at DESC | LIMIT 100",
+                    "pageSize": 10,
                     "onRowClick": [
                       {
-                        "type": "setState",
-                        "key": "selected_id",
-                        "value": {
+                        "type": "openConversation",
+                        "conversationId": {
                           "fromColumn": "id"
                         }
-                      },
-                      {
-                        "type": "setState",
-                        "key": "selected_title",
-                        "value": {
-                          "fromColumn": "title"
-                        }
-                      },
-                      {
-                        "type": "setState",
-                        "key": "selected_severity",
-                        "value": {
-                          "fromColumn": "severity"
-                        }
-                      },
-                      {
-                        "type": "setState",
-                        "key": "selected_summary",
-                        "value": {
-                          "fromColumn": "summary"
-                        }
-                      },
-                      {
-                        "type": "openFlyout",
-                        "flyout": "investigation_flyout"
                       }
-                    ]
+                    ],
+                    "rowActions": [
+                      {
+                        "label": "Open in chat",
+                        "icon": "productAgent",
+                        "onClick": [
+                          {
+                            "type": "openConversation",
+                            "conversationId": {
+                              "fromColumn": "id"
+                            }
+                          }
+                        ]
+                      },
+                      {
+                        "label": "Create case",
+                        "icon": "casesApp",
+                        "onClick": [
+                          {
+                            "type": "setState",
+                            "key": "selected_id",
+                            "value": {
+                              "fromColumn": "id"
+                            }
+                          },
+                          {
+                            "type": "setState",
+                            "key": "selected_title",
+                            "value": {
+                              "fromColumn": "title"
+                            }
+                          },
+                          {
+                            "type": "setState",
+                            "key": "selected_severity",
+                            "value": {
+                              "fromColumn": "severity"
+                            }
+                          },
+                          {
+                            "type": "setState",
+                            "key": "selected_summary",
+                            "value": {
+                              "fromColumn": "summary"
+                            }
+                          },
+                          {
+                            "type": "runWorkflow",
+                            "workflowRefName": "workflow_0",
+                            "inputs": {
+                              "investigation_id": {
+                                "fromState": "selected_id"
+                              },
+                              "title": {
+                                "fromState": "selected_title"
+                              },
+                              "severity": {
+                                "fromState": "selected_severity"
+                              },
+                              "summary": {
+                                "fromState": "selected_summary"
+                              }
+                            }
+                          }
+                        ]
+                      }
+                    ],
+                    "template": {
+                      "type": "stack",
+                      "id": "high_row",
+                      "direction": "vertical",
+                      "spacing": "tight",
+                      "children": [
+                        {
+                          "type": "stack",
+                          "id": "high_row_meta",
+                          "direction": "horizontal",
+                          "spacing": "tight",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "high_row_age",
+                              "text": "{{row.created_at}}",
+                              "variant": "caption",
+                              "format": {
+                                "type": "relative_time"
+                              }
+                            },
+                            {
+                              "type": "badge",
+                              "id": "high_row_running",
+                              "text": "In progress",
+                              "loading": true,
+                              "visibleWhen": {
+                                "$row": "in_progress"
+                              }
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "high_row_title",
+                          "text": "{{row.title}}",
+                          "variant": "emphasis",
+                          "format": {
+                            "type": "truncate",
+                            "lines": 1
+                          }
+                        },
+                        {
+                          "type": "text",
+                          "id": "high_row_summary",
+                          "text": "{{row.summary}}",
+                          "variant": "caption",
+                          "format": {
+                            "type": "truncate",
+                            "lines": 1
+                          },
+                          "visibleWhen": {
+                            "$row": "summary",
+                            "isNotEmpty": true
+                          }
+                        },
+                        {
+                          "type": "text",
+                          "id": "high_row_entities",
+                          "text": "{{row.entities}}",
+                          "format": {
+                            "type": "chips",
+                            "max": 3,
+                            "dot": "danger"
+                          },
+                          "visibleWhen": {
+                            "$row": "entities",
+                            "isNotEmpty": true
+                          }
+                        }
+                      ]
+                    }
                   }
                 ]
               },
@@ -305,64 +644,169 @@
                 "id": "section_medium",
                 "label": "Medium",
                 "open": true,
+                "visibleWhen": {
+                  "$query": "counts",
+                  "field": "medium",
+                  "gt": 0
+                },
+                "titleNode": {
+                  "type": "badge",
+                  "id": "medium_count",
+                  "text": "{{query.counts.medium}}",
+                  "color": "warning"
+                },
                 "children": [
                   {
-                    "type": "table",
-                    "id": "table_medium",
-                    "caption": "Medium investigations",
-                    "query": "FROM nightshift-app-investigations | WHERE in_progress == false AND severity == \"medium\" AND (?q == \"\" OR TO_LOWER(title) LIKE CONCAT(\"*\", TO_LOWER(?q), \"*\")) | KEEP id, created_at, title, summary, entities, severity, status, verdict | SORT created_at DESC | LIMIT 100",
-                    "columns": [
-                      {
-                        "field": "created_at",
-                        "label": "Started"
-                      },
-                      {
-                        "field": "title",
-                        "label": "Investigation"
-                      },
-                      {
-                        "field": "summary",
-                        "label": "Summary"
-                      },
-                      {
-                        "field": "entities",
-                        "label": "Impacted"
-                      }
-                    ],
+                    "type": "list",
+                    "id": "medium_list",
+                    "query": "FROM nightshift-app-investigations | WHERE severity == \"medium\" AND in_progress == false AND (?q == \"\" OR TO_LOWER(title) LIKE CONCAT(\"*\", TO_LOWER(?q), \"*\") OR TO_LOWER(summary) LIKE CONCAT(\"*\", TO_LOWER(?q), \"*\")) | KEEP id, created_at, title, summary, entities, severity, in_progress, agent_id | SORT created_at DESC | LIMIT 100",
+                    "pageSize": 10,
                     "onRowClick": [
                       {
-                        "type": "setState",
-                        "key": "selected_id",
-                        "value": {
+                        "type": "openConversation",
+                        "conversationId": {
                           "fromColumn": "id"
                         }
-                      },
-                      {
-                        "type": "setState",
-                        "key": "selected_title",
-                        "value": {
-                          "fromColumn": "title"
-                        }
-                      },
-                      {
-                        "type": "setState",
-                        "key": "selected_severity",
-                        "value": {
-                          "fromColumn": "severity"
-                        }
-                      },
-                      {
-                        "type": "setState",
-                        "key": "selected_summary",
-                        "value": {
-                          "fromColumn": "summary"
-                        }
-                      },
-                      {
-                        "type": "openFlyout",
-                        "flyout": "investigation_flyout"
                       }
-                    ]
+                    ],
+                    "rowActions": [
+                      {
+                        "label": "Open in chat",
+                        "icon": "productAgent",
+                        "onClick": [
+                          {
+                            "type": "openConversation",
+                            "conversationId": {
+                              "fromColumn": "id"
+                            }
+                          }
+                        ]
+                      },
+                      {
+                        "label": "Create case",
+                        "icon": "casesApp",
+                        "onClick": [
+                          {
+                            "type": "setState",
+                            "key": "selected_id",
+                            "value": {
+                              "fromColumn": "id"
+                            }
+                          },
+                          {
+                            "type": "setState",
+                            "key": "selected_title",
+                            "value": {
+                              "fromColumn": "title"
+                            }
+                          },
+                          {
+                            "type": "setState",
+                            "key": "selected_severity",
+                            "value": {
+                              "fromColumn": "severity"
+                            }
+                          },
+                          {
+                            "type": "setState",
+                            "key": "selected_summary",
+                            "value": {
+                              "fromColumn": "summary"
+                            }
+                          },
+                          {
+                            "type": "runWorkflow",
+                            "workflowRefName": "workflow_0",
+                            "inputs": {
+                              "investigation_id": {
+                                "fromState": "selected_id"
+                              },
+                              "title": {
+                                "fromState": "selected_title"
+                              },
+                              "severity": {
+                                "fromState": "selected_severity"
+                              },
+                              "summary": {
+                                "fromState": "selected_summary"
+                              }
+                            }
+                          }
+                        ]
+                      }
+                    ],
+                    "template": {
+                      "type": "stack",
+                      "id": "medium_row",
+                      "direction": "vertical",
+                      "spacing": "tight",
+                      "children": [
+                        {
+                          "type": "stack",
+                          "id": "medium_row_meta",
+                          "direction": "horizontal",
+                          "spacing": "tight",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "medium_row_age",
+                              "text": "{{row.created_at}}",
+                              "variant": "caption",
+                              "format": {
+                                "type": "relative_time"
+                              }
+                            },
+                            {
+                              "type": "badge",
+                              "id": "medium_row_running",
+                              "text": "In progress",
+                              "loading": true,
+                              "visibleWhen": {
+                                "$row": "in_progress"
+                              }
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "medium_row_title",
+                          "text": "{{row.title}}",
+                          "variant": "emphasis",
+                          "format": {
+                            "type": "truncate",
+                            "lines": 1
+                          }
+                        },
+                        {
+                          "type": "text",
+                          "id": "medium_row_summary",
+                          "text": "{{row.summary}}",
+                          "variant": "caption",
+                          "format": {
+                            "type": "truncate",
+                            "lines": 1
+                          },
+                          "visibleWhen": {
+                            "$row": "summary",
+                            "isNotEmpty": true
+                          }
+                        },
+                        {
+                          "type": "text",
+                          "id": "medium_row_entities",
+                          "text": "{{row.entities}}",
+                          "format": {
+                            "type": "chips",
+                            "max": 3,
+                            "dot": "danger"
+                          },
+                          "visibleWhen": {
+                            "$row": "entities",
+                            "isNotEmpty": true
+                          }
+                        }
+                      ]
+                    }
                   }
                 ]
               },
@@ -371,64 +815,169 @@
                 "id": "section_low",
                 "label": "Low",
                 "open": true,
+                "visibleWhen": {
+                  "$query": "counts",
+                  "field": "low",
+                  "gt": 0
+                },
+                "titleNode": {
+                  "type": "badge",
+                  "id": "low_count",
+                  "text": "{{query.counts.low}}",
+                  "color": "neutral"
+                },
                 "children": [
                   {
-                    "type": "table",
-                    "id": "table_low",
-                    "caption": "Low investigations",
-                    "query": "FROM nightshift-app-investigations | WHERE in_progress == false AND severity == \"low\" AND (?q == \"\" OR TO_LOWER(title) LIKE CONCAT(\"*\", TO_LOWER(?q), \"*\")) | KEEP id, created_at, title, summary, entities, severity, status, verdict | SORT created_at DESC | LIMIT 100",
-                    "columns": [
-                      {
-                        "field": "created_at",
-                        "label": "Started"
-                      },
-                      {
-                        "field": "title",
-                        "label": "Investigation"
-                      },
-                      {
-                        "field": "summary",
-                        "label": "Summary"
-                      },
-                      {
-                        "field": "entities",
-                        "label": "Impacted"
-                      }
-                    ],
+                    "type": "list",
+                    "id": "low_list",
+                    "query": "FROM nightshift-app-investigations | WHERE severity == \"low\" AND in_progress == false AND (?q == \"\" OR TO_LOWER(title) LIKE CONCAT(\"*\", TO_LOWER(?q), \"*\") OR TO_LOWER(summary) LIKE CONCAT(\"*\", TO_LOWER(?q), \"*\")) | KEEP id, created_at, title, summary, entities, severity, in_progress, agent_id | SORT created_at DESC | LIMIT 100",
+                    "pageSize": 10,
                     "onRowClick": [
                       {
-                        "type": "setState",
-                        "key": "selected_id",
-                        "value": {
+                        "type": "openConversation",
+                        "conversationId": {
                           "fromColumn": "id"
                         }
-                      },
-                      {
-                        "type": "setState",
-                        "key": "selected_title",
-                        "value": {
-                          "fromColumn": "title"
-                        }
-                      },
-                      {
-                        "type": "setState",
-                        "key": "selected_severity",
-                        "value": {
-                          "fromColumn": "severity"
-                        }
-                      },
-                      {
-                        "type": "setState",
-                        "key": "selected_summary",
-                        "value": {
-                          "fromColumn": "summary"
-                        }
-                      },
-                      {
-                        "type": "openFlyout",
-                        "flyout": "investigation_flyout"
                       }
-                    ]
+                    ],
+                    "rowActions": [
+                      {
+                        "label": "Open in chat",
+                        "icon": "productAgent",
+                        "onClick": [
+                          {
+                            "type": "openConversation",
+                            "conversationId": {
+                              "fromColumn": "id"
+                            }
+                          }
+                        ]
+                      },
+                      {
+                        "label": "Create case",
+                        "icon": "casesApp",
+                        "onClick": [
+                          {
+                            "type": "setState",
+                            "key": "selected_id",
+                            "value": {
+                              "fromColumn": "id"
+                            }
+                          },
+                          {
+                            "type": "setState",
+                            "key": "selected_title",
+                            "value": {
+                              "fromColumn": "title"
+                            }
+                          },
+                          {
+                            "type": "setState",
+                            "key": "selected_severity",
+                            "value": {
+                              "fromColumn": "severity"
+                            }
+                          },
+                          {
+                            "type": "setState",
+                            "key": "selected_summary",
+                            "value": {
+                              "fromColumn": "summary"
+                            }
+                          },
+                          {
+                            "type": "runWorkflow",
+                            "workflowRefName": "workflow_0",
+                            "inputs": {
+                              "investigation_id": {
+                                "fromState": "selected_id"
+                              },
+                              "title": {
+                                "fromState": "selected_title"
+                              },
+                              "severity": {
+                                "fromState": "selected_severity"
+                              },
+                              "summary": {
+                                "fromState": "selected_summary"
+                              }
+                            }
+                          }
+                        ]
+                      }
+                    ],
+                    "template": {
+                      "type": "stack",
+                      "id": "low_row",
+                      "direction": "vertical",
+                      "spacing": "tight",
+                      "children": [
+                        {
+                          "type": "stack",
+                          "id": "low_row_meta",
+                          "direction": "horizontal",
+                          "spacing": "tight",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "low_row_age",
+                              "text": "{{row.created_at}}",
+                              "variant": "caption",
+                              "format": {
+                                "type": "relative_time"
+                              }
+                            },
+                            {
+                              "type": "badge",
+                              "id": "low_row_running",
+                              "text": "In progress",
+                              "loading": true,
+                              "visibleWhen": {
+                                "$row": "in_progress"
+                              }
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "low_row_title",
+                          "text": "{{row.title}}",
+                          "variant": "emphasis",
+                          "format": {
+                            "type": "truncate",
+                            "lines": 1
+                          }
+                        },
+                        {
+                          "type": "text",
+                          "id": "low_row_summary",
+                          "text": "{{row.summary}}",
+                          "variant": "caption",
+                          "format": {
+                            "type": "truncate",
+                            "lines": 1
+                          },
+                          "visibleWhen": {
+                            "$row": "summary",
+                            "isNotEmpty": true
+                          }
+                        },
+                        {
+                          "type": "text",
+                          "id": "low_row_entities",
+                          "text": "{{row.entities}}",
+                          "format": {
+                            "type": "chips",
+                            "max": 3,
+                            "dot": "danger"
+                          },
+                          "visibleWhen": {
+                            "$row": "entities",
+                            "isNotEmpty": true
+                          }
+                        }
+                      ]
+                    }
                   }
                 ]
               },
@@ -437,141 +986,168 @@
                 "id": "section_not_rated",
                 "label": "Not rated",
                 "open": true,
+                "visibleWhen": {
+                  "$query": "counts",
+                  "field": "not_rated",
+                  "gt": 0
+                },
+                "titleNode": {
+                  "type": "badge",
+                  "id": "not_rated_count",
+                  "text": "{{query.counts.not_rated}}",
+                  "color": "default"
+                },
                 "children": [
                   {
-                    "type": "table",
-                    "id": "table_not_rated",
-                    "caption": "Investigations without a severity",
-                    "query": "FROM nightshift-app-investigations | WHERE in_progress == false AND severity IS NULL AND (?q == \"\" OR TO_LOWER(title) LIKE CONCAT(\"*\", TO_LOWER(?q), \"*\")) | KEEP id, created_at, title, summary, entities, severity, status, verdict | SORT created_at DESC | LIMIT 100",
-                    "columns": [
-                      {
-                        "field": "created_at",
-                        "label": "Started"
-                      },
-                      {
-                        "field": "title",
-                        "label": "Investigation"
-                      },
-                      {
-                        "field": "summary",
-                        "label": "Summary"
-                      },
-                      {
-                        "field": "entities",
-                        "label": "Impacted"
-                      }
-                    ],
+                    "type": "list",
+                    "id": "not_rated_list",
+                    "query": "FROM nightshift-app-investigations | WHERE severity IS NULL AND in_progress == false AND (?q == \"\" OR TO_LOWER(title) LIKE CONCAT(\"*\", TO_LOWER(?q), \"*\") OR TO_LOWER(summary) LIKE CONCAT(\"*\", TO_LOWER(?q), \"*\")) | KEEP id, created_at, title, summary, entities, severity, in_progress, agent_id | SORT created_at DESC | LIMIT 100",
+                    "pageSize": 10,
                     "onRowClick": [
                       {
-                        "type": "setState",
-                        "key": "selected_id",
-                        "value": {
+                        "type": "openConversation",
+                        "conversationId": {
                           "fromColumn": "id"
                         }
-                      },
-                      {
-                        "type": "setState",
-                        "key": "selected_title",
-                        "value": {
-                          "fromColumn": "title"
-                        }
-                      },
-                      {
-                        "type": "setState",
-                        "key": "selected_severity",
-                        "value": {
-                          "fromColumn": "severity"
-                        }
-                      },
-                      {
-                        "type": "setState",
-                        "key": "selected_summary",
-                        "value": {
-                          "fromColumn": "summary"
-                        }
-                      },
-                      {
-                        "type": "openFlyout",
-                        "flyout": "investigation_flyout"
                       }
-                    ]
-                  }
-                ]
-              }
-            ]
-          },
-          {
-            "type": "flyout",
-            "id": "investigation_flyout",
-            "title": "{{state.selected_title}}",
-            "children": [
-              {
-                "type": "key_value",
-                "id": "investigation_details",
-                "query": "FROM nightshift-app-investigations | WHERE id == ?selected_id | KEEP severity, status, in_progress, created_at, updated_at, subject_type, entities, pending_proposals, verdict | LIMIT 1",
-                "fields": [
-                  "severity",
-                  "status",
-                  "in_progress",
-                  "created_at",
-                  "updated_at",
-                  "subject_type",
-                  "entities",
-                  "pending_proposals",
-                  "verdict"
-                ]
-              },
-              {
-                "type": "heading",
-                "id": "summary_heading",
-                "text": "What happened"
-              },
-              {
-                "type": "text",
-                "id": "summary_text",
-                "text": "{{state.selected_summary}}"
-              },
-              {
-                "type": "stack",
-                "id": "flyout_actions",
-                "direction": "horizontal",
-                "children": [
-                  {
-                    "type": "button",
-                    "id": "create_case",
-                    "label": "Create case",
-                    "onClick": [
+                    ],
+                    "rowActions": [
                       {
-                        "type": "runWorkflow",
-                        "workflowRefName": "workflow_0",
-                        "inputs": {
-                          "investigation_id": {
-                            "fromState": "selected_id"
+                        "label": "Open in chat",
+                        "icon": "productAgent",
+                        "onClick": [
+                          {
+                            "type": "openConversation",
+                            "conversationId": {
+                              "fromColumn": "id"
+                            }
+                          }
+                        ]
+                      },
+                      {
+                        "label": "Create case",
+                        "icon": "casesApp",
+                        "onClick": [
+                          {
+                            "type": "setState",
+                            "key": "selected_id",
+                            "value": {
+                              "fromColumn": "id"
+                            }
                           },
-                          "title": {
-                            "fromState": "selected_title"
+                          {
+                            "type": "setState",
+                            "key": "selected_title",
+                            "value": {
+                              "fromColumn": "title"
+                            }
                           },
-                          "severity": {
-                            "fromState": "selected_severity"
+                          {
+                            "type": "setState",
+                            "key": "selected_severity",
+                            "value": {
+                              "fromColumn": "severity"
+                            }
                           },
-                          "summary": {
-                            "fromState": "selected_summary"
+                          {
+                            "type": "setState",
+                            "key": "selected_summary",
+                            "value": {
+                              "fromColumn": "summary"
+                            }
+                          },
+                          {
+                            "type": "runWorkflow",
+                            "workflowRefName": "workflow_0",
+                            "inputs": {
+                              "investigation_id": {
+                                "fromState": "selected_id"
+                              },
+                              "title": {
+                                "fromState": "selected_title"
+                              },
+                              "severity": {
+                                "fromState": "selected_severity"
+                              },
+                              "summary": {
+                                "fromState": "selected_summary"
+                              }
+                            }
+                          }
+                        ]
+                      }
+                    ],
+                    "template": {
+                      "type": "stack",
+                      "id": "not_rated_row",
+                      "direction": "vertical",
+                      "spacing": "tight",
+                      "children": [
+                        {
+                          "type": "stack",
+                          "id": "not_rated_row_meta",
+                          "direction": "horizontal",
+                          "spacing": "tight",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "not_rated_row_age",
+                              "text": "{{row.created_at}}",
+                              "variant": "caption",
+                              "format": {
+                                "type": "relative_time"
+                              }
+                            },
+                            {
+                              "type": "badge",
+                              "id": "not_rated_row_running",
+                              "text": "In progress",
+                              "loading": true,
+                              "visibleWhen": {
+                                "$row": "in_progress"
+                              }
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "not_rated_row_title",
+                          "text": "{{row.title}}",
+                          "variant": "emphasis",
+                          "format": {
+                            "type": "truncate",
+                            "lines": 1
+                          }
+                        },
+                        {
+                          "type": "text",
+                          "id": "not_rated_row_summary",
+                          "text": "{{row.summary}}",
+                          "variant": "caption",
+                          "format": {
+                            "type": "truncate",
+                            "lines": 1
+                          },
+                          "visibleWhen": {
+                            "$row": "summary",
+                            "isNotEmpty": true
+                          }
+                        },
+                        {
+                          "type": "text",
+                          "id": "not_rated_row_entities",
+                          "text": "{{row.entities}}",
+                          "format": {
+                            "type": "chips",
+                            "max": 3,
+                            "dot": "danger"
+                          },
+                          "visibleWhen": {
+                            "$row": "entities",
+                            "isNotEmpty": true
                           }
                         }
-                      },
-                      {
-                        "type": "closeFlyout"
-                      }
-                    ]
-                  },
-                  {
-                    "type": "link",
-                    "id": "open_in_chat",
-                    "label": "Open in chat",
-                    "to": {
-                      "type": "app",
-                      "app": "agent_builder",
-                      "path": "/conversations/{{state.selected_id}}"
+                      ]
                     }
                   }
                 ]
