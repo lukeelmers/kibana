@@ -16,6 +16,7 @@ import { useSource } from '../data/use_source';
 import { useActionRunner } from '../workflows/use_action_runner';
 import { DataState } from './data_state';
 import { formatValue, toSortValue, type CellFormat } from './format_value';
+import { FormattedValue } from './formatted_value';
 import { MissingColumn } from './missing_column';
 
 type Row = Readonly<Record<string, unknown>>;
@@ -26,10 +27,7 @@ interface Item {
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50];
 
-interface ColumnConfig {
-  field: string;
-  label?: string;
-}
+type ColumnConfig = NonNullable<AppNodeOfType<'table'>['columns']>[number];
 
 const NUMBER_TYPES = new Set([
   'long',
@@ -72,14 +70,18 @@ const TableContent = ({ node, data }: { node: AppNodeOfType<'table'>; data: Sour
   const handleRowClick = (row: Row) => setDropped(runActions(node.onRowClick, { row }));
 
   const tableColumns: Array<EuiBasicTableColumn<Item>> = columns.map(
-    ({ field, label }, position) => {
+    ({ field, label, format: valueFormat }, position) => {
       const format = formatOf(typeOf(field));
       return {
         field,
         name: label ?? field,
         sortable: (item: Item) => toSortValue(item.values[field], format),
         render: (_value: unknown, item: Item) => {
-          const text = formatValue(item.values[field], format);
+          const text = valueFormat ? (
+            <FormattedValue value={item.values[field]} format={valueFormat} />
+          ) : (
+            formatValue(item.values[field], format)
+          );
           // A real control in the first cell, so the row action is reachable by keyboard; the row
           // click covers the pointer.
           return isClickable && position === 0 ? (

@@ -14,13 +14,17 @@ import { useDataLayer } from '../data/data_layer_context';
 import { useSource } from '../data/use_source';
 import { DataState } from './data_state';
 import { formatValue } from './format_value';
+import { FormattedValue } from './formatted_value';
 import { MissingColumn } from './missing_column';
 
 /** More than this is a table's job; a list that long is not a list anyone reads. */
 export const MAX_LIST_ROWS = 25;
 
 const KeyValueList = ({ node, data }: { node: AppNodeOfType<'key_value'>; data: SourceData }) => {
-  const names = node.fields ?? data.columns.map(({ name }) => name);
+  const fields = (node.fields ?? data.columns.map(({ name }) => name)).map((field) =>
+    typeof field === 'string' ? { field } : field
+  );
+  const names = fields.map(({ field }) => field);
   const missing = names.filter((name) => !data.columns.some((column) => column.name === name));
   if (missing.length > 0) return <MissingColumn columns={missing} />;
 
@@ -35,9 +39,13 @@ const KeyValueList = ({ node, data }: { node: AppNodeOfType<'key_value'>; data: 
           <EuiDescriptionList
             type="column"
             compressed
-            listItems={names.map((name, at) => ({
-              title: name,
-              description: formatValue(row[indexes[at]]) || '—',
+            listItems={fields.map(({ field, label, format }, at) => ({
+              title: label ?? field,
+              description: format ? (
+                <FormattedValue value={row[indexes[at]]} format={format} />
+              ) : (
+                formatValue(row[indexes[at]]) || '—'
+              ),
             }))}
           />
         </React.Fragment>

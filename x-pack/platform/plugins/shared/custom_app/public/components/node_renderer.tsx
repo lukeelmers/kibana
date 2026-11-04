@@ -12,7 +12,9 @@ import {
   EuiFlexItem,
   EuiMarkdownFormat,
   EuiPanel,
+  EuiText,
   EuiTitle,
+  useEuiTheme,
 } from '@elastic/eui';
 import { css } from '@emotion/react';
 import { i18n } from '@kbn/i18n';
@@ -31,6 +33,8 @@ import {
 } from '@kbn/ui-callout';
 import { useStateValues } from '../runtime/app_runtime_context';
 import { useBindingScope } from '../runtime/binding_scope';
+import { TEXT_FILTER_IMPLEMENTATIONS } from '../runtime/text_filters';
+import { FormattedValue, isCompactFormat } from './formatted_value';
 import { escapeMarkdownScope, escapeMarkdownValues } from '../utils/escape_markdown';
 import { ChartNode } from './chart_node';
 import {
@@ -70,7 +74,10 @@ const isInput = (node: AppNode): boolean =>
 
 /** What takes only the room it needs in a row: a status, a button, a link. They do not fill it. */
 const isCompact = (node: AppNode): boolean =>
-  node.type === 'badge' || node.type === 'button' || node.type === 'link';
+  node.type === 'badge' ||
+  node.type === 'button' ||
+  node.type === 'link' ||
+  (node.type === 'text' && isCompactFormat(node.format));
 
 const CALLOUTS = {
   primary: KbnInfoCallout,
@@ -89,9 +96,11 @@ interface NodeRendererProps {
  * instead of failing the whole panel.
  */
 export const NodeRenderer = ({ node: written }: NodeRendererProps) => {
+  const { euiTheme } = useEuiTheme();
   const state = useStateValues();
   const scope = useBindingScope();
-  const text = (value: string) => interpolate(value, state, scope);
+  const text = (value: string) =>
+    interpolate(value, state, { ...scope, filters: TEXT_FILTER_IMPLEMENTATIONS });
   // What is written may read the values of the app, and what is drawn is how they are now. It is the
   // same object until one of those values changes, as what is drawn from it, such as a chart, would
   // otherwise start again every time something else in the app does.
@@ -116,12 +125,38 @@ export const NodeRenderer = ({ node: written }: NodeRendererProps) => {
         </EuiTitle>
       );
     case 'text':
+      // A text with a variant or a format is a value, shown as it is: a line of a row of a list, an
+      // age, a few chips. Its size and weight come from the variant, a short list.
+      if (node.variant !== undefined || node.format !== undefined) {
+        const value = text(node.text);
+        return (
+          <EuiText
+            size={node.variant === 'caption' ? 'xs' : 's'}
+            color={node.variant === 'caption' ? 'subdued' : undefined}
+            css={
+              node.variant === 'emphasis'
+                ? css({ fontWeight: euiTheme.font.weight.semiBold })
+                : undefined
+            }
+            data-node-id={node.id}
+          >
+            {node.format ? (
+              <FormattedValue value={value} format={node.format} />
+            ) : (
+              <div>{value}</div>
+            )}
+          </EuiText>
+        );
+      }
       // Written in Markdown, so that bold, lists and links look as they are written. The values of
       // the app are put in as plain text: one that came from a link cannot add to the formatting.
       return (
         <div data-node-id={node.id}>
           <EuiMarkdownFormat textSize="s">
-            {interpolate(node.text, escapeMarkdownValues(state), escapeMarkdownScope(scope))}
+            {interpolate(node.text, escapeMarkdownValues(state), {
+              ...escapeMarkdownScope(scope),
+              filters: TEXT_FILTER_IMPLEMENTATIONS,
+            })}
           </EuiMarkdownFormat>
         </div>
       );

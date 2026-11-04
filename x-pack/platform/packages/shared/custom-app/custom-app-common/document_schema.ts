@@ -8,7 +8,13 @@
 import { z } from '@kbn/zod/v4';
 import { CUSTOM_CONTENT_MAX_HEIGHT, CUSTOM_CONTENT_MIN_HEIGHT } from '@kbn/custom-content-common';
 import {
+  BADGE_COLORS,
   CASES_SORT_FIELDS,
+  DOT_COLORS,
+  MAX_BADGE_COLOR_MAP_ENTRIES,
+  MAX_CHIP_SEPARATOR_LENGTH,
+  MAX_CHIPS,
+  MAX_TRUNCATE_LINES,
   CUSTOM_APP_STATE_VERSION,
   MAX_ACTIONS_PER_EVENT,
   MAX_BUTTON_GROUP_OPTIONS,
@@ -134,6 +140,43 @@ export const actionSchema = z.discriminatedUnion('type', [
 
 const actionsSchema = z.array(actionSchema).max(MAX_ACTIONS_PER_EVENT);
 
+/**
+ * How a value is shown, instead of as the text it is: as how long ago a time was, cut to a few
+ * lines, as a badge whose colour follows the value, or split into chips. A short list, as the rest
+ * of the look of an app is.
+ */
+export const valueFormatSchema = z.discriminatedUnion('type', [
+  z.object({ type: z.literal('relative_time') }),
+  z.object({
+    type: z.literal('truncate'),
+    lines: z.number().int().min(1).max(MAX_TRUNCATE_LINES).default(1),
+  }),
+  z.object({
+    type: z.literal('badge'),
+    /** The colour of each value; one that is not here is `color`. */
+    colorMap: z
+      .record(z.string().max(MAX_STATE_STRING_LENGTH), z.enum(BADGE_COLORS))
+      .refine((map) => Object.keys(map).length <= MAX_BADGE_COLOR_MAP_ENTRIES, {
+        message: `A badge maps at most ${MAX_BADGE_COLOR_MAP_ENTRIES} values to colours`,
+      })
+      .default({}),
+    color: z.enum(BADGE_COLORS).default('default'),
+  }),
+  z.object({
+    type: z.literal('chips'),
+    /** What the values are separated by in the text, a comma by default. */
+    separator: z.string().min(1).max(MAX_CHIP_SEPARATOR_LENGTH).default(','),
+    /** The most chips shown; the rest are counted in one more. */
+    max: z.number().int().min(1).max(MAX_CHIPS).optional(),
+    color: z.enum(BADGE_COLORS).default('hollow'),
+    /** A dot of this colour before the text of each chip. */
+    dot: z.enum(DOT_COLORS).optional(),
+  }),
+]);
+
+/** How a text reads among others: as a small, quiet caption, or as a line that stands out. */
+const textVariantSchema = z.enum(['caption', 'emphasis']);
+
 const headingNodeSchema = z.object({
   type: z.literal('heading'),
   id: nodeIdSchema,
@@ -146,6 +189,9 @@ const textNodeSchema = z.object({
   id: nodeIdSchema,
   visibleWhen: visibleWhenSchema,
   text: z.string().max(MAX_TEXT_LENGTH),
+  /** With either, the text is shown as the value it is, and not as Markdown. */
+  variant: textVariantSchema.optional(),
+  format: valueFormatSchema.optional(),
 });
 
 const calloutNodeSchema = z.object({
@@ -258,6 +304,7 @@ const tableNodeSchema = z.object({
       z.object({
         field: z.string().min(1).max(MAX_HEADING_LENGTH),
         label: z.string().max(MAX_HEADING_LENGTH).optional(),
+        format: valueFormatSchema.optional(),
       })
     )
     .max(MAX_TABLE_COLUMNS)
@@ -436,8 +483,20 @@ const keyValueNodeSchema = z.object({
   id: nodeIdSchema,
   visibleWhen: visibleWhenSchema,
   ...dataFields,
-  /** Defaults to every column of the first row. */
-  fields: z.array(z.string().min(1).max(MAX_HEADING_LENGTH)).max(MAX_KEY_VALUE_FIELDS).optional(),
+  /** Defaults to every column of the first row. A field can say how its value is shown. */
+  fields: z
+    .array(
+      z.union([
+        z.string().min(1).max(MAX_HEADING_LENGTH),
+        z.object({
+          field: z.string().min(1).max(MAX_HEADING_LENGTH),
+          label: z.string().max(MAX_HEADING_LENGTH).optional(),
+          format: valueFormatSchema.optional(),
+        }),
+      ])
+    )
+    .max(MAX_KEY_VALUE_FIELDS)
+    .optional(),
 });
 
 /**
@@ -611,6 +670,7 @@ export type AppNodeOfType<T extends AppNodeType> = Extract<AppNode, { type: T }>
 export type Action = z.output<typeof actionSchema>;
 export type FormField = z.output<typeof formFieldSchema>;
 export type CasesSource = z.output<typeof casesSourceSchema>;
+export type ValueFormat = z.output<typeof valueFormatSchema>;
 /** Where a component gets what it shows. */
 export type DataSource = { type: 'esql'; query: string } | CasesSource;
 

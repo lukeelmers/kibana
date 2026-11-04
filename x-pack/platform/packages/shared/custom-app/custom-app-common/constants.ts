@@ -105,7 +105,19 @@ export const BADGE_COLORS = [
   'warning',
   'danger',
   'hollow',
+  'neutral',
+  'risk',
 ] as const;
+/** The colours of the dot a chip can have before its text. */
+export const DOT_COLORS = ['primary', 'success', 'warning', 'danger', 'subdued'] as const;
+/** How many lines a value is cut to at most. */
+export const MAX_TRUNCATE_LINES = 10;
+/** The most chips a value is shown as, before the rest are counted. */
+export const MAX_CHIPS = 50;
+/** What separates the values of a text shown as chips. */
+export const MAX_CHIP_SEPARATOR_LENGTH = 10;
+/** How many values a badge can map to a colour. */
+export const MAX_BADGE_COLOR_MAP_ENTRIES = 50;
 /** The colours of a progress bar. */
 export const PROGRESS_COLORS = ['primary', 'success', 'warning', 'danger'] as const;
 /** The most columns a row of columns has. */

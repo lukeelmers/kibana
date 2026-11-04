@@ -477,7 +477,11 @@ export const PropertiesPanel = ({
                 label={i18n.translate('xpack.customApp.editor.fieldFields', {
                   defaultMessage: 'Fields to show',
                 })}
-                value={node.fields?.join(', ') ?? ''}
+                value={
+                  node.fields
+                    ?.map((field) => (typeof field === 'string' ? field : field.field))
+                    .join(', ') ?? ''
+                }
                 placeholder={i18n.translate('xpack.customApp.editor.allFields', {
                   defaultMessage: 'All fields',
                 })}
@@ -485,10 +489,17 @@ export const PropertiesPanel = ({
                   defaultMessage: 'Column names, separated by commas.',
                 })}
                 onChange={(value) => {
+                  // A field that is written with how it is shown keeps that, while its name stays.
                   const fields = value
                     .split(',')
                     .map((field) => field.trim())
-                    .filter(Boolean);
+                    .filter(Boolean)
+                    .map(
+                      (name) =>
+                        node.fields?.find(
+                          (field) => typeof field !== 'string' && field.field === name
+                        ) ?? name
+                    );
                   onChange<'key_value'>({ fields: fields.length > 0 ? fields : undefined });
                 }}
               />
