@@ -144,8 +144,7 @@ async function main(): Promise<void> {
     const artifactPath = resolve(option('artifact', 'target/workflows_faas'));
     const manifest: { artifactHash: string } = JSON.parse(readFileSync(join(artifactPath, 'manifest.json'), 'utf8'));
     console.log(stringify({
-      workflowsExecutionEngine: { remoteExecution: { enabled: true } },
-      core: { remote: { backend: backend === 'existing-worker' ? 'worker_thread' : 'lambda_rie', faas: {
+      core: { runtime: { placement: { workflows: backend === 'existing-worker' ? 'worker' : 'remote' } }, remote: { backend: backend === 'existing-worker' ? 'worker_thread' : 'lambda_rie', faas: {
         artifactPath, expectedArtifactHash: manifest.artifactHash,
         image: option('image', 'kbn-workflows-faas:local'), memoryMiB: memory,
         warm: backend === 'warm-faas-control', addedRttMs: rtt,

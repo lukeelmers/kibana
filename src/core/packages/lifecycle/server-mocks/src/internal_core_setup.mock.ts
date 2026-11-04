@@ -70,6 +70,7 @@ export function createInternalCoreSetupMock() {
     pubsub: pubSubServiceMock.createInternalSetupContract(),
     userStorage: userStorageServiceMock.createSetupContract(),
     remote: lazyObject({
+      getPlacement: () => 'main' as const,
       register: () => undefined,
       bind: () => undefined,
       whenReady: async () => {

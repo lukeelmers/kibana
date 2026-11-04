@@ -12,5 +12,6 @@ export type {
   RemoteRegistration,
   RemoteSession,
   RemoteSetup,
+  RuntimePlacement,
   ScopeLookup,
 } from './src/contracts';

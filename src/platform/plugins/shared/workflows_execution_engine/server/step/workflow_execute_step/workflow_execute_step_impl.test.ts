@@ -109,7 +109,6 @@ const createMockInit = (
     workflowLogger,
     config: {
       maxWorkflowDepth: MAX_WORKFLOW_DEPTH,
-      remoteExecution: { enabled: false },
     } as WorkflowsExecutionEngineConfig,
     ...overrides,
   };

@@ -102,6 +102,7 @@ export class WorkflowExecutor implements WorkflowExecutorApi {
     workflowRunId: string;
     spaceId: string;
   }): Promise<{ status: string }> {
+    await this.log.info(`Remote workflow run ${request.workflowRunId} executing on thread ${threadId} (isMainThread=${isMainThread}, pid=${process.pid})`);
     const execution = await this.storage.getExecution(
       request.scopeId,
       request.workflowRunId,

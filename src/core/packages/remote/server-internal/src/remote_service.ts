@@ -26,6 +26,7 @@ import type {
   RemoteRegistration,
   RemoteSession,
   RemoteSetup,
+  RuntimePlacement,
   ScopeLookup,
 } from '@kbn/core-remote-server';
 import { createManagedWorker, type ManagedWorker } from '@kbn/core-threads-server-internal';
@@ -51,6 +52,7 @@ export class RemoteService implements RemoteSetup {
   private readonly workers: ManagedWorker[] = [];
   private readonly ports: MessagePort[] = [];
   private started = false;
+  private placement: Readonly<Record<string, RuntimePlacement>> = {};
   private readonly functions: FaasBackend[] = [];
   private readonly lookup: ScopeLookup = {
     get: <T>(scopeId: string): T => {
@@ -99,6 +101,14 @@ export class RemoteService implements RemoteSetup {
     this.bindings.set(remoteTokenId(token), factory);
   }
 
+  public setPlacement(placement: Readonly<Record<string, RuntimePlacement>>): void {
+    this.placement = placement;
+  }
+
+  public getPlacement(id: string): RuntimePlacement {
+    return this.placement[id] ?? 'main';
+  }
+
   public whenReady<T>(id: string): Promise<RemoteSession<T>> {
     const pending = this.sessions.get(id);
     if (!pending) {
@@ -107,15 +117,20 @@ export class RemoteService implements RemoteSetup {
     return pending as Promise<RemoteSession<T>>;
   }
 
-  public async start(backend: RemoteBackend, faas?: FaasOptions): Promise<void> {
+  /** `backendOverride` is `core.remote.backend`; without it the backend follows placement. */
+  public async start(backendOverride?: RemoteBackend, faas?: FaasOptions): Promise<void> {
     if (this.started) return;
     this.started = true;
     if (this.registrations.size === 0) {
       this.logger.info('No remote graphs registered; skipping remote startup');
       return;
     }
-    this.logger.info(`Starting remote execution with backend "${backend}"`);
     for (const registration of this.registrations.values()) {
+      const placement = this.getPlacement(registration.id);
+      const backend = backendOverride ?? (placement === 'remote' ? 'lambda_rie' : 'worker_thread');
+      this.logger.info(
+        `Starting remote graph "${registration.id}" (placement "${placement}") with backend "${backend}"`
+      );
       const spec = buildRemoteSpec(this.modules, registration);
       const coordinator = this.materializeCoordinator(spec);
       if (backend === 'in_process') {

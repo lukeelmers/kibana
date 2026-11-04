@@ -183,6 +183,7 @@ export class WorkflowsExecutionEnginePlugin
 {
   private readonly logger: Logger;
   private readonly config: WorkflowsExecutionEngineConfig;
+  private remoteExecution = false;
   private concurrencyManager!: ConcurrencyManager;
   private setupDependencies?: SetupDependencies;
   private coreSetup?: CoreSetup<
@@ -274,7 +275,10 @@ export class WorkflowsExecutionEnginePlugin
     const config = this.config;
 
     this.coreSetup = core;
-    if (config.remoteExecution.enabled) {
+    // `core.runtime.placement.workflows`: `main` keeps the in-process engine; `worker`/`remote` use the remote graph.
+    const remoteExecution = core.remote.getPlacement('workflows') !== 'main';
+    this.remoteExecution = remoteExecution;
+    if (remoteExecution) {
       core.remote.register(workflowRemoteRegistration);
     }
     core.security.serviceAccounts.registerWorkloadType({
@@ -417,7 +421,7 @@ export class WorkflowsExecutionEnginePlugin
 
               try {
                 let runResult: { shouldDeleteTask?: boolean } | undefined;
-                if (config.remoteExecution.enabled) {
+                if (remoteExecution) {
                   const session = await core.remote.whenReady<WorkflowExecutorApi>('workflows');
                   const scopeId = session.openScope(fakeRequest);
                   try {
@@ -715,7 +719,7 @@ export class WorkflowsExecutionEnginePlugin
               }
 
               try {
-                if (config.remoteExecution.enabled) {
+                if (remoteExecution) {
                   const session = await core.remote.whenReady<WorkflowExecutorApi>('workflows');
                   const scopeId = session.openScope(fakeRequest);
                   try {
@@ -1275,7 +1279,7 @@ export class WorkflowsExecutionEnginePlugin
       workflowExecutionRepository
     );
 
-    if (this.config.remoteExecution.enabled && this.coreSetup) {
+    if (this.remoteExecution && this.coreSetup) {
       const logsRepository = new LogsRepository(coreStart.dataStreams, this.logger);
       this.coreSetup.remote.bind(WorkflowStorageToken, (scopes) => {
         return new WorkflowStorage(

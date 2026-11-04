@@ -12,6 +12,9 @@ import type { ServiceToken } from '@kbn/core-di';
 /** Backend selected by Core configuration. Callers register a graph, not a placement. */
 export type RemoteBackend = 'worker_thread' | 'in_process' | 'lambda_rie';
 
+/** User-facing placement from `core.runtime.placement`. `main` means the executor stays in-process. */
+export type RuntimePlacement = 'main' | 'worker' | 'remote';
+
 export interface ScopeLookup {
   get<T>(scopeId: string): T;
 }
@@ -42,4 +45,6 @@ export interface RemoteSetup {
   register(registration: RemoteRegistration): void;
   bind(token: ServiceToken<unknown>, factory: (scopes: ScopeLookup) => object): void;
   whenReady<T>(id: string): Promise<RemoteSession<T>>;
+  /** Placement configured for an executor id via `core.runtime.placement`; `main` when unset. */
+  getPlacement(id: string): RuntimePlacement;
 }

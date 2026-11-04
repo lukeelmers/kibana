@@ -480,6 +480,10 @@ export class Server {
     const pricingSetup = await this.pricing.setup({ http: httpSetup });
 
     this.remote.discover(this.discoveredPlugins!.standard.pluginPaths);
+    const { runtime } = await firstValueFrom(
+      this.configService.atPath<CoreConfigType>(coreConfig.path)
+    );
+    this.remote.setPlacement(runtime?.placement ?? {});
 
     const coreSetup: InternalCoreSetup = {
       analytics: analyticsSetup,
@@ -712,7 +716,7 @@ export class Server {
     const remoteConfig = await firstValueFrom(
       this.configService.atPath<CoreConfigType>(coreConfig.path)
     );
-    await this.remote.start(remoteConfig.remote?.backend ?? 'worker_thread', remoteConfig.remote?.faas);
+    await this.remote.start(remoteConfig.remote?.backend, remoteConfig.remote?.faas);
 
     await this.http.start();
 
