@@ -24,6 +24,8 @@ export type StateValues = Readonly<Record<string, StateValue>>;
 export interface ActionInput {
   row?: Readonly<Record<string, unknown>>;
   input?: unknown;
+  /** The first row of each declared query, which an action can read a column of. */
+  queries?: Readonly<Record<string, Readonly<Record<string, unknown>> | undefined>>;
 }
 
 /** What a workflow is handed: plain values, as a workflow takes them. */
@@ -48,6 +50,11 @@ export interface RunActionsResult {
    * What is handed over is as the app was when the action reached it, so a value set before it counts.
    */
   workflows: WorkflowRunRequest[];
+  /**
+   * The conversations of Agent Builder to open, by id. The runtime does not open them: that is
+   * Agent Builder's, which may not be there.
+   */
+  conversations: string[];
 }
 
 export interface AppRuntime {
@@ -193,6 +200,7 @@ export const createAppRuntime = (document: Pick<AppDocument, 'state' | 'root'>):
     run: (actions, input = {}) => {
       const dropped: string[] = [];
       const workflows: WorkflowRunRequest[] = [];
+      const conversations: string[] = [];
 
       actions.forEach((action) => {
         switch (action.type) {
@@ -209,6 +217,31 @@ export const createAppRuntime = (document: Pick<AppDocument, 'state' | 'root'>):
           case 'closeFlyout':
             openFlyoutId$.next(undefined);
             break;
+          case 'openConversation': {
+            const { conversationId: source } = action;
+            const field =
+              typeof source === 'object' && '$row' in source
+                ? source.$row
+                : typeof source === 'object' && 'fromColumn' in source
+                ? source.fromColumn
+                : undefined;
+            const resolved =
+              typeof source === 'string'
+                ? source
+                : '$state' in source
+                ? state$.getValue()[source.$state]
+                : '$query' in source
+                ? input.queries?.[source.$query]?.[source.field]
+                : field !== undefined
+                ? input.row?.[field]
+                : undefined;
+            if (typeof resolved === 'string' && resolved !== '') {
+              conversations.push(resolved);
+            } else {
+              dropped.push('There is no conversation to open');
+            }
+            break;
+          }
           case 'runWorkflow': {
             const inputs: Record<string, WorkflowInputValue> = {};
             // One input that cannot be had is reason enough not to run the workflow at all: it would
@@ -241,7 +274,7 @@ export const createAppRuntime = (document: Pick<AppDocument, 'state' | 'root'>):
         }
       });
 
-      return { dropped, workflows };
+      return { dropped, workflows, conversations };
     },
     restoreView: ({ values, flyout }, keys) => {
       const current = state$.getValue();

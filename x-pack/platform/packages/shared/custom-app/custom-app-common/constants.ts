@@ -108,6 +108,8 @@ export const BADGE_COLORS = [
   'neutral',
   'risk',
 ] as const;
+/** The id of a conversation of Agent Builder, which an action can open. */
+export const MAX_CONVERSATION_ID_LENGTH = 256;
 /** How often a source can be run again on its own, in seconds: not more than every few seconds. */
 export const MIN_REFRESH_INTERVAL_SECONDS = 5;
 export const MAX_REFRESH_INTERVAL_SECONDS = 3_600;

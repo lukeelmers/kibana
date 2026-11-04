@@ -516,6 +516,35 @@ export const validateDocument = (document: DocumentToValidate, ctx: z.Refinement
           });
           return;
         }
+        if (action.type === 'openConversation') {
+          if (!WORKFLOW_EVENTS.includes(event)) {
+            issue(
+              `Node "${node.id}" opens a conversation on ${event}; it can only be opened by a button, a row click, a click on a chart or a form that is submitted`,
+              node.id
+            );
+          }
+          const { conversationId } = action;
+          if (typeof conversationId === 'string') return;
+          if ('$state' in conversationId && !(conversationId.$state in state)) {
+            issue(
+              `Node "${node.id}" opens the conversation of unknown state key "${conversationId.$state}"`,
+              node.id
+            );
+          }
+          if ('$query' in conversationId && !(conversationId.$query in queries)) {
+            issue(
+              `Node "${node.id}" opens the conversation of unknown query "${conversationId.$query}"`,
+              node.id
+            );
+          }
+          if (('$row' in conversationId || 'fromColumn' in conversationId) && !allowed.fromColumn) {
+            issue(
+              `Node "${node.id}" opens the conversation of a column, which only a row click, a click on a chart or the template of a list has`,
+              node.id
+            );
+          }
+          return;
+        }
         if (action.type === 'openFlyout' && !flyoutIds.has(action.flyout)) {
           issue(`Node "${node.id}" opens "${action.flyout}", which is not a flyout`, node.id);
         }

@@ -13,6 +13,7 @@ import {
   DOT_COLORS,
   MAX_BADGE_COLOR_MAP_ENTRIES,
   MAX_CHIP_SEPARATOR_LENGTH,
+  MAX_CONVERSATION_ID_LENGTH,
   MAX_CHIPS,
   MAX_TRUNCATE_LINES,
   MAX_REFRESH_INTERVAL_SECONDS,
@@ -59,6 +60,9 @@ import {
   progressColorSchema,
   progressMaxSchema,
   queryIdSchema,
+  queryRefSchema,
+  rowRefSchema,
+  stateRefSchema,
   sectionOpenSchema,
   stackDirectionSchema,
   stackSpacingSchema,
@@ -153,6 +157,22 @@ const runWorkflowActionSchema = z.object({
 });
 
 const openFlyoutActionSchema = z.object({ type: z.literal('openFlyout'), flyout: nodeIdSchema });
+
+/**
+ * Opens a conversation of Agent Builder in its details flyout, as a page of Kibana that lists
+ * conversations does. Which one is a fixed id, a value of the app, a column of the row the action is
+ * run with, or a column of a declared query. Where Agent Builder is not there, it does nothing.
+ */
+const openConversationActionSchema = z.object({
+  type: z.literal('openConversation'),
+  conversationId: z.union([
+    z.string().min(1).max(MAX_CONVERSATION_ID_LENGTH),
+    stateRefSchema,
+    rowRefSchema,
+    queryRefSchema,
+    z.object({ fromColumn: z.string().min(1).max(MAX_HEADING_LENGTH) }),
+  ]),
+});
 const closeFlyoutActionSchema = z.object({ type: z.literal('closeFlyout') });
 
 export const actionSchema = z.discriminatedUnion('type', [
@@ -160,6 +180,7 @@ export const actionSchema = z.discriminatedUnion('type', [
   openFlyoutActionSchema,
   closeFlyoutActionSchema,
   runWorkflowActionSchema,
+  openConversationActionSchema,
 ]);
 
 const actionsSchema = z.array(actionSchema).max(MAX_ACTIONS_PER_EVENT);
