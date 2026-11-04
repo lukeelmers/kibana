@@ -1,10 +1,13 @@
 #!/usr/bin/env bash
-# Zips this directory into nightshift_app-0.1.0.zip for upload to Fleet. Entries are prefixed
-# with nightshift_app-0.1.0/, which is what Fleet expects of an uploaded package.
+# Zips this directory into nightshift_app-<version>.zip for upload to Fleet, with the version read
+# from manifest.yml. Entries are prefixed with nightshift_app-<version>/, which is what Fleet
+# expects of an uploaded package. Older versions build from git history (e.g. 0.1.0 is the
+# commit before the version bump).
 set -euo pipefail
 
 here="$(cd "$(dirname "$0")" && pwd)"
-name="nightshift_app-0.1.0"
+version="$(sed -n 's/^version: //p' "$here/manifest.yml")"
+name="nightshift_app-$version"
 staging="$(mktemp -d)"
 trap 'rm -rf "$staging"' EXIT
 

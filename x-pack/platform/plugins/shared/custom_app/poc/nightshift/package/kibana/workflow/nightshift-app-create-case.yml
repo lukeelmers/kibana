@@ -24,6 +24,16 @@ inputs:
 triggers:
   - type: manual
 steps:
+  # 0.1.1: the app does not pass the verdict, so 0.1.0 cases always said "(no verdict yet)".
+  # Read it from the synced investigation instead.
+  - name: get_investigation
+    type: elasticsearch.search
+    with:
+      index: nightshift-app-investigations
+      size: 1
+      query:
+        term:
+          _id: "{{ inputs.investigation_id }}"
   - name: create_case
     type: cases.createCase
     with:
@@ -37,12 +47,13 @@ steps:
 
         **Verdict**
 
-        {{ inputs.verdict | default: "(no verdict yet)" }}
+        {{ inputs.verdict | default: steps.get_investigation.output.hits.hits[0]._source.verdict | default: "(no verdict yet)" }}
 
         Investigation: {{ inputs.investigation_id }}
       tags:
         - nightshift
         - investigation
+        - nightshift-0.1.1
       owner: observability
       severity: "{{ inputs.severity | default: 'low' }}"
       settings:
