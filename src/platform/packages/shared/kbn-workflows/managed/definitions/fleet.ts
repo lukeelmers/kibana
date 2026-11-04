@@ -7,7 +7,6 @@
  * License v3.0 only", or the "Server Side Public License, v 1".
  */
 
-import { isMap, parseDocument } from 'yaml';
 import type { ManagedWorkflowDefinition, ManagedWorkflowTemplateValues } from '../types';
 
 export const FLEET_PACKAGE_WORKFLOW_ID = 'system-fleet-package-workflow';
@@ -16,23 +15,14 @@ export interface FleetPackageWorkflowTemplateValues extends ManagedWorkflowTempl
   yaml: string;
 }
 
-/** Fleet always installs package workflows disabled, whatever the package file says. */
-const forceDisabled = (yaml: string): string => {
-  const document = parseDocument(yaml);
-  if (document.errors.length > 0 || !isMap(document.contents)) {
-    throw new Error('Package workflow must be a valid YAML mapping');
-  }
-  document.set('enabled', false);
-  return document.toString();
-};
-
 export const FLEET_PACKAGE_WORKFLOW = {
   id: FLEET_PACKAGE_WORKFLOW_ID,
   pluginId: 'fleet',
   version: 1,
   billable: false,
   visibility: { lists: ['workflows'] },
-  yamlTemplate: ({ yaml }) => forceDisabled(yaml),
+  // The package file's own `enabled` value is honoured; the workflow schema defaults it to true.
+  yamlTemplate: ({ yaml }) => yaml,
   management: {
     lifecycle: 'dynamic',
     versionStrategy: 'auto',

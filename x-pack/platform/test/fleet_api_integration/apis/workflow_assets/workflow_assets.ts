@@ -64,7 +64,7 @@ export default function (providerContext: FtrProviderContext) {
       await uninstallPackage('0.1.0');
     });
 
-    it('installs the package workflows disabled and saves their refs', async () => {
+    it('installs the package workflows enabled and saves their refs', async () => {
       await installPackage('0.1.0');
 
       expect(await getInstalledWorkflowRefs('0.1.0')).to.eql(
@@ -72,7 +72,7 @@ export default function (providerContext: FtrProviderContext) {
       );
       for (const name of ['hello', 'goodbye']) {
         const { body } = await getWorkflow(workflowId(name)).expect(200);
-        expect(body.enabled).to.be(false);
+        expect(body.enabled).to.be(true);
       }
     });
 
@@ -100,7 +100,7 @@ export default function (providerContext: FtrProviderContext) {
       );
       const { body: hello } = await getWorkflow(workflowId('hello')).expect(200);
       expect(hello.name).to.be('Hello updated');
-      expect(hello.enabled).to.be(false);
+      expect(hello.enabled).to.be(true);
       await getWorkflow(workflowId('extra')).expect(200);
       await getWorkflow(workflowId('goodbye')).expect(404);
     });
