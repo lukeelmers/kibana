@@ -22,12 +22,35 @@ const ACTION_PROPS = ['onClick', 'onRowClick', 'onSubmit', 'onChange'] as const;
 const isObject = (value: unknown): value is JsonObject =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
 
-const mapNodeActions = (node: JsonObject, mapAction: (action: JsonObject) => JsonObject) => {
+/** The props of a node that hold one other node: the template of a list, the title of a section. */
+const SLOT_PROPS = ['template', 'titleNode'] as const;
+
+const mapActions = (actions: unknown[], mapAction: (action: JsonObject) => JsonObject) =>
+  actions.map((action) => (isObject(action) ? mapAction(action) : action));
+
+const mapNodeActions = (
+  node: JsonObject,
+  mapAction: (action: JsonObject) => JsonObject
+): JsonObject => {
   const mapped: JsonObject = { ...node };
   for (const prop of ACTION_PROPS) {
     const actions = node[prop];
     if (Array.isArray(actions)) {
-      mapped[prop] = actions.map((action) => (isObject(action) ? mapAction(action) : action));
+      mapped[prop] = mapActions(actions, mapAction);
+    }
+  }
+  // The row actions of a list each hold their own actions.
+  if (Array.isArray(node.rowActions)) {
+    mapped.rowActions = node.rowActions.map((rowAction) =>
+      isObject(rowAction) && Array.isArray(rowAction.onClick)
+        ? { ...rowAction, onClick: mapActions(rowAction.onClick, mapAction) }
+        : rowAction
+    );
+  }
+  for (const prop of SLOT_PROPS) {
+    const slot = node[prop];
+    if (isObject(slot)) {
+      mapped[prop] = mapNodeActions(slot, mapAction);
     }
   }
   if (Array.isArray(node.children)) {
