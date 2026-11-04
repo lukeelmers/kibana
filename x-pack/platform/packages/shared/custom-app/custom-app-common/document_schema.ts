@@ -15,6 +15,7 @@ import {
   MAX_CHIP_SEPARATOR_LENGTH,
   MAX_CHIPS,
   MAX_TRUNCATE_LINES,
+  STAT_COLORS,
   CUSTOM_APP_STATE_VERSION,
   MAX_ACTIONS_PER_EVENT,
   MAX_BUTTON_GROUP_OPTIONS,
@@ -25,6 +26,7 @@ import {
   MAX_CHILDREN_PER_NODE,
   MAX_FORM_FIELDS,
   MAX_HEADING_LENGTH,
+  MAX_ICON_DATA_URI_LENGTH,
   MAX_ICON_NAME_LENGTH,
   MAX_KEY_VALUE_FIELDS,
   MAX_LINK_APP_ID_LENGTH,
@@ -91,6 +93,25 @@ export const stateDeclarationSchema = z.discriminatedUnion('type', [
 
 /** An ES|QL query. A component that shows data carries its own. */
 const querySchema = z.string().min(1).max(MAX_QUERY_LENGTH);
+
+/** The name of an icon EUI draws, such as `productAgent` or `bolt`. */
+export const iconNameSchema = z
+  .string()
+  .min(1)
+  .max(MAX_ICON_NAME_LENGTH)
+  .regex(/^[A-Za-z][A-Za-z0-9]*$/);
+
+/**
+ * An icon: one EUI draws, by its name, or a mark of the app's own, as an SVG data URI. That is drawn
+ * as a mask in the colour of the text around it, so it is never an image that can do anything.
+ */
+export const appIconSchema = z.union([
+  iconNameSchema,
+  z
+    .string()
+    .max(MAX_ICON_DATA_URI_LENGTH)
+    .regex(/^data:image\/svg\+xml(;base64)?,[A-Za-z0-9+/=%._~!$&'()*,;:@-]+$/),
+]);
 
 /** The closed set of things a user interaction can do. */
 const setStateActionSchema = z.object({
@@ -242,6 +263,11 @@ const statNodeSchema = z.object({
   visibleWhen: visibleWhenSchema,
   title: z.string().max(MAX_HEADING_LENGTH),
   ...dataFields,
+  /** With an icon, the value is shown beside it, on a fill of `color`, and the title above. */
+  icon: appIconSchema.optional(),
+  color: z.enum(STAT_COLORS).optional(),
+  /** What a click on the stat does, as a button does. Left out, it is not a control. */
+  onClick: actionsSchema.optional(),
 });
 
 const chartNodeSchema = z.object({
@@ -532,6 +558,8 @@ const badgeNodeSchema = z.object({
   visibleWhen: visibleWhenSchema,
   text: z.string().min(1).max(MAX_HEADING_LENGTH),
   color: bindable(badgeColorSchema),
+  /** Something is under way: the text is shown as a status that is still running, not a badge. */
+  loading: z.boolean().optional(),
 });
 
 const stackFields = {
@@ -579,13 +607,6 @@ const sectionFields = {
 
 const tabsFields = { type: z.literal('tabs'), id: nodeIdSchema, visibleWhen: visibleWhenSchema };
 
-/** The name of an icon EUI draws, such as `productAgent` or `bolt`. */
-export const iconNameSchema = z
-  .string()
-  .min(1)
-  .max(MAX_ICON_NAME_LENGTH)
-  .regex(/^[A-Za-z][A-Za-z0-9]*$/);
-
 /** Something that can be done with a row, beside what a click on it does. */
 const rowActionSchema = z.object({
   label: z.string().min(1).max(MAX_HEADING_LENGTH),
@@ -613,6 +634,8 @@ const accordionFields = {
   type: z.literal('accordion'),
   id: nodeIdSchema,
   visibleWhen: visibleWhenSchema,
+  /** As cards, each section is a card of its own, with its title as a header across it. */
+  variant: z.enum(['default', 'cards']).optional(),
 };
 
 type LeafNode =
@@ -644,7 +667,8 @@ type StackNode = WithChildren<typeof stackFields>;
 type FlyoutNode = WithChildren<typeof flyoutFields>;
 type CardNode = WithChildren<typeof cardFields>;
 type ColumnsNode = WithChildren<typeof columnsFields>;
-type SectionNode = WithChildren<typeof sectionFields>;
+/** A section can have a node beside its title, such as a count, which is not one of its children. */
+type SectionNode = WithChildren<typeof sectionFields> & { titleNode?: AppNode };
 /** A list holds one node, its template, which is drawn for each row and is not a child. */
 type ListNode = z.output<z.ZodObject<typeof listFields>> & { template: AppNode };
 type TabsNode = WithChildren<typeof tabsFields>;
@@ -706,6 +730,9 @@ const sectionNodeSchema = z.object({
   ...sectionFields,
   get children(): z.ZodArray<z.ZodType<AppNode>> {
     return z.array(nodeSchema).max(MAX_CHILDREN_PER_NODE);
+  },
+  get titleNode(): z.ZodOptional<z.ZodType<AppNode>> {
+    return nodeSchema.optional();
   },
 });
 
@@ -782,6 +809,13 @@ export const getNodeChildren = (node: AppNode): readonly AppNode[] =>
 /** The template a list draws for each of its rows, which is not one of its children. */
 export const getNodeTemplate = (node: AppNode): AppNode | undefined =>
   node.type === 'list' ? node.template : undefined;
+
+/** The nodes a node holds beside its children: the template of a list, the title of a section. */
+export const getNodeSlots = (node: AppNode): readonly AppNode[] => {
+  const template = getNodeTemplate(node);
+  if (template) return [template];
+  return node.type === 'section' && node.titleNode ? [node.titleNode] : [];
+};
 
 /**
  * The shape of a document, without the checks that look across it. For anything that only needs

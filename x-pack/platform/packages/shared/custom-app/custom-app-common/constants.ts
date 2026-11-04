@@ -108,6 +108,18 @@ export const BADGE_COLORS = [
   'neutral',
   'risk',
 ] as const;
+/** The colours a stat can have, which its icon is drawn in, on a light fill of the same. */
+export const STAT_COLORS = [
+  'primary',
+  'accent',
+  'success',
+  'warning',
+  'risk',
+  'danger',
+  'neutral',
+] as const;
+/** An icon of an app's own, as an SVG written as a data URI, which is drawn as a mask. */
+export const MAX_ICON_DATA_URI_LENGTH = 8_000;
 /** The colours of the dot a chip can have before its text. */
 export const DOT_COLORS = ['primary', 'success', 'warning', 'danger', 'subdued'] as const;
 /** How many lines a value is cut to at most. */

@@ -11,6 +11,7 @@ import {
   OPTIONS_SOURCE_SUFFIX,
 } from './constants';
 import {
+  getNodeSlots,
   getNodeTemplate,
   isContainerNode,
   type Action,
@@ -23,10 +24,13 @@ import {
 export const getNodeChildren = (node: AppNode): readonly AppNode[] =>
   isContainerNode(node) ? node.children : [];
 
-/** What a node holds: its children, and the template of a list, which is drawn for each row. */
+/**
+ * What a node holds: its children, and its slots, such as the template of a list, which is drawn
+ * for each row, and the node beside the title of a section.
+ */
 export const getNodeSubtrees = (node: AppNode): readonly AppNode[] => {
-  const template = getNodeTemplate(node);
-  return template === undefined ? getNodeChildren(node) : [...getNodeChildren(node), template];
+  const slots = getNodeSlots(node);
+  return slots.length === 0 ? getNodeChildren(node) : [...getNodeChildren(node), ...slots];
 };
 
 /**
@@ -149,7 +153,13 @@ export const collectSources = (root: AppNode): Record<string, DataSource> => {
     ...(root.type === 'chart' && root.annotations !== undefined
       ? { [getAnnotationsSourceId(root.id)]: { type: 'esql', query: root.annotations.query } }
       : {}),
-    ...Object.assign({}, ...getNodeChildren(root).map(collectSources)),
+    // A template is drawn for each row and shows only its row; anything else that is held is shown.
+    ...Object.assign(
+      {},
+      ...getNodeSubtrees(root)
+        .filter((held) => held !== getNodeTemplate(root))
+        .map(collectSources)
+    ),
   };
 };
 
@@ -205,6 +215,8 @@ export const getNodeActions = (
       return [{ event: 'onChartClick', actions: node.onClick }];
     case 'button':
       return [{ event: 'onClick', actions: node.onClick }];
+    case 'stat':
+      return node.onClick ? [{ event: 'onClick', actions: node.onClick }] : [];
     case 'form':
       return [{ event: 'onSubmit', actions: node.onSubmit }];
     case 'select':

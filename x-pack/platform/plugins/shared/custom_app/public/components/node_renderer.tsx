@@ -35,6 +35,7 @@ import { useStateValues } from '../runtime/app_runtime_context';
 import { useBindingScope } from '../runtime/binding_scope';
 import { TEXT_FILTER_IMPLEMENTATIONS } from '../runtime/text_filters';
 import { FormattedValue, isCompactFormat } from './formatted_value';
+import { LoadingBadge } from './loading_badge';
 import { escapeMarkdownScope, escapeMarkdownValues } from '../utils/escape_markdown';
 import { ChartNode } from './chart_node';
 import {
@@ -184,7 +185,9 @@ export const NodeRenderer = ({ node: written }: NodeRendererProps) => {
     case 'progress':
       return <ProgressNode node={node} />;
     case 'badge':
-      return (
+      return node.loading ? (
+        <LoadingBadge nodeId={node.id} text={text(node.text)} />
+      ) : (
         <div data-node-id={node.id}>
           <EuiBadge color={node.color}>{text(node.text)}</EuiBadge>
         </div>
@@ -213,12 +216,15 @@ export const NodeRenderer = ({ node: written }: NodeRendererProps) => {
     case 'tabs':
     case 'accordion': {
       const sections: FrameSection[] = node.children.flatMap((child) =>
-        child.type === 'section'
+        child.type === 'section' && isNodeVisible(child, state, scope)
           ? [
               {
                 id: child.id,
                 label: text(child.label),
                 open: child.open,
+                title: child.titleNode ? <NodeRenderer node={child.titleNode} /> : undefined,
+                isFlush:
+                  child.children.length > 0 && child.children.every(({ type }) => type === 'list'),
                 content: child.children.map((inner) => (
                   <NodeRenderer key={inner.id} node={inner} />
                 )),
@@ -229,7 +235,7 @@ export const NodeRenderer = ({ node: written }: NodeRendererProps) => {
       return node.type === 'tabs' ? (
         <TabsFrame nodeId={node.id} sections={sections} />
       ) : (
-        <AccordionFrame nodeId={node.id} sections={sections} />
+        <AccordionFrame nodeId={node.id} sections={sections} variant={node.variant} />
       );
     }
     case 'section':

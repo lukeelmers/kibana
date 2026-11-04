@@ -5,7 +5,7 @@
  * 2.0.
  */
 
-import React, { useMemo, useState, type KeyboardEvent, type ReactNode } from 'react';
+import React, { useContext, useMemo, useState, type KeyboardEvent, type ReactNode } from 'react';
 import {
   EuiButtonEmpty,
   EuiButtonIcon,
@@ -29,6 +29,7 @@ import { RowScopeContext } from '../runtime/binding_scope';
 import { useInterpolate } from '../runtime/use_interpolate';
 import { useActionRunner } from '../workflows/use_action_runner';
 import { useWorkflowsGate } from '../workflows/use_workflows_gate';
+import { FlushContext } from './container_frames';
 import { DataState } from './data_state';
 import { DroppedActions } from './dropped_actions';
 import { NodeRenderer } from './node_renderer';
@@ -342,12 +343,15 @@ const Padded = ({
 export const ListNode = ({ node }: { node: ListNodeType }) => {
   const layer = useDataLayer();
   const state = useSource(node.id);
+  // In a card that is its border already, such as a section of an accordion drawn as cards.
+  const isFlush = useContext(FlushContext);
 
   return (
     <EuiPanel
-      hasBorder
+      hasBorder={!isFlush}
       hasShadow={false}
       paddingSize="none"
+      borderRadius={isFlush ? 'none' : undefined}
       css={css({ overflow: 'hidden' })}
       data-node-id={node.id}
     >
