@@ -12,7 +12,9 @@ import {
   EuiFlexItem,
   EuiMarkdownFormat,
   EuiPanel,
+  EuiText,
   EuiTitle,
+  useEuiTheme,
 } from '@elastic/eui';
 import { css } from '@emotion/react';
 import { i18n } from '@kbn/i18n';
@@ -30,7 +32,12 @@ import {
   KbnWarningCallout,
 } from '@kbn/ui-callout';
 import { useStateValues } from '../runtime/app_runtime_context';
-import { escapeMarkdownValues } from '../utils/escape_markdown';
+import { useBindingScope } from '../runtime/binding_scope';
+import { TEXT_FILTER_IMPLEMENTATIONS } from '../runtime/text_filters';
+import { FormattedValue, isCompactFormat } from './formatted_value';
+import { LoadingBadge } from './loading_badge';
+import { PageHeaderNode } from './page_header_node';
+import { escapeMarkdownScope, escapeMarkdownValues } from '../utils/escape_markdown';
 import { ChartNode } from './chart_node';
 import {
   AccordionFrame,
@@ -50,6 +57,7 @@ import { FlyoutNode } from './flyout_node';
 import { FormNode } from './form_node';
 import { KeyValueNode } from './key_value_node';
 import { LinkNode } from './link_node';
+import { ListNode } from './list_node';
 import { ListInputNode } from './list_input_node';
 import { SearchNode } from './search_node';
 import { SelectNode } from './select_node';
@@ -68,7 +76,10 @@ const isInput = (node: AppNode): boolean =>
 
 /** What takes only the room it needs in a row: a status, a button, a link. They do not fill it. */
 const isCompact = (node: AppNode): boolean =>
-  node.type === 'badge' || node.type === 'button' || node.type === 'link';
+  node.type === 'badge' ||
+  node.type === 'button' ||
+  node.type === 'link' ||
+  (node.type === 'text' && isCompactFormat(node.format));
 
 const CALLOUTS = {
   primary: KbnInfoCallout,
@@ -87,19 +98,22 @@ interface NodeRendererProps {
  * instead of failing the whole panel.
  */
 export const NodeRenderer = ({ node: written }: NodeRendererProps) => {
+  const { euiTheme } = useEuiTheme();
   const state = useStateValues();
-  const text = (value: string) => interpolate(value, state);
+  const scope = useBindingScope();
+  const text = (value: string) =>
+    interpolate(value, state, { ...scope, filters: TEXT_FILTER_IMPLEMENTATIONS });
   // What is written may read the values of the app, and what is drawn is how they are now. It is the
   // same object until one of those values changes, as what is drawn from it, such as a chart, would
   // otherwise start again every time something else in the app does.
   const resolved = useRef<{ written: AppNode; signature: string; node: AppNode }>();
-  const signature = getBoundSignature(written, state);
+  const signature = getBoundSignature(written, state, scope);
   if (resolved.current?.written !== written || resolved.current.signature !== signature) {
-    resolved.current = { written, signature, node: resolveBoundProps(written, state) };
+    resolved.current = { written, signature, node: resolveBoundProps(written, state, scope) };
   }
   const { node } = resolved.current;
 
-  if (!isNodeVisible(node, state)) return null;
+  if (!isNodeVisible(node, state, scope)) return null;
 
   switch (node.type) {
     case 'heading':
@@ -113,12 +127,38 @@ export const NodeRenderer = ({ node: written }: NodeRendererProps) => {
         </EuiTitle>
       );
     case 'text':
+      // A text with a variant or a format is a value, shown as it is: a line of a row of a list, an
+      // age, a few chips. Its size and weight come from the variant, a short list.
+      if (node.variant !== undefined || node.format !== undefined) {
+        const value = text(node.text);
+        return (
+          <EuiText
+            size={node.variant === 'caption' ? 'xs' : 's'}
+            color={node.variant === 'caption' ? 'subdued' : undefined}
+            css={
+              node.variant === 'emphasis'
+                ? css({ fontWeight: euiTheme.font.weight.semiBold })
+                : undefined
+            }
+            data-node-id={node.id}
+          >
+            {node.format ? (
+              <FormattedValue value={value} format={node.format} />
+            ) : (
+              <div>{value}</div>
+            )}
+          </EuiText>
+        );
+      }
       // Written in Markdown, so that bold, lists and links look as they are written. The values of
       // the app are put in as plain text: one that came from a link cannot add to the formatting.
       return (
         <div data-node-id={node.id}>
           <EuiMarkdownFormat textSize="s">
-            {interpolate(node.text, escapeMarkdownValues(state))}
+            {interpolate(node.text, escapeMarkdownValues(state), {
+              ...escapeMarkdownScope(scope),
+              filters: TEXT_FILTER_IMPLEMENTATIONS,
+            })}
           </EuiMarkdownFormat>
         </div>
       );
@@ -146,7 +186,9 @@ export const NodeRenderer = ({ node: written }: NodeRendererProps) => {
     case 'progress':
       return <ProgressNode node={node} />;
     case 'badge':
-      return (
+      return node.loading ? (
+        <LoadingBadge nodeId={node.id} text={text(node.text)} />
+      ) : (
         <div data-node-id={node.id}>
           <EuiBadge color={node.color}>{text(node.text)}</EuiBadge>
         </div>
@@ -175,12 +217,15 @@ export const NodeRenderer = ({ node: written }: NodeRendererProps) => {
     case 'tabs':
     case 'accordion': {
       const sections: FrameSection[] = node.children.flatMap((child) =>
-        child.type === 'section'
+        child.type === 'section' && isNodeVisible(child, state, scope)
           ? [
               {
                 id: child.id,
                 label: text(child.label),
                 open: child.open,
+                title: child.titleNode ? <NodeRenderer node={child.titleNode} /> : undefined,
+                isFlush:
+                  child.children.length > 0 && child.children.every(({ type }) => type === 'list'),
                 content: child.children.map((inner) => (
                   <NodeRenderer key={inner.id} node={inner} />
                 )),
@@ -191,7 +236,7 @@ export const NodeRenderer = ({ node: written }: NodeRendererProps) => {
       return node.type === 'tabs' ? (
         <TabsFrame nodeId={node.id} sections={sections} />
       ) : (
-        <AccordionFrame nodeId={node.id} sections={sections} />
+        <AccordionFrame nodeId={node.id} sections={sections} variant={node.variant} />
       );
     }
     case 'section':
@@ -211,6 +256,10 @@ export const NodeRenderer = ({ node: written }: NodeRendererProps) => {
       return <CustomContentNode node={node} />;
     case 'table':
       return <TableNode node={node} />;
+    case 'list':
+      return <ListNode node={node} />;
+    case 'page_header':
+      return <PageHeaderNode node={node} />;
     case 'key_value':
       return <KeyValueNode node={node} />;
     case 'select':
@@ -250,17 +299,33 @@ export const NodeRenderer = ({ node: written }: NodeRendererProps) => {
       // A row of statuses and buttons, such as a filter and the button that clears it, sits together
       // on one line, at the start, and not spread across the width.
       const isCompactRow = isRow && node.children.length > 0 && node.children.every(isCompact);
+      // What is not shown now gets no item, which would only add a gap.
+      const shown = node.children.filter((child) => isNodeVisible(child, state, scope));
       const group = (
         <EuiFlexGroup
           direction={isRow ? 'row' : 'column'}
           // Stacked things get room to breathe; things side by side belong together, so sit closer.
-          gutterSize={isRow ? 'm' : 'l'}
+          // A tight stack, such as the lines of a row of a list, keeps them together, and a compact
+          // one, such as a search over what it searches, keeps them close.
+          gutterSize={
+            node.spacing === 'tight'
+              ? isRow
+                ? 's'
+                : 'xs'
+              : node.spacing === 'compact'
+              ? isRow
+                ? 's'
+                : 'm'
+              : isRow
+              ? 'm'
+              : 'l'
+          }
           alignItems={isFilterBar ? 'flexEnd' : isCompactRow ? 'center' : 'stretch'}
           responsive={false}
           wrap={isRow}
           data-node-id={node.id}
         >
-          {node.children.map((child) =>
+          {shown.map((child) =>
             // A flyout draws nothing in place, so it gets no item, which would only add a gap.
             child.type === 'flyout' ? (
               <NodeRenderer key={child.id} node={child} />

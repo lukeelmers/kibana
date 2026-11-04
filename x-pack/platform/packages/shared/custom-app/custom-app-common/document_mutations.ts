@@ -7,7 +7,6 @@
 
 import {
   isContainerNode,
-  type Action,
   type AppDocument,
   type AppNode,
   type AppNodeOfType,
@@ -20,7 +19,10 @@ import {
   getNodeBindings,
   getNodeChildren,
   getNodeSource,
+  getNodeSubtrees,
   getSourceStateKeys,
+  mapNodeActions,
+  mapNodeSubtrees,
 } from './node_tree';
 
 /**
@@ -63,7 +65,7 @@ const collectIds = (root: AppNode): Set<string> => {
   const pending: AppNode[] = [root];
   for (let node = pending.pop(); node; node = pending.pop()) {
     ids.add(node.id);
-    pending.push(...getNodeChildren(node));
+    pending.push(...getNodeSubtrees(node));
   }
   return ids;
 };
@@ -127,26 +129,13 @@ export const addNode = (
   return root ? ok(withRoot(document, root)) : fail(`There is no node "${parentId}"`);
 };
 
-const dropActionsOpening = (node: AppNode, removed: ReadonlySet<string>): AppNode => {
-  const keep = (actions: readonly Action[]) =>
-    actions.filter((action) => !(action.type === 'openFlyout' && removed.has(action.flyout)));
-
-  switch (node.type) {
-    case 'table':
-      return { ...node, onRowClick: keep(node.onRowClick) };
-    case 'select':
-    case 'button_group':
-    case 'search':
-      return { ...node, onChange: keep(node.onChange) };
-    default:
-      return isContainerNode(node)
-        ? {
-            ...node,
-            children: node.children.map((child) => dropActionsOpening(child, removed)),
-          }
-        : node;
-  }
-};
+const dropActionsOpening = (node: AppNode, removed: ReadonlySet<string>): AppNode =>
+  mapNodeSubtrees(
+    mapNodeActions(node, (actions) =>
+      actions.filter((action) => !(action.type === 'openFlyout' && removed.has(action.flyout)))
+    ),
+    (subtree) => dropActionsOpening(subtree, removed)
+  );
 
 /**
  * Removes a node and everything under it. Actions that opened a flyout that went with it are
@@ -285,7 +274,7 @@ export const pruneUnusedValues = (document: AppDocument): AppDocument => {
         }
       })
     );
-    pending.push(...getNodeChildren(node));
+    pending.push(...getNodeSubtrees(node));
   }
 
   const keys = Object.keys(document.state);

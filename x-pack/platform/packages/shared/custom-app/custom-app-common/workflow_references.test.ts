@@ -105,6 +105,45 @@ describe('the references to the workflows of an app', () => {
     expect(injectWorkflowReferences(document, [])).toEqual(document);
   });
 
+  it('finds the workflows run by the row actions of a list and by nodes in slots', () => {
+    const listDocument = {
+      root: {
+        type: 'section',
+        id: 'section',
+        titleNode: {
+          type: 'button',
+          id: 'title_button',
+          onClick: [{ type: 'runWorkflow', workflow: 'from-title', inputs: {} }],
+        },
+        children: [
+          {
+            type: 'list',
+            id: 'list',
+            query: 'FROM cases',
+            onRowClick: [],
+            rowActions: [
+              {
+                label: 'Create case',
+                onClick: [{ type: 'runWorkflow', workflow: 'create-case', inputs: {} }],
+              },
+            ],
+            template: {
+              type: 'button',
+              id: 'row_button',
+              onClick: [{ type: 'runWorkflow', workflow: 'from-template', inputs: {} }],
+            },
+          },
+        ],
+      },
+    };
+
+    const { document: extracted, references } = extractWorkflowReferences(listDocument);
+
+    expect(references.map(({ id }) => id)).toEqual(['from-title', 'create-case', 'from-template']);
+    expect(JSON.stringify(extracted)).not.toContain('"workflow":');
+    expect(injectWorkflowReferences(extracted, references)).toEqual(listDocument);
+  });
+
   it('refuses a reference name that has no reference', () => {
     const { document: extracted } = extractWorkflowReferences(document);
 

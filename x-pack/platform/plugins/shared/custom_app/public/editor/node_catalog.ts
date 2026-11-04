@@ -44,6 +44,17 @@ const ENTRIES: Partial<Record<AppNodeType, Omit<NodeCatalogEntry, 'type'>>> = {
     group: 'layout',
     isContainer: true,
   },
+  page_header: {
+    label: i18n.translate('xpack.customApp.catalog.pageHeader.label', {
+      defaultMessage: 'Page header',
+    }),
+    description: i18n.translate('xpack.customApp.catalog.pageHeader.description', {
+      defaultMessage: 'The title of a page, with an icon, and links and buttons at the end.',
+    }),
+    iconType: 'textHeading',
+    group: 'layout',
+    isContainer: true,
+  },
   heading: {
     label: i18n.translate('xpack.customApp.catalog.heading.label', { defaultMessage: 'Heading' }),
     description: i18n.translate('xpack.customApp.catalog.heading.description', {
@@ -106,6 +117,15 @@ const ENTRIES: Partial<Record<AppNodeType, Omit<NodeCatalogEntry, 'type'>>> = {
       defaultMessage: 'Rows from a query, with sorting and paging.',
     }),
     iconType: 'visTable',
+    group: 'data',
+    isContainer: false,
+  },
+  list: {
+    label: i18n.translate('xpack.customApp.catalog.list.label', { defaultMessage: 'List' }),
+    description: i18n.translate('xpack.customApp.catalog.list.description', {
+      defaultMessage: 'The rows of a query, each drawn with a template of its own.',
+    }),
+    iconType: 'list',
     group: 'data',
     isContainer: false,
   },

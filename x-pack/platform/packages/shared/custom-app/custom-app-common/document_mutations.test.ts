@@ -237,6 +237,28 @@ describe('removeNode', () => {
     });
   });
 
+  it('also cleans up the actions of a list, of its rows and of its template', () => {
+    const opensOther = [{ type: 'openFlyout' as const, flyout: 'other' }];
+    const document = succeeds(
+      addNode(fixture(), 'root', {
+        type: 'list',
+        id: 'feed',
+        query: 'FROM s',
+        onRowClick: opensOther,
+        rowActions: [{ label: 'Open', icon: 'eye', onClick: opensOther }],
+        template: { type: 'button', id: 'open', label: 'Open', onClick: opensOther },
+      })
+    );
+
+    const after = succeeds(removeNode(document, 'other'));
+
+    expect(findNode(after.root, 'feed')!.node).toMatchObject({
+      onRowClick: [],
+      rowActions: [{ onClick: [] }],
+      template: { onClick: [] },
+    });
+  });
+
   it('refuses to remove the root or something that does not exist', () => {
     expect(removeNode(fixture(), 'root')).toEqual({
       ok: false,

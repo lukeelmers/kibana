@@ -46,6 +46,7 @@ import {
   CUSTOM_APP_EMBEDDABLE_TYPE,
   CUSTOM_APP_STATE_VERSION,
   appDocumentSchema,
+  collectDeclaredSources,
   collectSources,
   isEmptyDocument,
   type AppDocument,
@@ -68,6 +69,7 @@ import type { HasCustomAppDocument } from './has_custom_app_document';
 import type { HasCustomAppLibraryId } from './has_library_id';
 import { createAppRuntime } from './runtime/app_runtime';
 import { AppRuntimeContext } from './runtime/app_runtime_context';
+import { DeclaredQueries } from './runtime/binding_scope';
 import { TimeRangeControlContext } from './runtime/time_range_context';
 import { WorkflowRunnerProvider } from './workflows/workflow_runner';
 import { createRunCases } from './data/run_cases';
@@ -163,7 +165,10 @@ export const customAppEmbeddableFactory: EmbeddablePublicDefinition<
       runCases: createRunCases({ http: core.http }),
       getParameterNames: (query) => getESQLQueryVariables(query),
     });
-    dataLayer.setSources(collectSources(initialDocument.root));
+    dataLayer.setSources({
+      ...collectSources(initialDocument.root),
+      ...collectDeclaredSources(initialDocument),
+    });
     const runtime = createAppRuntime(initialDocument);
     // Emits the defaults straight away, then every change a user makes.
     const stateSubscription = runtime.state$.subscribe(dataLayer.setState);
@@ -324,7 +329,10 @@ export const customAppEmbeddableFactory: EmbeddablePublicDefinition<
       .pipe(distinctUntilChanged(), skip(1))
       .subscribe((document) => {
         runtime.setDocument(document);
-        dataLayer.setSources(collectSources(document.root));
+        dataLayer.setSources({
+          ...collectSources(document.root),
+          ...collectDeclaredSources(document),
+        });
       });
 
     return {
@@ -399,7 +407,9 @@ export const customAppEmbeddableFactory: EmbeddablePublicDefinition<
                     />
                   ) : (
                     <AppFrame theme={document.theme}>
-                      <NodeRenderer node={document.root} />
+                      <DeclaredQueries queries={document.queries}>
+                        <NodeRenderer node={document.root} />
+                      </DeclaredQueries>
                     </AppFrame>
                   )}
                 </WorkflowRunnerProvider>

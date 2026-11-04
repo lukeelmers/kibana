@@ -493,6 +493,7 @@ describe('the catalog', () => {
         'closeFlyout',
         'equals',
         'formatString',
+        'openConversation',
         'openFlyout',
         'runWorkflow',
         'sequence',

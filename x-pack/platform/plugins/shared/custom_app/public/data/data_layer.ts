@@ -27,6 +27,16 @@ export type SourceState =
 
 export type StateValues = Readonly<Record<string, StateValue>>;
 
+/**
+ * The first row of what a source gave, by the names of its columns, for what reads a value of it
+ * rather than show it: the text and the rules of a document. Nothing, until it has one.
+ */
+export const toFirstRow = (state: SourceState): Readonly<Record<string, unknown>> | undefined => {
+  if (state.status !== 'success' || state.data.rows.length === 0) return undefined;
+  const [row] = state.data.rows;
+  return Object.fromEntries(state.data.columns.map(({ name }, index) => [name, row[index]]));
+};
+
 export interface SourceRequest {
   context: FetchContext;
   /** The panel's state, offered to the query as named parameters. */
@@ -79,6 +89,8 @@ export interface DataLayer {
 interface SourceEntry {
   readers: number;
   controller?: AbortController;
+  /** The next run of a source that is fetched again on its own, while it is read. */
+  timer?: ReturnType<typeof setTimeout>;
   /** The values of the parameters the source used the last time it ran. */
   appliedValues: Record<string, StateValue | undefined>;
 }
@@ -148,10 +160,16 @@ export const createDataLayer = ({
   const stop = (id: string, entry: SourceEntry) => {
     entry.controller?.abort();
     entry.controller = undefined;
+    clearTimeout(entry.timer);
+    entry.timer = undefined;
     running.delete(id);
   };
 
-  const start = (id: string) => {
+  /**
+   * Runs a source. A run that is a source fetching again on its own keeps what it shows until the
+   * new rows are there, so that a page that follows something under way does not flicker.
+   */
+  const start = (id: string, { quiet = false }: { quiet?: boolean } = {}) => {
     const entry = entries.get(id);
     if (!entry || entry.readers === 0 || !context) return;
 
@@ -170,7 +188,7 @@ export const createDataLayer = ({
       namesUsedBy(id, source).map((name) => [name, state[name]])
     );
     running.add(id);
-    state$.next({ status: 'loading' });
+    if (!quiet || state$.getValue().status !== 'success') state$.next({ status: 'loading' });
     publishLoading();
 
     fetchSource(source, { context, state }, controller.signal)
@@ -185,6 +203,10 @@ export const createDataLayer = ({
         entry.controller = undefined;
         running.delete(id);
         publishLoading();
+        const { refreshInterval } = source;
+        if (refreshInterval !== undefined && entry.readers > 0) {
+          entry.timer = setTimeout(() => start(id, { quiet: true }), refreshInterval * 1000);
+        }
       });
   };
 

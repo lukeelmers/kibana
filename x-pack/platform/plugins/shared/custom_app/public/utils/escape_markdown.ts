@@ -5,7 +5,7 @@
  * 2.0.
  */
 
-import type { StateValue } from '@kbn/custom-app-common';
+import type { BindingScope, StateValue } from '@kbn/custom-app-common';
 
 /**
  * The characters Markdown gives a meaning to that the Markdown of the app lets a backslash take
@@ -42,3 +42,24 @@ export const escapeMarkdownValues = (
       typeof value === 'string' ? escapeMarkdown(value) : value,
     ])
   );
+
+type Row = Readonly<Record<string, unknown>>;
+
+const escapeRow = (row: Row | undefined): Row | undefined =>
+  row === undefined
+    ? undefined
+    : Object.fromEntries(
+        Object.entries(row).map(([key, value]) => [
+          key,
+          typeof value === 'string' ? escapeMarkdown(value) : value,
+        ])
+      );
+
+/** The rows a text can read, as they can be put in Markdown: they come from data, not the author. */
+export const escapeMarkdownScope = ({ row, queries }: BindingScope): BindingScope => ({
+  row: escapeRow(row),
+  queries:
+    queries === undefined
+      ? undefined
+      : Object.fromEntries(Object.entries(queries).map(([id, first]) => [id, escapeRow(first)])),
+});

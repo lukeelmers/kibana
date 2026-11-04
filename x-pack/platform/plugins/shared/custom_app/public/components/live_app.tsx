@@ -9,7 +9,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { combineLatest } from 'rxjs';
 import type { FetchContext } from '@kbn/presentation-publishing';
 import { getESQLQueryVariables } from '@kbn/esql-utils';
-import { collectSources, type AppDocument } from '@kbn/custom-app-common';
+import { collectDeclaredSources, collectSources, type AppDocument } from '@kbn/custom-app-common';
 import { AppFrame } from './app_frame';
 import { NodeRenderer } from './node_renderer';
 import { createDataLayer } from '../data/data_layer';
@@ -19,6 +19,7 @@ import { createRunEsqlQuery } from '../data/run_esql_query';
 import { createAppRuntime } from '../runtime/app_runtime';
 import { AppIdContext } from '../runtime/app_id_context';
 import { AppRuntimeContext } from '../runtime/app_runtime_context';
+import { DeclaredQueries } from '../runtime/binding_scope';
 import { createView, getViewKeys, isSameView, type ViewState } from '../runtime/view_state';
 import { TimeRangeControlContext } from '../runtime/time_range_context';
 import { getServices } from '../services';
@@ -69,7 +70,7 @@ export const LiveApp = ({ document, appId, view, onViewChange }: LiveAppProps) =
       runCases: createRunCases({ http: core.http }),
       getParameterNames: (query) => getESQLQueryVariables(query),
     });
-    layer.setSources(collectSources(document.root));
+    layer.setSources({ ...collectSources(document.root), ...collectDeclaredSources(document) });
     const appRuntime = createAppRuntime(document);
     if (viewRef.current) appRuntime.restoreView(viewRef.current, getViewKeys(document));
     // Emits the defaults straight away, then every change made in the card.
@@ -132,7 +133,9 @@ export const LiveApp = ({ document, appId, view, onViewChange }: LiveAppProps) =
             <DataLayerContext.Provider value={dataLayer}>
               <WorkflowRunnerProvider appId={appId}>
                 <AppFrame theme={document.theme}>
-                  <NodeRenderer node={document.root} />
+                  <DeclaredQueries queries={document.queries}>
+                    <NodeRenderer node={document.root} />
+                  </DeclaredQueries>
                 </AppFrame>
               </WorkflowRunnerProvider>
             </DataLayerContext.Provider>

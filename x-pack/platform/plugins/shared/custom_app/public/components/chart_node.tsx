@@ -11,11 +11,12 @@ import { EuiPanel, EuiTitle, useEuiTheme } from '@elastic/eui';
 import { css } from '@emotion/react';
 import { i18n } from '@kbn/i18n';
 import { KbnDangerCallout } from '@kbn/ui-callout';
-import { getAnnotationsSourceId, interpolate, type AppNodeOfType } from '@kbn/custom-app-common';
+import { getAnnotationsSourceId, type AppNodeOfType } from '@kbn/custom-app-common';
 import { useDataLayer } from '../data/data_layer_context';
 import { toEsqlVariables } from '../data/esql_variables';
 import { useSource } from '../data/use_source';
 import { useStateValues } from '../runtime/app_runtime_context';
+import { useInterpolate } from '../runtime/use_interpolate';
 import { useActionRunner } from '../workflows/use_action_runner';
 import { getServices } from '../services';
 import { useSubjectValue } from '../utils/use_subject_value';
@@ -126,7 +127,7 @@ const AnnotatedChart = ({ node, data }: { node: AppNodeOfType<'chart'>; data: So
 export const ChartNode = ({ node }: { node: AppNodeOfType<'chart'> }) => {
   const layer = useDataLayer();
   const state = useSource(node.id);
-  const values = useStateValues();
+  const text = useInterpolate();
 
   return (
     <EuiPanel hasBorder hasShadow={false} paddingSize="m" data-node-id={node.id}>
@@ -134,7 +135,7 @@ export const ChartNode = ({ node }: { node: AppNodeOfType<'chart'> }) => {
         <EuiTitle size="xxs">
           <h4>
             <EditableText nodeId={node.id} field="title" words={node.title}>
-              {interpolate(node.title, values)}
+              {text(node.title)}
             </EditableText>
           </h4>
         </EuiTitle>

@@ -41,6 +41,18 @@ export const MAX_INPUT_OPTIONS = 50;
 export const MAX_QUERY_OPTIONS = 500;
 /** What is added to the id of a select to name the source of its options, which is not a component. */
 export const OPTIONS_SOURCE_SUFFIX = ':options';
+/** The most rows a list shows at first, and adds each time more are asked for. */
+export const MAX_LIST_PAGE_SIZE = 100;
+/** What can be done with a row of a list, beside a click on it: an icon, and a few in a menu. */
+export const MAX_ROW_ACTIONS = 5;
+/** The name of an EUI icon. */
+export const MAX_ICON_NAME_LENGTH = 64;
+/** What is put before the id of a query the document declares, to name its source. */
+export const DECLARED_QUERY_SOURCE_PREFIX = 'query:';
+/** The queries a document declares for its text and its rules to read, which are few. */
+export const MAX_DECLARED_QUERIES = 20;
+/** What a filter in a reference of a text can do to the value: the closed set. */
+export const TEXT_FILTERS = ['greeting'] as const;
 /** The source of the annotations of a chart, which is not the one of the chart itself. */
 export const ANNOTATIONS_SOURCE_SUFFIX = ':annotations';
 /** The most annotations a chart draws; more than that is not a chart anyone can read. */
@@ -92,7 +104,38 @@ export const BADGE_COLORS = [
   'warning',
   'danger',
   'hollow',
+  'neutral',
+  'risk',
 ] as const;
+/** The id of a conversation of Agent Builder, which an action can open. */
+export const MAX_CONVERSATION_ID_LENGTH = 256;
+/** How often a source can be run again on its own, in seconds: not more than every few seconds. */
+export const MIN_REFRESH_INTERVAL_SECONDS = 5;
+export const MAX_REFRESH_INTERVAL_SECONDS = 3_600;
+/** The widths a page can have: all of it, or that of a page of Kibana. */
+export const THEME_WIDTHS = ['full', 'page'] as const;
+/** The colours a stat can have, which its icon is drawn in, on a light fill of the same. */
+export const STAT_COLORS = [
+  'primary',
+  'accent',
+  'success',
+  'warning',
+  'risk',
+  'danger',
+  'neutral',
+] as const;
+/** An icon of an app's own, as an SVG written as a data URI, which is drawn as a mask. */
+export const MAX_ICON_DATA_URI_LENGTH = 8_000;
+/** The colours of the dot a chip can have before its text. */
+export const DOT_COLORS = ['primary', 'success', 'warning', 'danger', 'subdued'] as const;
+/** How many lines a value is cut to at most. */
+export const MAX_TRUNCATE_LINES = 10;
+/** The most chips a value is shown as, before the rest are counted. */
+export const MAX_CHIPS = 50;
+/** What separates the values of a text shown as chips. */
+export const MAX_CHIP_SEPARATOR_LENGTH = 10;
+/** How many values a badge can map to a colour. */
+export const MAX_BADGE_COLOR_MAP_ENTRIES = 50;
 /** The colours of a progress bar. */
 export const PROGRESS_COLORS = ['primary', 'success', 'warning', 'danger'] as const;
 /** The most columns a row of columns has. */

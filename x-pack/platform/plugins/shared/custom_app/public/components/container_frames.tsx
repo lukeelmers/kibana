@@ -5,7 +5,7 @@
  * 2.0.
  */
 
-import React, { type ReactNode } from 'react';
+import React, { createContext, useState, type ReactNode } from 'react';
 import {
   EuiAccordion,
   EuiFlexGrid,
@@ -16,8 +16,16 @@ import {
   EuiTabbedContent,
   EuiText,
   EuiTitle,
+  useEuiTheme,
   useGeneratedHtmlId,
 } from '@elastic/eui';
+import { css } from '@emotion/react';
+
+/**
+ * True inside a card whose content sits flush against its edges, such as a section of an accordion
+ * drawn as cards: a list there draws no border of its own, as the card is its border.
+ */
+export const FlushContext = createContext(false);
 
 /** What is inside a container, one under the other. Each is already drawn, as a child of the node. */
 export const Column = ({ children }: { children: ReactNode[] }) => (
@@ -90,6 +98,10 @@ export interface FrameSection {
   id: string;
   label: string;
   open?: boolean;
+  /** What is shown beside the title, such as a count. */
+  title?: ReactNode;
+  /** Whether the content is only lists, which sit flush in a card. */
+  isFlush?: boolean;
   content: ReactNode[];
 }
 
@@ -117,7 +129,16 @@ const AccordionSection = ({ section }: { section: FrameSection }) => {
     <EuiPanel hasBorder hasShadow={false} paddingSize="s">
       <EuiAccordion
         id={id}
-        buttonContent={section.label}
+        buttonContent={
+          section.title ? (
+            <EuiFlexGroup alignItems="center" gutterSize="s" responsive={false}>
+              <EuiFlexItem grow={false}>{section.label}</EuiFlexItem>
+              <EuiFlexItem grow={false}>{section.title}</EuiFlexItem>
+            </EuiFlexGroup>
+          ) : (
+            section.label
+          )
+        }
         initialIsOpen={section.open === true}
         paddingSize="s"
       >
@@ -127,18 +148,107 @@ const AccordionSection = ({ section }: { section: FrameSection }) => {
   );
 };
 
-/** Sections that open and close, each on its own. */
+/**
+ * A section as a card of its own: its title, with what is beside it, is a header across the card that
+ * opens and closes it, and the content sits below a rule.
+ */
+const AccordionCard = ({ section }: { section: FrameSection }) => {
+  const { euiTheme } = useEuiTheme();
+  const id = useGeneratedHtmlId({ prefix: 'customAppAccordionCard', suffix: section.id });
+  const [isOpen, setIsOpen] = useState(section.open !== false);
+
+  return (
+    <EuiPanel
+      hasBorder={false}
+      hasShadow={false}
+      paddingSize="none"
+      data-test-subj="customAppAccordionCard"
+      css={css({
+        boxSizing: 'border-box',
+        overflow: 'hidden',
+        border: `${euiTheme.border.width.thin} solid ${euiTheme.border.color}`,
+      })}
+    >
+      <EuiAccordion
+        id={id}
+        forceState={isOpen ? 'open' : 'closed'}
+        onToggle={setIsOpen}
+        arrowDisplay="none"
+        paddingSize="none"
+        buttonContent={
+          <EuiFlexGroup alignItems="center" gutterSize="s" responsive={false}>
+            <EuiFlexItem grow={false}>
+              <EuiIcon
+                type="chevronSingleRight"
+                aria-hidden="true"
+                css={css({ transform: `rotate(${isOpen ? '90deg' : '0deg'})` })}
+              />
+            </EuiFlexItem>
+            <EuiFlexItem grow={false}>
+              <EuiTitle size="xxs">
+                <span>{section.label}</span>
+              </EuiTitle>
+            </EuiFlexItem>
+            {section.title ? <EuiFlexItem grow={false}>{section.title}</EuiFlexItem> : null}
+          </EuiFlexGroup>
+        }
+        buttonProps={{
+          css: css`
+            box-sizing: border-box;
+            align-items: center;
+            block-size: ${euiTheme.size.xxxl};
+            padding: 0 ${euiTheme.size.base};
+
+            &:hover,
+            &:focus {
+              text-decoration: none;
+            }
+
+            &:hover,
+            &:focus-visible {
+              background-color: ${euiTheme.colors.backgroundBaseInteractiveHover};
+            }
+          `,
+        }}
+      >
+        <div
+          css={css({
+            borderTop: euiTheme.border.thin,
+            padding: section.isFlush ? 0 : `${euiTheme.size.m} ${euiTheme.size.base}`,
+          })}
+        >
+          <FlushContext.Provider value={section.isFlush === true}>
+            <Column>{section.content}</Column>
+          </FlushContext.Provider>
+        </div>
+      </EuiAccordion>
+    </EuiPanel>
+  );
+};
+
+/** Sections that open and close, each on its own, in a panel or, as cards, each a card of its own. */
 export const AccordionFrame = ({
   nodeId,
   sections,
+  variant = 'default',
 }: {
   nodeId: string;
   sections: FrameSection[];
+  variant?: 'default' | 'cards';
 }) => (
-  <EuiFlexGroup direction="column" gutterSize="s" responsive={false} data-node-id={nodeId}>
+  <EuiFlexGroup
+    direction="column"
+    gutterSize={variant === 'cards' ? 'l' : 's'}
+    responsive={false}
+    data-node-id={nodeId}
+  >
     {sections.map((section) => (
       <EuiFlexItem key={section.id} grow={false}>
-        <AccordionSection section={section} />
+        {variant === 'cards' ? (
+          <AccordionCard section={section} />
+        ) : (
+          <AccordionSection section={section} />
+        )}
       </EuiFlexItem>
     ))}
   </EuiFlexGroup>

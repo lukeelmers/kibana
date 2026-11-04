@@ -47,6 +47,7 @@ const summarize = (node: AppNode): string => {
     case 'stat':
     case 'metric':
     case 'flyout':
+    case 'page_header':
       return node.title;
     case 'card':
       return node.title ?? '';
@@ -75,6 +76,7 @@ const summarize = (node: AppNode): string => {
       return node.submitLabel;
     case 'table':
     case 'key_value':
+    case 'list':
       // The first line of the query, as the text that tells two tables apart.
       return node.source
         ? i18n.translate('xpack.customApp.editor.casesSummary', { defaultMessage: 'Cases' })

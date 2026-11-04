@@ -8,12 +8,18 @@
 import React, { type ReactElement } from 'react';
 import { act, render, type RenderResult } from '@testing-library/react';
 import type { FetchContext } from '@kbn/presentation-publishing';
-import { appDocumentSchema, collectSources, type AppDocument } from '@kbn/custom-app-common';
+import {
+  appDocumentSchema,
+  collectDeclaredSources,
+  collectSources,
+  type AppDocument,
+} from '@kbn/custom-app-common';
 import { createDataLayer, type DataLayer, type RunCases, type RunQuery } from '../data/data_layer';
 import { DataLayerContext } from '../data/data_layer_context';
 import { createAppRuntime, type AppRuntime } from '../runtime/app_runtime';
 import { InlineEditContext, type ChangeNodeWords } from '../runtime/inline_edit_context';
 import { AppRuntimeContext } from '../runtime/app_runtime_context';
+import { DeclaredQueries } from '../runtime/binding_scope';
 import { AppFrame } from './app_frame';
 import { NodeRenderer } from './node_renderer';
 
@@ -59,20 +65,22 @@ export const renderApp = async (
 ): Promise<{ runtime: AppRuntime; layer: DataLayer } & RenderResult> => {
   const runtime = createAppRuntime(document);
   const layer = createDataLayer({ runQuery, runCases, getParameterNames });
-  layer.setSources(collectSources(document.root));
+  layer.setSources({ ...collectSources(document.root), ...collectDeclaredSources(document) });
   runtime.state$.subscribe(layer.setState);
 
   const view = render(
     <InlineEditContext.Provider value={changeWords}>
       <AppRuntimeContext.Provider value={runtime}>
         <DataLayerContext.Provider value={layer}>
-          {framed ? (
-            <AppFrame theme={document.theme}>
+          <DeclaredQueries queries={document.queries}>
+            {framed ? (
+              <AppFrame theme={document.theme}>
+                <NodeRenderer node={document.root} />
+              </AppFrame>
+            ) : (
               <NodeRenderer node={document.root} />
-            </AppFrame>
-          ) : (
-            <NodeRenderer node={document.root} />
-          )}
+            )}
+          </DeclaredQueries>
         </DataLayerContext.Provider>
       </AppRuntimeContext.Provider>
     </InlineEditContext.Provider>

@@ -10,6 +10,7 @@
     "@kbn/presentation-publishing",
     "@kbn/presentation-publishing-schemas",
     "@kbn/i18n",
+    "@kbn/i18n-react",
     "@kbn/zod",
     "@kbn/custom-app-common",
     "@kbn/ui-actions-plugin",

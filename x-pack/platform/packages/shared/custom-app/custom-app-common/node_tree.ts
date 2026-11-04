@@ -5,12 +5,45 @@
  * 2.0.
  */
 
-import { ANNOTATIONS_SOURCE_SUFFIX, OPTIONS_SOURCE_SUFFIX } from './constants';
-import { isContainerNode, type Action, type AppNode, type DataSource } from './document_schema';
+import {
+  ANNOTATIONS_SOURCE_SUFFIX,
+  DECLARED_QUERY_SOURCE_PREFIX,
+  OPTIONS_SOURCE_SUFFIX,
+} from './constants';
+import {
+  getNodeSlots,
+  getNodeTemplate,
+  isContainerNode,
+  type Action,
+  type AppNode,
+  type DataSource,
+  type DeclaredQuery,
+} from './document_schema';
 
 /** Returns the direct children of a node, empty for leaf nodes. */
 export const getNodeChildren = (node: AppNode): readonly AppNode[] =>
   isContainerNode(node) ? node.children : [];
+
+/**
+ * What a node holds: its children, and its slots, such as the template of a list, which is drawn
+ * for each row, and the node beside the title of a section.
+ */
+export const getNodeSubtrees = (node: AppNode): readonly AppNode[] => {
+  const slots = getNodeSlots(node);
+  return slots.length === 0 ? getNodeChildren(node) : [...getNodeChildren(node), ...slots];
+};
+
+/** The node with each of its subtrees, as `getNodeSubtrees` gives them, replaced by `map`. */
+export const mapNodeSubtrees = (node: AppNode, map: (subtree: AppNode) => AppNode): AppNode => {
+  const mapped: AppNode = isContainerNode(node)
+    ? { ...node, children: node.children.map(map) }
+    : node;
+  if (mapped.type === 'list') return { ...mapped, template: map(mapped.template) };
+  if (mapped.type === 'section' && mapped.titleNode) {
+    return { ...mapped, titleNode: map(mapped.titleNode) };
+  }
+  return mapped;
+};
 
 /**
  * Whether an app has nothing in it yet: a root that is a stack with no components. A new app starts
@@ -49,8 +82,20 @@ export const getInterpolatedText = (
       return node.label === undefined ? [] : [{ prop: 'label', text: node.label }];
     case 'section':
       return [{ prop: 'label', text: node.label }];
+    case 'list':
+      return [
+        ...(node.emptyMessage === undefined
+          ? []
+          : [{ prop: 'emptyMessage', text: node.emptyMessage }]),
+        ...node.rowActions.map(({ label }) => ({ prop: 'rowActions.label', text: label })),
+      ];
     case 'chart':
       return node.title === undefined ? [] : [{ prop: 'title', text: node.title }];
+    case 'page_header':
+      return [
+        ...(node.eyebrow === undefined ? [] : [{ prop: 'eyebrow', text: node.eyebrow }]),
+        { prop: 'title', text: node.title },
+      ];
     case 'link':
       return [
         { prop: 'label', text: node.label },
@@ -71,7 +116,8 @@ export const getNodeQuery = (node: AppNode): string | undefined =>
   node.type === 'chart' ||
   node.type === 'custom_content' ||
   node.type === 'table' ||
-  node.type === 'key_value'
+  node.type === 'key_value' ||
+  node.type === 'list'
     ? node.query
     : undefined;
 
@@ -82,9 +128,13 @@ export const getNodeSource = (node: AppNode): DataSource | undefined => {
     node.type === 'metric' ||
     node.type === 'progress' ||
     node.type === 'table' ||
-    node.type === 'key_value'
+    node.type === 'key_value' ||
+    node.type === 'list'
   ) {
-    if (node.source) return node.source;
+    const { refreshInterval } = node;
+    const polled = refreshInterval === undefined ? {} : { refreshInterval };
+    if (node.source) return { ...node.source, ...polled };
+    if (node.query !== undefined) return { type: 'esql', query: node.query, ...polled };
   }
   const query = getNodeQuery(node);
   return query === undefined ? undefined : { type: 'esql', query };
@@ -97,6 +147,25 @@ export const getOptionsSourceId = (nodeId: string): string => `${nodeId}${OPTION
 export const getAnnotationsSourceId = (nodeId: string): string =>
   `${nodeId}${ANNOTATIONS_SOURCE_SUFFIX}`;
 
+/** The id the source of a query the document declares is known by, which no component has. */
+export const getDeclaredQuerySourceId = (queryId: string): string =>
+  `${DECLARED_QUERY_SOURCE_PREFIX}${queryId}`;
+
+/** The sources of the queries a document declares, by the id they are known by. */
+export const collectDeclaredSources = (document: {
+  queries?: Readonly<Record<string, DeclaredQuery>>;
+}): Record<string, DataSource> =>
+  Object.fromEntries(
+    Object.entries(document.queries ?? {}).map(([id, { query, refreshInterval }]) => [
+      getDeclaredQuerySourceId(id),
+      {
+        type: 'esql' as const,
+        query,
+        ...(refreshInterval === undefined ? {} : { refreshInterval }),
+      },
+    ])
+  );
+
 /** Every source in the tree, by the id of the node that shows it, and of the options of a select. */
 export const collectSources = (root: AppNode): Record<string, DataSource> => {
   const source = getNodeSource(root);
@@ -108,7 +177,13 @@ export const collectSources = (root: AppNode): Record<string, DataSource> => {
     ...(root.type === 'chart' && root.annotations !== undefined
       ? { [getAnnotationsSourceId(root.id)]: { type: 'esql', query: root.annotations.query } }
       : {}),
-    ...Object.assign({}, ...getNodeChildren(root).map(collectSources)),
+    // A template is drawn for each row and shows only its row; anything else that is held is shown.
+    ...Object.assign(
+      {},
+      ...getNodeSubtrees(root)
+        .filter((held) => held !== getNodeTemplate(root))
+        .map(collectSources)
+    ),
   };
 };
 
@@ -154,10 +229,18 @@ export const getNodeActions = (
   switch (node.type) {
     case 'table':
       return [{ event: 'onRowClick', actions: node.onRowClick }];
+    case 'list':
+      // What a row action does is done with its row, as a click on the row is.
+      return [
+        { event: 'onRowClick', actions: node.onRowClick },
+        ...node.rowActions.map(({ onClick }) => ({ event: 'onRowClick', actions: onClick })),
+      ];
     case 'chart':
       return [{ event: 'onChartClick', actions: node.onClick }];
     case 'button':
       return [{ event: 'onClick', actions: node.onClick }];
+    case 'stat':
+      return node.onClick ? [{ event: 'onClick', actions: node.onClick }] : [];
     case 'form':
       return [{ event: 'onSubmit', actions: node.onSubmit }];
     case 'select':
@@ -168,6 +251,41 @@ export const getNodeActions = (
       return [{ event: 'onChange', actions: node.onChange }];
     default:
       return [];
+  }
+};
+
+/** The node with its lists of actions, as `getNodeActions` gives them, replaced by `map`. */
+export const mapNodeActions = (
+  node: AppNode,
+  map: (actions: readonly Action[]) => Action[]
+): AppNode => {
+  switch (node.type) {
+    case 'table':
+      return { ...node, onRowClick: map(node.onRowClick) };
+    case 'list':
+      return {
+        ...node,
+        onRowClick: map(node.onRowClick),
+        rowActions: node.rowActions.map((rowAction) => ({
+          ...rowAction,
+          onClick: map(rowAction.onClick),
+        })),
+      };
+    case 'chart':
+    case 'button':
+      return { ...node, onClick: map(node.onClick) };
+    case 'stat':
+      return node.onClick ? { ...node, onClick: map(node.onClick) } : node;
+    case 'form':
+      return { ...node, onSubmit: map(node.onSubmit) };
+    case 'select':
+    case 'button_group':
+    case 'switch':
+    case 'search':
+    case 'list_input':
+      return { ...node, onChange: map(node.onChange) };
+    default:
+      return node;
   }
 };
 

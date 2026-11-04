@@ -43,6 +43,8 @@ describe('the authoring guide', () => {
     'form',
     'time_range',
     'flyout',
+    'list',
+    'page_header',
   ])('describes the %s component', (type) => {
     expect(CUSTOM_APP_AUTHORING_GUIDE).toContain(type);
   });

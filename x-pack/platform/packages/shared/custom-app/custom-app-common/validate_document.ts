@@ -11,13 +11,30 @@ import {
   CASES_FILTERS,
   CASES_SEVERITIES,
   CASES_STATUSES,
+  MAX_DECLARED_QUERIES,
   MAX_NODE_COUNT,
   MAX_NODE_DEPTH,
   MAX_STATE_KEYS,
+  TEXT_FILTERS,
 } from './constants';
-import type { AppNode, AppTheme, StateDeclaration } from './document_schema';
-import { BOUND_PROPS, THEME_BOUND_PROPS, getPath, isStateRef, type StateRef } from './bindings';
-import { findStateReferences, hasMalformedReference } from './interpolation';
+import type { AppNode, AppTheme, DeclaredQuery, StateDeclaration } from './document_schema';
+import {
+  BOUND_PROPS,
+  THEME_BOUND_PROPS,
+  getPath,
+  getVisibilityOperators,
+  isQueryRef,
+  isRowRef,
+  isStateRef,
+  type StateRef,
+} from './bindings';
+import {
+  findFilterReferences,
+  findQueryReferences,
+  findRowReferences,
+  findStateReferences,
+  hasMalformedReference,
+} from './interpolation';
 import {
   getInterpolatedText,
   getNodeActions,
@@ -25,11 +42,13 @@ import {
   getNodeBindings,
   getNodeChildren,
   getNodeSource,
+  getNodeSubtrees,
   getSourceStateKeys,
 } from './node_tree';
 
 interface DocumentToValidate {
   state: Record<string, StateDeclaration>;
+  queries?: Record<string, DeclaredQuery>;
   root: AppNode;
   theme?: AppTheme;
 }
@@ -52,27 +71,32 @@ const WORKFLOW_EVENTS: readonly string[] = ['onClick', 'onRowClick', 'onChartCli
 const collectNodes = (
   root: AppNode,
   ctx: z.RefinementCtx
-): { nodes: AppNode[]; withinLimits: boolean } => {
+): { nodes: AppNode[]; rowScoped: Set<string>; withinLimits: boolean } => {
   const nodes: AppNode[] = [];
+  /** The ids of the nodes that are drawn for a row, and can read its columns. */
+  const rowScoped = new Set<string>();
   const seenIds = new Set<string>();
-  const pending: Array<{ node: AppNode; depth: number }> = [{ node: root, depth: 1 }];
+  const pending: Array<{ node: AppNode; depth: number; inRow: boolean }> = [
+    { node: root, depth: 1, inRow: false },
+  ];
 
   for (let current = pending.pop(); current; current = pending.pop()) {
-    const { node, depth } = current;
+    const { node, depth, inRow } = current;
+    if (inRow) rowScoped.add(node.id);
 
     if (depth > MAX_NODE_DEPTH) {
       ctx.addIssue({
         code: 'custom',
         message: `Nodes may be nested at most ${MAX_NODE_DEPTH} deep`,
       });
-      return { nodes, withinLimits: false };
+      return { nodes, rowScoped, withinLimits: false };
     }
     if (nodes.length >= MAX_NODE_COUNT) {
       ctx.addIssue({
         code: 'custom',
         message: `A document may hold at most ${MAX_NODE_COUNT} nodes`,
       });
-      return { nodes, withinLimits: false };
+      return { nodes, rowScoped, withinLimits: false };
     }
 
     if (seenIds.has(node.id)) {
@@ -86,12 +110,16 @@ const collectNodes = (
     nodes.push(node);
 
     // Pushed in reverse so nodes are visited, and issues reported, in document order.
-    [...getNodeChildren(node)]
-      .reverse()
-      .forEach((child) => pending.push({ node: child, depth: depth + 1 }));
+    [...getNodeSubtrees(node)].reverse().forEach((child) =>
+      pending.push({
+        node: child,
+        depth: depth + 1,
+        inRow: inRow || (node.type === 'list' && child === node.template),
+      })
+    );
   }
 
-  return { nodes, withinLimits: true };
+  return { nodes, rowScoped, withinLimits: true };
 };
 
 /**
@@ -111,8 +139,29 @@ export const validateDocument = (document: DocumentToValidate, ctx: z.Refinement
   if (Object.keys(state).length > MAX_STATE_KEYS) {
     issue(`A document may hold at most ${MAX_STATE_KEYS} state keys`);
   }
-  const { nodes, withinLimits } = collectNodes(document.root, ctx);
+  const queries = document.queries ?? {};
+  if (Object.keys(queries).length > MAX_DECLARED_QUERIES) {
+    issue(`A document may declare at most ${MAX_DECLARED_QUERIES} queries`);
+  }
+  const { nodes, rowScoped, withinLimits } = collectNodes(document.root, ctx);
   if (!withinLimits) return;
+
+  /** What is wrong with a reference to a row or a declared query, which have no kind to check. */
+  const checkScopedReference = (
+    nodeId: string,
+    property: string,
+    ref: { $row: string } | { $query: string; field: string }
+  ) => {
+    if ('$row' in ref && !rowScoped.has(nodeId)) {
+      issue(
+        `Node "${nodeId}" reads "${property}" from the column "${ref.$row}" of a row, which only the template of a list has`,
+        nodeId
+      );
+    }
+    if ('$query' in ref && !(ref.$query in queries)) {
+      issue(`Node "${nodeId}" reads "${property}" from unknown query "${ref.$query}"`, nodeId);
+    }
+  };
 
   /** What is wrong with a property that reads a value, and the value it starts as. */
   const checkReference = (
@@ -157,6 +206,25 @@ export const validateDocument = (document: DocumentToValidate, ctx: z.Refinement
   const flyoutIds = new Set(nodes.filter(({ type }) => type === 'flyout').map(({ id }) => id));
 
   nodes.forEach((node) => {
+    if (rowScoped.has(node.id)) {
+      // A template is drawn once for each row: what it holds shows the row, and does not fetch,
+      // set or open anything of its own, which would be done once for every row.
+      const what =
+        getNodeSource(node) !== undefined
+          ? 'shows data of its own'
+          : getNodeBindings(node).length > 0
+          ? 'is an input'
+          : node.type === 'flyout' || node.type === 'time_range'
+          ? `is a ${node.type === 'flyout' ? 'flyout' : 'time range'}`
+          : undefined;
+      if (what) {
+        issue(
+          `Node "${node.id}" is in the template of a list and ${what}; a template only shows its row`,
+          node.id
+        );
+      }
+    }
+
     const bindings = getNodeBindings(node);
     const wanted = getBindingType(node);
     bindings.forEach((binding) => {
@@ -183,28 +251,61 @@ export const validateDocument = (document: DocumentToValidate, ctx: z.Refinement
       const value = getPath(node, path);
       if (isStateRef(value)) {
         checkReference(`Node "${node.id}"`, path, value, bound, node.id);
+      } else if (isRowRef(value) || isQueryRef(value)) {
+        checkScopedReference(node.id, path, value);
       }
     });
 
     if (node.visibleWhen) {
-      const { $state: key, equals } = node.visibleWhen;
-      const declaration = state[key];
-      if (!declaration) {
-        issue(`Node "${node.id}" is shown by unknown state key "${key}"`, node.id);
-      } else if (declaration.type === 'list') {
-        issue(`Node "${node.id}" is shown by state key "${key}", which is a list`, node.id);
-      } else if (equals === undefined && declaration.type !== 'boolean') {
+      const rule = node.visibleWhen;
+      const operators = getVisibilityOperators(rule);
+      const [operator] = operators;
+      if (operators.length > 1) {
         issue(
-          `Node "${node.id}" is shown by state key "${key}" (${declaration.type}); without "equals" it needs a boolean key`,
+          `Node "${node.id}" is shown by a rule with ${operators.join(
+            ' and '
+          )}; a rule compares in one way only`,
           node.id
         );
-      } else if (equals !== undefined && typeof equals !== declaration.type) {
-        issue(
-          `Node "${node.id}" is shown when state key "${key}" (${
-            declaration.type
-          }) equals ${JSON.stringify(equals)}, which is a ${typeof equals}`,
-          node.id
-        );
+      } else if ('$state' in rule) {
+        const { $state: key, equals } = rule;
+        const declaration = state[key];
+        const isNumeric = ['gt', 'gte', 'lt', 'lte'].includes(operator);
+        if (!declaration) {
+          issue(`Node "${node.id}" is shown by unknown state key "${key}"`, node.id);
+        } else if (operator === 'isEmpty' || operator === 'isNotEmpty') {
+          if (declaration.type !== 'string' && declaration.type !== 'list') {
+            issue(
+              `Node "${node.id}" is shown when state key "${key}" (${declaration.type}) is empty or not; that needs a string or a list key`,
+              node.id
+            );
+          }
+        } else if (declaration.type === 'list') {
+          issue(`Node "${node.id}" is shown by state key "${key}", which is a list`, node.id);
+        } else if (operator === undefined && declaration.type !== 'boolean') {
+          issue(
+            `Node "${node.id}" is shown by state key "${key}" (${declaration.type}); without "equals" it needs a boolean key`,
+            node.id
+          );
+        } else if (isNumeric && declaration.type !== 'number') {
+          issue(
+            `Node "${node.id}" is shown when state key "${key}" (${declaration.type}) is compared with ${operator}, which needs a number key`,
+            node.id
+          );
+        } else if (
+          (operator === 'equals' || operator === 'notEquals') &&
+          typeof rule[operator] !== declaration.type
+        ) {
+          const operand = operator === 'equals' ? equals : rule.notEquals;
+          issue(
+            `Node "${node.id}" is shown when state key "${key}" (${declaration.type}) ${
+              operator === 'equals' ? 'equals' : 'does not equal'
+            } ${JSON.stringify(operand)}, which is a ${typeof operand}`,
+            node.id
+          );
+        }
+      } else {
+        checkScopedReference(node.id, 'visibleWhen', rule);
       }
     }
 
@@ -216,6 +317,16 @@ export const validateDocument = (document: DocumentToValidate, ctx: z.Refinement
             `Node "${node.id}" is ${
               node.type === 'tabs' ? 'tabs' : 'an accordion'
             } and holds only sections, not "${child.id}" (${child.type})`,
+            node.id
+          )
+        );
+    }
+    if (node.type === 'page_header') {
+      node.children
+        .filter((child) => child.type !== 'link' && child.type !== 'button')
+        .forEach((child) =>
+          issue(
+            `Node "${node.id}" is a page header and holds only links and buttons, not "${child.id}" (${child.type})`,
             node.id
           )
         );
@@ -254,7 +365,8 @@ export const validateDocument = (document: DocumentToValidate, ctx: z.Refinement
       node.type === 'metric' ||
       node.type === 'progress' ||
       node.type === 'table' ||
-      node.type === 'key_value'
+      node.type === 'key_value' ||
+      node.type === 'list'
     ) {
       if ((node.query === undefined) === (node.source === undefined)) {
         issue(
@@ -351,10 +463,33 @@ export const validateDocument = (document: DocumentToValidate, ctx: z.Refinement
       findStateReferences(text)
         .filter((key) => !(key in state))
         .forEach((key) => issue(`Node "${node.id}" refers to unknown state key "${key}"`, node.id));
+      if (!rowScoped.has(node.id) && findRowReferences(text).length > 0) {
+        issue(
+          `Node "${node.id}" refers to a column of a row in "${prop}", which only the template of a list has`,
+          node.id
+        );
+      }
+      findQueryReferences(text)
+        .filter(({ id }) => !(id in queries))
+        .forEach(({ id }) => issue(`Node "${node.id}" refers to unknown query "${id}"`, node.id));
+      findFilterReferences(text)
+        .filter((filter) => !(TEXT_FILTERS as readonly string[]).includes(filter))
+        .forEach((filter) =>
+          issue(
+            `Node "${
+              node.id
+            }" uses the unknown filter "${filter}" in "${prop}"; it is one of ${TEXT_FILTERS.join(
+              ', '
+            )}`,
+            node.id
+          )
+        );
     });
 
     getNodeActions(node).forEach(({ event, actions }) => {
-      const allowed = ACTION_VALUE_SOURCES[event] ?? { fromColumn: false, fromInput: false };
+      const eventSources = ACTION_VALUE_SOURCES[event] ?? { fromColumn: false, fromInput: false };
+      // In the template of a list, what is pressed is pressed for a row, whose columns it can hand on.
+      const allowed = rowScoped.has(node.id) ? { ...eventSources, fromColumn: true } : eventSources;
 
       actions.forEach((action) => {
         if (action.type === 'runWorkflow') {
@@ -379,6 +514,35 @@ export const validateDocument = (document: DocumentToValidate, ctx: z.Refinement
               );
             }
           });
+          return;
+        }
+        if (action.type === 'openConversation') {
+          if (!WORKFLOW_EVENTS.includes(event)) {
+            issue(
+              `Node "${node.id}" opens a conversation on ${event}; it can only be opened by a button, a row click, a click on a chart or a form that is submitted`,
+              node.id
+            );
+          }
+          const { conversationId } = action;
+          if (typeof conversationId === 'string') return;
+          if ('$state' in conversationId && !(conversationId.$state in state)) {
+            issue(
+              `Node "${node.id}" opens the conversation of unknown state key "${conversationId.$state}"`,
+              node.id
+            );
+          }
+          if ('$query' in conversationId && !(conversationId.$query in queries)) {
+            issue(
+              `Node "${node.id}" opens the conversation of unknown query "${conversationId.$query}"`,
+              node.id
+            );
+          }
+          if (('$row' in conversationId || 'fromColumn' in conversationId) && !allowed.fromColumn) {
+            issue(
+              `Node "${node.id}" opens the conversation of a column, which only a row click, a click on a chart or the template of a list has`,
+              node.id
+            );
+          }
           return;
         }
         if (action.type === 'openFlyout' && !flyoutIds.has(action.flyout)) {

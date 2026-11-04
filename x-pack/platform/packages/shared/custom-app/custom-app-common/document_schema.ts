@@ -8,7 +8,18 @@
 import { z } from '@kbn/zod/v4';
 import { CUSTOM_CONTENT_MAX_HEIGHT, CUSTOM_CONTENT_MIN_HEIGHT } from '@kbn/custom-content-common';
 import {
+  BADGE_COLORS,
   CASES_SORT_FIELDS,
+  DOT_COLORS,
+  MAX_BADGE_COLOR_MAP_ENTRIES,
+  MAX_CHIP_SEPARATOR_LENGTH,
+  MAX_CONVERSATION_ID_LENGTH,
+  MAX_CHIPS,
+  MAX_TRUNCATE_LINES,
+  MAX_REFRESH_INTERVAL_SECONDS,
+  MIN_REFRESH_INTERVAL_SECONDS,
+  STAT_COLORS,
+  THEME_WIDTHS,
   CUSTOM_APP_STATE_VERSION,
   MAX_ACTIONS_PER_EVENT,
   MAX_BUTTON_GROUP_OPTIONS,
@@ -19,8 +30,12 @@ import {
   MAX_CHILDREN_PER_NODE,
   MAX_FORM_FIELDS,
   MAX_HEADING_LENGTH,
+  MAX_ICON_DATA_URI_LENGTH,
+  MAX_ICON_NAME_LENGTH,
   MAX_KEY_VALUE_FIELDS,
   MAX_LINK_APP_ID_LENGTH,
+  MAX_LIST_PAGE_SIZE,
+  MAX_ROW_ACTIONS,
   MAX_LINK_PATH_LENGTH,
   MAX_NODE_ID_LENGTH,
   MAX_PROMPT_LENGTH,
@@ -44,8 +59,13 @@ import {
   columnsCountSchema,
   progressColorSchema,
   progressMaxSchema,
+  queryIdSchema,
+  queryRefSchema,
+  rowRefSchema,
+  stateRefSchema,
   sectionOpenSchema,
   stackDirectionSchema,
+  stackSpacingSchema,
   stateKeySchema,
   themeAccentSchema,
   themeShapeSchema,
@@ -80,6 +100,25 @@ export const stateDeclarationSchema = z.discriminatedUnion('type', [
 
 /** An ES|QL query. A component that shows data carries its own. */
 const querySchema = z.string().min(1).max(MAX_QUERY_LENGTH);
+
+/** The name of an icon EUI draws, such as `productAgent` or `bolt`. */
+export const iconNameSchema = z
+  .string()
+  .min(1)
+  .max(MAX_ICON_NAME_LENGTH)
+  .regex(/^[A-Za-z][A-Za-z0-9]*$/);
+
+/**
+ * An icon: one EUI draws, by its name, or a mark of the app's own, as an SVG data URI. That is drawn
+ * as a mask in the colour of the text around it, so it is never an image that can do anything.
+ */
+export const appIconSchema = z.union([
+  iconNameSchema,
+  z
+    .string()
+    .max(MAX_ICON_DATA_URI_LENGTH)
+    .regex(/^data:image\/svg\+xml(;base64)?,[A-Za-z0-9+/=%._~!$&'()*,;:@-]+$/),
+]);
 
 /** The closed set of things a user interaction can do. */
 const setStateActionSchema = z.object({
@@ -118,6 +157,22 @@ const runWorkflowActionSchema = z.object({
 });
 
 const openFlyoutActionSchema = z.object({ type: z.literal('openFlyout'), flyout: nodeIdSchema });
+
+/**
+ * Opens a conversation of Agent Builder in its details flyout, as a page of Kibana that lists
+ * conversations does. Which one is a fixed id, a value of the app, a column of the row the action is
+ * run with, or a column of a declared query. Where Agent Builder is not there, it does nothing.
+ */
+const openConversationActionSchema = z.object({
+  type: z.literal('openConversation'),
+  conversationId: z.union([
+    z.string().min(1).max(MAX_CONVERSATION_ID_LENGTH),
+    stateRefSchema,
+    rowRefSchema,
+    queryRefSchema,
+    z.object({ fromColumn: z.string().min(1).max(MAX_HEADING_LENGTH) }),
+  ]),
+});
 const closeFlyoutActionSchema = z.object({ type: z.literal('closeFlyout') });
 
 export const actionSchema = z.discriminatedUnion('type', [
@@ -125,9 +180,47 @@ export const actionSchema = z.discriminatedUnion('type', [
   openFlyoutActionSchema,
   closeFlyoutActionSchema,
   runWorkflowActionSchema,
+  openConversationActionSchema,
 ]);
 
 const actionsSchema = z.array(actionSchema).max(MAX_ACTIONS_PER_EVENT);
+
+/**
+ * How a value is shown, instead of as the text it is: as how long ago a time was, cut to a few
+ * lines, as a badge whose colour follows the value, or split into chips. A short list, as the rest
+ * of the look of an app is.
+ */
+export const valueFormatSchema = z.discriminatedUnion('type', [
+  z.object({ type: z.literal('relative_time') }),
+  z.object({
+    type: z.literal('truncate'),
+    lines: z.number().int().min(1).max(MAX_TRUNCATE_LINES).default(1),
+  }),
+  z.object({
+    type: z.literal('badge'),
+    /** The colour of each value; one that is not here is `color`. */
+    colorMap: z
+      .record(z.string().max(MAX_STATE_STRING_LENGTH), z.enum(BADGE_COLORS))
+      .refine((map) => Object.keys(map).length <= MAX_BADGE_COLOR_MAP_ENTRIES, {
+        message: `A badge maps at most ${MAX_BADGE_COLOR_MAP_ENTRIES} values to colours`,
+      })
+      .default({}),
+    color: z.enum(BADGE_COLORS).default('default'),
+  }),
+  z.object({
+    type: z.literal('chips'),
+    /** What the values are separated by in the text, a comma by default. */
+    separator: z.string().min(1).max(MAX_CHIP_SEPARATOR_LENGTH).default(','),
+    /** The most chips shown; the rest are counted in one more. */
+    max: z.number().int().min(1).max(MAX_CHIPS).optional(),
+    color: z.enum(BADGE_COLORS).default('hollow'),
+    /** A dot of this colour before the text of each chip. */
+    dot: z.enum(DOT_COLORS).optional(),
+  }),
+]);
+
+/** How a text reads among others: as a small, quiet caption, or as a line that stands out. */
+const textVariantSchema = z.enum(['caption', 'emphasis']);
 
 const headingNodeSchema = z.object({
   type: z.literal('heading'),
@@ -141,6 +234,9 @@ const textNodeSchema = z.object({
   id: nodeIdSchema,
   visibleWhen: visibleWhenSchema,
   text: z.string().max(MAX_TEXT_LENGTH),
+  /** With either, the text is shown as the value it is, and not as Markdown. */
+  variant: textVariantSchema.optional(),
+  format: valueFormatSchema.optional(),
 });
 
 const calloutNodeSchema = z.object({
@@ -180,9 +276,22 @@ const casesSourceSchema = z.object({
  * What a component that shows data gets it from: a query, or a source. One of the two, which
  * validation checks, since the schema alone cannot say that.
  */
+/**
+ * How often, in seconds, what a source gives is fetched again on its own while it is shown, as a
+ * page that follows something under way does. Left out, it is fetched when something it reads
+ * changes, and when the page is refreshed.
+ */
+const refreshIntervalSchema = z
+  .number()
+  .int()
+  .min(MIN_REFRESH_INTERVAL_SECONDS)
+  .max(MAX_REFRESH_INTERVAL_SECONDS)
+  .optional();
+
 const dataFields = {
   query: querySchema.optional(),
   source: casesSourceSchema.optional(),
+  refreshInterval: refreshIntervalSchema,
 };
 
 const statNodeSchema = z.object({
@@ -191,6 +300,11 @@ const statNodeSchema = z.object({
   visibleWhen: visibleWhenSchema,
   title: z.string().max(MAX_HEADING_LENGTH),
   ...dataFields,
+  /** With an icon, the value is shown beside it, on a fill of `color`, and the title above. */
+  icon: appIconSchema.optional(),
+  color: z.enum(STAT_COLORS).optional(),
+  /** What a click on the stat does, as a button does. Left out, it is not a control. */
+  onClick: actionsSchema.optional(),
 });
 
 const chartNodeSchema = z.object({
@@ -253,6 +367,7 @@ const tableNodeSchema = z.object({
       z.object({
         field: z.string().min(1).max(MAX_HEADING_LENGTH),
         label: z.string().max(MAX_HEADING_LENGTH).optional(),
+        format: valueFormatSchema.optional(),
       })
     )
     .max(MAX_TABLE_COLUMNS)
@@ -431,8 +546,20 @@ const keyValueNodeSchema = z.object({
   id: nodeIdSchema,
   visibleWhen: visibleWhenSchema,
   ...dataFields,
-  /** Defaults to every column of the first row. */
-  fields: z.array(z.string().min(1).max(MAX_HEADING_LENGTH)).max(MAX_KEY_VALUE_FIELDS).optional(),
+  /** Defaults to every column of the first row. A field can say how its value is shown. */
+  fields: z
+    .array(
+      z.union([
+        z.string().min(1).max(MAX_HEADING_LENGTH),
+        z.object({
+          field: z.string().min(1).max(MAX_HEADING_LENGTH),
+          label: z.string().max(MAX_HEADING_LENGTH).optional(),
+          format: valueFormatSchema.optional(),
+        }),
+      ])
+    )
+    .max(MAX_KEY_VALUE_FIELDS)
+    .optional(),
 });
 
 /**
@@ -468,6 +595,8 @@ const badgeNodeSchema = z.object({
   visibleWhen: visibleWhenSchema,
   text: z.string().min(1).max(MAX_HEADING_LENGTH),
   color: bindable(badgeColorSchema),
+  /** Something is under way: the text is shown as a status that is still running, not a badge. */
+  loading: z.boolean().optional(),
 });
 
 const stackFields = {
@@ -475,6 +604,8 @@ const stackFields = {
   id: nodeIdSchema,
   visibleWhen: visibleWhenSchema,
   direction: bindable(stackDirectionSchema),
+  /** How close together what is inside sits. Left out, it is the room a page gives. */
+  spacing: stackSpacingSchema,
 };
 
 const flyoutFields = {
@@ -512,10 +643,49 @@ const sectionFields = {
 };
 
 const tabsFields = { type: z.literal('tabs'), id: nodeIdSchema, visibleWhen: visibleWhenSchema };
+
+/**
+ * The header of a page: an icon, a line above the title, the title, and at the end of the row the
+ * links and buttons it holds, which are what it holds and all it holds.
+ */
+const pageHeaderFields = {
+  type: z.literal('page_header'),
+  id: nodeIdSchema,
+  visibleWhen: visibleWhenSchema,
+  icon: appIconSchema.optional(),
+  eyebrow: z.string().max(MAX_HEADING_LENGTH).optional(),
+  title: z.string().max(MAX_HEADING_LENGTH),
+};
+
+/** Something that can be done with a row, beside what a click on it does. */
+const rowActionSchema = z.object({
+  label: z.string().min(1).max(MAX_HEADING_LENGTH),
+  icon: iconNameSchema,
+  onClick: actionsSchema.default([]),
+});
+
+/**
+ * The rows of a query, each drawn with `template`, in which `{ "$row": "column" }` and
+ * `{{row.column}}` read the row it is drawn for. A click on a row runs `onRowClick`, as a row of a
+ * table does; `rowActions` are what else can be done with it. `pageSize` rows are shown at first,
+ * and more on asking; left out, every row is.
+ */
+const listFields = {
+  type: z.literal('list'),
+  id: nodeIdSchema,
+  visibleWhen: visibleWhenSchema,
+  ...dataFields,
+  emptyMessage: z.string().max(MAX_HEADING_LENGTH).optional(),
+  pageSize: z.number().int().min(1).max(MAX_LIST_PAGE_SIZE).optional(),
+  onRowClick: actionsSchema.default([]),
+  rowActions: z.array(rowActionSchema).max(MAX_ROW_ACTIONS).default([]),
+};
 const accordionFields = {
   type: z.literal('accordion'),
   id: nodeIdSchema,
   visibleWhen: visibleWhenSchema,
+  /** As cards, each section is a card of its own, with its title as a header across it. */
+  variant: z.enum(['default', 'cards']).optional(),
 };
 
 type LeafNode =
@@ -547,7 +717,11 @@ type StackNode = WithChildren<typeof stackFields>;
 type FlyoutNode = WithChildren<typeof flyoutFields>;
 type CardNode = WithChildren<typeof cardFields>;
 type ColumnsNode = WithChildren<typeof columnsFields>;
-type SectionNode = WithChildren<typeof sectionFields>;
+/** A section can have a node beside its title, such as a count, which is not one of its children. */
+type SectionNode = WithChildren<typeof sectionFields> & { titleNode?: AppNode };
+/** A list holds one node, its template, which is drawn for each row and is not a child. */
+type ListNode = z.output<z.ZodObject<typeof listFields>> & { template: AppNode };
+type PageHeaderNode = WithChildren<typeof pageHeaderFields>;
 type TabsNode = WithChildren<typeof tabsFields>;
 type AccordionNode = WithChildren<typeof accordionFields>;
 
@@ -559,20 +733,24 @@ export type ContainerNode =
   | ColumnsNode
   | SectionNode
   | TabsNode
-  | AccordionNode;
+  | AccordionNode
+  | PageHeaderNode;
 
 /**
  * Written out by hand because TypeScript cannot infer a union that contains itself. The
  * `satisfies` on `nodeSchema` fails to compile if the schemas stop producing this type.
  */
-export type AppNode = LeafNode | ContainerNode;
+export type AppNode = LeafNode | ContainerNode | ListNode;
 export type AppNodeType = AppNode['type'];
 export type AppNodeOfType<T extends AppNodeType> = Extract<AppNode, { type: T }>;
 export type Action = z.output<typeof actionSchema>;
 export type FormField = z.output<typeof formFieldSchema>;
 export type CasesSource = z.output<typeof casesSourceSchema>;
-/** Where a component gets what it shows. */
-export type DataSource = { type: 'esql'; query: string } | CasesSource;
+export type ValueFormat = z.output<typeof valueFormatSchema>;
+/** Where a component gets what it shows, and how often it is fetched again on its own. */
+export type DataSource = ({ type: 'esql'; query: string } | CasesSource) & {
+  refreshInterval?: number;
+};
 
 const stackNodeSchema = z.object({
   ...stackFields,
@@ -607,12 +785,29 @@ const sectionNodeSchema = z.object({
   get children(): z.ZodArray<z.ZodType<AppNode>> {
     return z.array(nodeSchema).max(MAX_CHILDREN_PER_NODE);
   },
+  get titleNode(): z.ZodOptional<z.ZodType<AppNode>> {
+    return nodeSchema.optional();
+  },
 });
 
 const tabsNodeSchema = z.object({
   ...tabsFields,
   get children(): z.ZodArray<z.ZodType<AppNode>> {
     return z.array(nodeSchema).max(MAX_CHILDREN_PER_NODE);
+  },
+});
+
+const pageHeaderNodeSchema = z.object({
+  ...pageHeaderFields,
+  get children(): z.ZodArray<z.ZodType<AppNode>> {
+    return z.array(nodeSchema).max(MAX_CHILDREN_PER_NODE);
+  },
+});
+
+const listNodeSchema = z.object({
+  ...listFields,
+  get template(): z.ZodType<AppNode> {
+    return nodeSchema;
   },
 });
 
@@ -651,6 +846,8 @@ export const nodeSchema = z.discriminatedUnion('type', [
   sectionNodeSchema,
   tabsNodeSchema,
   accordionNodeSchema,
+  listNodeSchema,
+  pageHeaderNodeSchema,
 ]) satisfies z.ZodType<AppNode>;
 
 const CONTAINER_TYPES: ReadonlySet<string> = new Set([
@@ -661,6 +858,7 @@ const CONTAINER_TYPES: ReadonlySet<string> = new Set([
   'section',
   'tabs',
   'accordion',
+  'page_header',
 ]);
 
 /** Whether a node holds other nodes. */
@@ -670,6 +868,17 @@ export const isContainerNode = (node: AppNode): node is ContainerNode =>
 /** Returns the direct children of a node, empty for leaf nodes. */
 export const getNodeChildren = (node: AppNode): readonly AppNode[] =>
   isContainerNode(node) ? node.children : [];
+
+/** The template a list draws for each of its rows, which is not one of its children. */
+export const getNodeTemplate = (node: AppNode): AppNode | undefined =>
+  node.type === 'list' ? node.template : undefined;
+
+/** The nodes a node holds beside its children: the template of a list, the title of a section. */
+export const getNodeSlots = (node: AppNode): readonly AppNode[] => {
+  const template = getNodeTemplate(node);
+  if (template) return [template];
+  return node.type === 'section' && node.titleNode ? [node.titleNode] : [];
+};
 
 /**
  * The shape of a document, without the checks that look across it. For anything that only needs
@@ -684,10 +893,24 @@ export const getNodeChildren = (node: AppNode): readonly AppNode[] =>
 export const themeSchema = z.object({
   accent: bindable(themeAccentSchema),
   shape: bindable(themeShapeSchema),
+  /** How wide the page is: all the room there is, or that of a page of Kibana, in the middle. */
+  width: z.enum(THEME_WIDTHS).optional(),
+});
+
+/**
+ * A query the document declares by an id, for its text and its rules to read: the first row of it,
+ * by its columns, as `{{query.<id>.<column>}}` and `{ "$query": "<id>", "field": "<column>" }`. It
+ * runs for as long as the app is shown, with the values of the app as parameters, as any other.
+ */
+export const declaredQuerySchema = z.object({
+  query: querySchema,
+  refreshInterval: refreshIntervalSchema,
 });
 
 export const appDocumentShapeSchema = z.object({
   state: z.record(stateKeySchema, stateDeclarationSchema).default({}),
+  /** Left out, the document declares none. */
+  queries: z.record(queryIdSchema, declaredQuerySchema).optional(),
   root: nodeSchema,
   theme: themeSchema.optional(),
 });
@@ -695,6 +918,7 @@ export const appDocumentShapeSchema = z.object({
 export const appDocumentSchema = appDocumentShapeSchema.superRefine(validateDocument);
 
 export type StateDeclaration = z.output<typeof stateDeclarationSchema>;
+export type DeclaredQuery = z.output<typeof declaredQuerySchema>;
 export type AppTheme = z.output<typeof themeSchema>;
 export type AppDocument = z.output<typeof appDocumentSchema>;
 
