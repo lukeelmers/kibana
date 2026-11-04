@@ -36,24 +36,32 @@ import { saveKibanaAssetsRefs } from '../../packages/install';
 import { getInstalledWorkflowRefs } from '../workflows/install';
 import { deleteKibanaSavedObjectsAssets, deleteWorkflowAssets } from '../../packages/remove';
 import { FleetError, KibanaSOReferenceError } from '../../../../errors';
+import { ENABLE_CUSTOM_APP_ASSETS_FLAG } from '../../../../../common/constants';
 import { withPackageSpan } from '../../packages/utils';
 
 import { appContextService } from '../../..';
 
 import { tagKibanaAssets } from './tag_assets';
+import {
+  isCustomAppAssetPath,
+  isCustomAppAssetsFlagEnabled,
+  resolveCustomAppWorkflowReferences,
+} from './custom_app_assets';
 import { getSpaceAwareSaveobjectsClients } from './saved_objects';
 
 const MAX_ASSETS_TO_INSTALL_IN_PARALLEL = 200;
 
 // SO types for which Fleet runs orphan cleanup before each import. These are the types that
 // Fleet deliberately rewrites to UUID-based ids in additional spaces (dashboard,
-// alertingRuleTemplate) plus tag, which the SO importer always treats as multiple-isolated.
+// alertingRuleTemplate, custom_app) plus tag, which the SO importer always treats as
+// multiple-isolated.
 // Orphans accumulate when installs fail after a UUID copy is allocated but before refs are
 // flushed to installed_kibana; they trigger "ambiguous_conflict" on the next import attempt.
 const MULTIPLE_ISOLATED_KIBANA_SO_TYPES: ReadonlySet<KibanaSavedObjectType> = new Set([
   KibanaSavedObjectType.dashboard,
   KibanaSavedObjectType.tag,
   KibanaSavedObjectType.alertingRuleTemplate,
+  KibanaSavedObjectType.customApp,
 ]);
 
 // Replicates core's createOriginQuery() from import-export-server-internal, which is not
@@ -111,6 +119,7 @@ export const KibanaSavedObjectTypeMapping: Record<KibanaAssetType, KibanaSavedOb
   [KibanaAssetType.osqueryPackAsset]: KibanaSavedObjectType.osqueryPackAsset,
   [KibanaAssetType.osquerySavedQuery]: KibanaSavedObjectType.osquerySavedQuery,
   [KibanaAssetType.workflow]: KibanaSavedObjectType.workflow,
+  [KibanaAssetType.customApp]: KibanaSavedObjectType.customApp,
 };
 
 const AssetFilters: Record<string, (kibanaAssets: ArchiveAsset[]) => ArchiveAsset[]> = {
@@ -133,7 +142,8 @@ export function createSavedObjectKibanaAsset(
   const rewriteId =
     options?.installAsAdditionalSpace &&
     (asset.type === KibanaSavedObjectType.dashboard ||
-      asset.type === KibanaSavedObjectType.alertingRuleTemplate);
+      asset.type === KibanaSavedObjectType.alertingRuleTemplate ||
+      asset.type === KibanaSavedObjectType.customApp);
 
   const so: Partial<SavedObjectToBe> = {
     type: asset.type,
@@ -457,8 +467,16 @@ export async function installKibanaAssetsAndReferences({
 }) {
   const { savedObjectsImporter, savedObjectTagAssignmentService, savedObjectTagClient } =
     getSpaceAwareSaveobjectsClients(spaceId);
+  const hasCustomApps = packageInstallContext.paths.some(isCustomAppAssetPath);
+  const installCustomApps = hasCustomApps && (await isCustomAppAssetsFlagEnabled());
+  if (hasCustomApps && !installCustomApps) {
+    logger.warn(`${ENABLE_CUSTOM_APP_ASSETS_FLAG} is off, skipping custom app assets`);
+  }
   // This is where the memory consumption is rising up in the first place
-  const kibanaAssetsArchiveIterator = getKibanaAssetsArchiveIterator(packageInstallContext);
+  const kibanaAssetsArchiveIterator = getKibanaAssetsArchiveIterator(packageInstallContext, {
+    spaceId,
+    installCustomApps,
+  });
 
   if (installedPkg) {
     await deleteKibanaSavedObjectsAssets({ savedObjectsClient, installedPkg, spaceId });
@@ -565,7 +583,10 @@ export const isKibanaAssetType = (path: string) => {
   return parts.service === 'kibana' && (kibanaAssetTypes as string[]).includes(parts.type);
 };
 
-function getKibanaAssetsArchiveIterator(packageInstallContext: PackageInstallContext) {
+function getKibanaAssetsArchiveIterator(
+  packageInstallContext: PackageInstallContext,
+  { spaceId, installCustomApps }: { spaceId: string; installCustomApps: boolean }
+) {
   return (
     onEntry: (entry: {
       path: string;
@@ -578,7 +599,7 @@ function getKibanaAssetsArchiveIterator(packageInstallContext: PackageInstallCon
         return;
       }
 
-      const asset = JSON.parse(entry.buffer.toString('utf8'));
+      let asset = JSON.parse(entry.buffer.toString('utf8'));
 
       const assetType = getPathParts(entry.path).type as KibanaAssetType;
       const soType = KibanaSavedObjectTypeMapping[assetType];
@@ -598,6 +619,19 @@ function getKibanaAssetsArchiveIterator(packageInstallContext: PackageInstallCon
         !appContextService.getExperimentalFeatures().enableSloTemplates
       ) {
         return;
+      }
+
+      if (soType === KibanaSavedObjectType.customApp) {
+        if (!installCustomApps) {
+          return;
+        }
+        // Done per space before the import, since installed workflow ids are space-specific.
+        asset = resolveCustomAppWorkflowReferences({
+          asset,
+          packagePaths: packageInstallContext.paths,
+          packageName: packageInstallContext.packageInfo.name,
+          spaceId,
+        });
       }
 
       if (asset.type === soType) {

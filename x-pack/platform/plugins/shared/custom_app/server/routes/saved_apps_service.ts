@@ -5,10 +5,11 @@
  * 2.0.
  */
 
-import type { SavedObjectsClientContract } from '@kbn/core/server';
+import type { SavedObjectReference, SavedObjectsClientContract } from '@kbn/core/server';
 import { CUSTOM_APP_STATE_VERSION } from '@kbn/custom-app-common';
 import { CUSTOM_APP_SAVED_OBJECT_TYPE } from '../../common/constants';
 import type { SavedAppInput } from '../../common/saved_app_schema';
+import { extractReferences, injectReferences } from '../saved_objects/references';
 
 interface StoredApp {
   title: string;
@@ -29,34 +30,47 @@ export interface SavedAppListItem {
   updatedAt?: string;
 }
 
-const toStored = ({ title, description, document }: SavedAppInput): StoredApp => ({
+/** What is stored, with the ids of the workflows the app runs moved into references. */
+const toStored = ({
   title,
-  ...(description === undefined ? {} : { description }),
-  version: CUSTOM_APP_STATE_VERSION,
+  description,
   document,
-});
+}: SavedAppInput): { attributes: StoredApp; references: SavedObjectReference[] } =>
+  extractReferences({
+    attributes: {
+      title,
+      ...(description === undefined ? {} : { description }),
+      version: CUSTOM_APP_STATE_VERSION,
+      document,
+    },
+  });
 
 const toSavedApp = (object: {
   id: string;
   attributes: StoredApp;
+  references: SavedObjectReference[];
   updated_at?: string;
 }): SavedApp => ({
   id: object.id,
-  ...object.attributes,
+  ...injectReferences({ attributes: object.attributes, references: object.references }),
   ...(object.updated_at ? { updatedAt: object.updated_at } : {}),
 });
 
 /** What the routes do, with the saved objects client of the request, which enforces privileges. */
 export const createSavedAppsService = (client: SavedObjectsClientContract) => ({
-  create: async (input: SavedAppInput): Promise<SavedApp> =>
-    toSavedApp(await client.create<StoredApp>(CUSTOM_APP_SAVED_OBJECT_TYPE, toStored(input))),
+  create: async (input: SavedAppInput): Promise<SavedApp> => {
+    const { attributes, references } = toStored(input);
+    return toSavedApp(
+      await client.create<StoredApp>(CUSTOM_APP_SAVED_OBJECT_TYPE, attributes, { references })
+    );
+  },
 
   get: async (id: string): Promise<SavedApp> =>
     toSavedApp(await client.get<StoredApp>(CUSTOM_APP_SAVED_OBJECT_TYPE, id)),
 
   update: async (id: string, input: SavedAppInput): Promise<SavedApp> => {
-    const stored = toStored(input);
-    await client.update<StoredApp>(CUSTOM_APP_SAVED_OBJECT_TYPE, id, stored);
+    const { attributes, references } = toStored(input);
+    await client.update<StoredApp>(CUSTOM_APP_SAVED_OBJECT_TYPE, id, attributes, { references });
     // Read back, so that the response is what is stored and not what was sent.
     return toSavedApp(await client.get<StoredApp>(CUSTOM_APP_SAVED_OBJECT_TYPE, id));
   },

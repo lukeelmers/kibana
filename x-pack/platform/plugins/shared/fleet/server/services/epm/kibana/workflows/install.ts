@@ -26,7 +26,7 @@ import { getPathParts } from '../../archive';
 
 const MAX_CONCURRENT_WORKFLOW_OPERATIONS = 5;
 
-const WORKFLOW_FILE_EXTENSION = '.yml';
+export const WORKFLOW_FILE_EXTENSION = '.yml';
 
 const ID_HASH_LENGTH = 16;
 

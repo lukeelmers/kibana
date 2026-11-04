@@ -40,7 +40,9 @@ describe('the saved apps service', () => {
 
     const app = await service.create(input);
 
-    expect(client.create).toHaveBeenCalledWith(CUSTOM_APP_SAVED_OBJECT_TYPE, stored);
+    expect(client.create).toHaveBeenCalledWith(CUSTOM_APP_SAVED_OBJECT_TYPE, stored, {
+      references: [],
+    });
     expect(app).toEqual({ id: 'app-1', ...stored, updatedAt: '2026-10-16T10:00:00.000Z' });
   });
 
@@ -65,8 +67,54 @@ describe('the saved apps service', () => {
 
     const app = await service.update('app-1', input);
 
-    expect(client.update).toHaveBeenCalledWith(CUSTOM_APP_SAVED_OBJECT_TYPE, 'app-1', stored);
+    expect(client.update).toHaveBeenCalledWith(CUSTOM_APP_SAVED_OBJECT_TYPE, 'app-1', stored, {
+      references: [],
+    });
     expect(app.updatedAt).toBe('2026-10-17T10:00:00.000Z');
+  });
+
+  describe('the workflows an app runs', () => {
+    const runs = (action: Record<string, unknown>) => ({
+      state: {},
+      root: {
+        type: 'button' as const,
+        id: 'go',
+        label: 'Go',
+        onClick: [action],
+      },
+    });
+    const withWorkflow = {
+      title: 'Explorer',
+      document: runs({ type: 'runWorkflow', workflow: 'create-case', inputs: {} }),
+    } as unknown as typeof input;
+    const storedDocument = runs({ type: 'runWorkflow', workflowRefName: 'workflow_0', inputs: {} });
+    const references = [{ name: 'workflow_0', type: 'workflow', id: 'create-case' }];
+
+    it('stores them as references, and names them in the document by their reference', async () => {
+      client.create.mockResolvedValue({ ...object(), references } as never);
+
+      await service.create(withWorkflow);
+
+      expect(client.create).toHaveBeenCalledWith(
+        CUSTOM_APP_SAVED_OBJECT_TYPE,
+        expect.objectContaining({ document: storedDocument }),
+        { references }
+      );
+    });
+
+    it('answers with the ids the references hold', async () => {
+      client.get.mockResolvedValue({
+        ...object(),
+        attributes: { ...stored, document: storedDocument },
+        references: [{ ...references[0], id: 'installed-create-case' }],
+      } as never);
+
+      const app = await service.get('app-1');
+
+      expect(app.document).toEqual(
+        runs({ type: 'runWorkflow', workflow: 'installed-create-case', inputs: {} })
+      );
+    });
   });
 
   it('removes an app', async () => {

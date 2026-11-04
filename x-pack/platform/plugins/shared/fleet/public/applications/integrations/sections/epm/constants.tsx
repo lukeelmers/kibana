@@ -86,6 +86,9 @@ export const AssetTitleMap: Record<
   workflow: i18n.translate('xpack.fleet.epm.assetTitles.workflows', {
     defaultMessage: 'Workflows',
   }),
+  custom_app: i18n.translate('xpack.fleet.epm.assetTitles.customApps', {
+    defaultMessage: 'Custom apps',
+  }),
   tag: i18n.translate('xpack.fleet.epm.assetTitles.tag', {
     defaultMessage: 'Tags',
   }),

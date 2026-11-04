@@ -1,0 +1,49 @@
+version: "1"
+# The one button in the app that changes something. Runs as the person who clicked it.
+name: Nightshift app create case
+description: Open an Observability case from an investigation
+tags:
+  - nightshift-app
+enabled: true
+inputs:
+  - name: investigation_id
+    type: string
+    required: true
+  - name: title
+    type: string
+    required: true
+  - name: severity
+    type: string
+    required: false
+  - name: summary
+    type: string
+    required: false
+  - name: verdict
+    type: string
+    required: false
+triggers:
+  - type: manual
+steps:
+  - name: create_case
+    type: cases.createCase
+    with:
+      title: "Investigation: {{ inputs.title }}"
+      description: |
+        Opened from the Nightshift investigations app.
+
+        **What happened**
+
+        {{ inputs.summary | default: "(no summary yet)" }}
+
+        **Verdict**
+
+        {{ inputs.verdict | default: "(no verdict yet)" }}
+
+        Investigation: {{ inputs.investigation_id }}
+      tags:
+        - nightshift
+        - investigation
+      owner: observability
+      severity: "{{ inputs.severity | default: 'low' }}"
+      settings:
+        syncAlerts: false
