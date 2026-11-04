@@ -417,6 +417,12 @@ describe('managedWorkflowDefinitions', () => {
     expect(getManagedWorkflowVisibilityContexts(visibility)).toEqual(['list:workflows']);
   });
 
+  it("keeps the Fleet package workflow file's enabled value", () => {
+    const yaml = 'name: Package workflow\nenabled: false\ntriggers: []\nsteps: []\n';
+
+    expect(FLEET_PACKAGE_WORKFLOW.yamlTemplate({ yaml })).toBe(yaml);
+  });
+
   it('contains unique workflow ids', () => {
     const ids = managedWorkflowDefinitions.map(({ id }) => id);
     expect(new Set(ids).size).toBe(ids.length);
