@@ -64,7 +64,6 @@ describe('setupDependencies', () => {
     },
     collectQueueMetrics: false,
     hitlExternalResume: { enabled: true },
-    remoteExecution: { enabled: false },
   };
 
   let mockDependencies: ReturnType<typeof mockContextDependencies>;

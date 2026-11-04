@@ -25,14 +25,29 @@ const coreConfigSchema = schema.object({
    */
   enableStripUnknownConfigWorkaround: schema.boolean({ defaultValue: false }),
   /**
+   * Where each executor runs, keyed by executor id (for example `workflows`). Unset means `main`.
+   * `main` maps to the `in_process` backend, `worker` to `worker_thread`, `remote` to `lambda_rie`.
+   */
+  runtime: schema.object({
+    placement: schema.recordOf(
+      schema.string(),
+      schema.oneOf([schema.literal('main'), schema.literal('worker'), schema.literal('remote')]),
+      { defaultValue: {} }
+    ),
+  }),
+  /**
    * Backend for `core.remote`. Workflows register a graph; they do not choose this value.
    * `worker_thread` is the proof backend. `in_process` runs the same graph on the coordinator
    * and does not isolate the event loop.
    */
   remote: schema.object({
-    backend: schema.oneOf(
-      [schema.literal('worker_thread'), schema.literal('in_process'), schema.literal('lambda_rie')],
-      { defaultValue: 'worker_thread' }
+    /** Overrides the backend derived from `core.runtime.placement` when set. */
+    backend: schema.maybe(
+      schema.oneOf([
+        schema.literal('worker_thread'),
+        schema.literal('in_process'),
+        schema.literal('lambda_rie'),
+      ])
     ),
     faas: schema.maybe(
       schema.object({

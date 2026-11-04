@@ -50,6 +50,18 @@ function createService(): RemoteService {
 describe('RemoteService', () => {
   jest.setTimeout(30_000);
 
+  it('defaults placement to main and derives the backend from placement', async () => {
+    const service = createService();
+    expect(service.getPlacement('demo')).toBe('main');
+    service.setPlacement({ demo: 'worker' });
+    expect(service.getPlacement('demo')).toBe('worker');
+    await service.start();
+    expect(logger.info).toHaveBeenCalledWith(
+      'Starting remote graph "demo" (placement "worker") with backend "worker_thread"'
+    );
+    await service.stop();
+  });
+
   it('runs the same graph in-process when Core selects that backend', async () => {
     const service = createService();
     await service.start('in_process');

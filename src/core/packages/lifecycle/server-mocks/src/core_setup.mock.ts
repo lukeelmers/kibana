@@ -37,7 +37,7 @@ import { injectionServiceMock } from '@kbn/core-di-mocks';
 import { dataStreamServiceMock } from '@kbn/core-data-streams-server-mocks';
 import { pubSubServiceMock } from '@kbn/core-pubsub-server-mocks';
 import { userStorageServiceMock } from '@kbn/core-user-storage-server-mocks';
-import type { RemoteSession } from '@kbn/core-remote-server';
+import type { RemoteSession, RuntimePlacement } from '@kbn/core-remote-server';
 import { lazyObject } from '@kbn/lazy-object';
 
 type CoreSetupMockType = MockedKeys<CoreSetup> & {
@@ -98,6 +98,7 @@ export function createCoreSetupMock({
     pubsub: pubSubServiceMock.createSetupContract(),
     userStorage: userStorageServiceMock.createSetupContract(),
     remote: lazyObject({
+      getPlacement: jest.fn((_id: string): RuntimePlacement => 'main'),
       register: jest.fn(),
       bind: jest.fn(),
       whenReady: jest.fn(
