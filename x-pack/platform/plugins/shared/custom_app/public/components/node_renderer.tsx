@@ -30,7 +30,8 @@ import {
   KbnWarningCallout,
 } from '@kbn/ui-callout';
 import { useStateValues } from '../runtime/app_runtime_context';
-import { escapeMarkdownValues } from '../utils/escape_markdown';
+import { useBindingScope } from '../runtime/binding_scope';
+import { escapeMarkdownScope, escapeMarkdownValues } from '../utils/escape_markdown';
 import { ChartNode } from './chart_node';
 import {
   AccordionFrame,
@@ -88,18 +89,19 @@ interface NodeRendererProps {
  */
 export const NodeRenderer = ({ node: written }: NodeRendererProps) => {
   const state = useStateValues();
-  const text = (value: string) => interpolate(value, state);
+  const scope = useBindingScope();
+  const text = (value: string) => interpolate(value, state, scope);
   // What is written may read the values of the app, and what is drawn is how they are now. It is the
   // same object until one of those values changes, as what is drawn from it, such as a chart, would
   // otherwise start again every time something else in the app does.
   const resolved = useRef<{ written: AppNode; signature: string; node: AppNode }>();
-  const signature = getBoundSignature(written, state);
+  const signature = getBoundSignature(written, state, scope);
   if (resolved.current?.written !== written || resolved.current.signature !== signature) {
-    resolved.current = { written, signature, node: resolveBoundProps(written, state) };
+    resolved.current = { written, signature, node: resolveBoundProps(written, state, scope) };
   }
   const { node } = resolved.current;
 
-  if (!isNodeVisible(node, state)) return null;
+  if (!isNodeVisible(node, state, scope)) return null;
 
   switch (node.type) {
     case 'heading':
@@ -118,7 +120,7 @@ export const NodeRenderer = ({ node: written }: NodeRendererProps) => {
       return (
         <div data-node-id={node.id}>
           <EuiMarkdownFormat textSize="s">
-            {interpolate(node.text, escapeMarkdownValues(state))}
+            {interpolate(node.text, escapeMarkdownValues(state), escapeMarkdownScope(scope))}
           </EuiMarkdownFormat>
         </div>
       );
@@ -250,6 +252,8 @@ export const NodeRenderer = ({ node: written }: NodeRendererProps) => {
       // A row of statuses and buttons, such as a filter and the button that clears it, sits together
       // on one line, at the start, and not spread across the width.
       const isCompactRow = isRow && node.children.length > 0 && node.children.every(isCompact);
+      // What is not shown now gets no item, which would only add a gap.
+      const shown = node.children.filter((child) => isNodeVisible(child, state, scope));
       const group = (
         <EuiFlexGroup
           direction={isRow ? 'row' : 'column'}
@@ -260,7 +264,7 @@ export const NodeRenderer = ({ node: written }: NodeRendererProps) => {
           wrap={isRow}
           data-node-id={node.id}
         >
-          {node.children.map((child) =>
+          {shown.map((child) =>
             // A flyout draws nothing in place, so it gets no item, which would only add a gap.
             child.type === 'flyout' ? (
               <NodeRenderer key={child.id} node={child} />

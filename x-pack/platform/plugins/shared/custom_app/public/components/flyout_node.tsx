@@ -13,8 +13,9 @@ import {
   EuiTitle,
   useGeneratedHtmlId,
 } from '@elastic/eui';
-import { interpolate, type AppNodeOfType } from '@kbn/custom-app-common';
-import { useAppRuntime, useOpenFlyoutId, useStateValues } from '../runtime/app_runtime_context';
+import type { AppNodeOfType } from '@kbn/custom-app-common';
+import { useAppRuntime, useOpenFlyoutId } from '../runtime/app_runtime_context';
+import { useInterpolate } from '../runtime/use_interpolate';
 
 interface FlyoutNodeProps {
   node: AppNodeOfType<'flyout'>;
@@ -29,7 +30,7 @@ interface FlyoutNodeProps {
 export const FlyoutNode = ({ node, children }: FlyoutNodeProps) => {
   const runtime = useAppRuntime();
   const openFlyoutId = useOpenFlyoutId();
-  const state = useStateValues();
+  const text = useInterpolate();
   const titleId = useGeneratedHtmlId({ prefix: 'customAppFlyoutTitle' });
 
   if (openFlyoutId !== node.id) return null;
@@ -44,7 +45,7 @@ export const FlyoutNode = ({ node, children }: FlyoutNodeProps) => {
     >
       <EuiFlyoutHeader hasBorder>
         <EuiTitle size="m">
-          <h2 id={titleId}>{interpolate(node.title, state)}</h2>
+          <h2 id={titleId}>{text(node.title)}</h2>
         </EuiTitle>
       </EuiFlyoutHeader>
       <EuiFlyoutBody>{children}</EuiFlyoutBody>

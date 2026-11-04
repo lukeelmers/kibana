@@ -8,11 +8,11 @@
 import React from 'react';
 import { EuiPanel, EuiStat } from '@elastic/eui';
 import { i18n } from '@kbn/i18n';
-import { interpolate, type AppNodeOfType } from '@kbn/custom-app-common';
+import type { AppNodeOfType } from '@kbn/custom-app-common';
 import type { SourceData } from '../data/data_layer';
 import { useDataLayer } from '../data/data_layer_context';
 import { useSource } from '../data/use_source';
-import { useStateValues } from '../runtime/app_runtime_context';
+import { useInterpolate } from '../runtime/use_interpolate';
 import { DataState } from './data_state';
 
 const formatValue = (value: unknown): string =>
@@ -20,13 +20,13 @@ const formatValue = (value: unknown): string =>
 
 /** A stat shows the first column of the first row. A query that wants another can KEEP it. */
 const StatValue = ({ node, data }: { node: AppNodeOfType<'stat'>; data: SourceData }) => {
-  const state = useStateValues();
+  const text = useInterpolate();
   const [value] = data.rows[0];
 
   return (
     <EuiStat
       title={value === null || value === undefined ? '—' : formatValue(value)}
-      description={interpolate(node.title, state)}
+      description={text(node.title)}
       titleSize="l"
       reverse
       data-test-subj="customAppStat"

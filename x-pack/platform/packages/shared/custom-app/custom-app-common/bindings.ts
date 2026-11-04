@@ -10,6 +10,8 @@ import {
   BADGE_COLORS,
   CARD_ICONS,
   MAX_COLUMNS,
+  MAX_HEADING_LENGTH,
+  MAX_NODE_ID_LENGTH,
   MAX_STATE_KEY_LENGTH,
   MAX_STATE_STRING_LENGTH,
   PROGRESS_COLORS,
@@ -38,13 +40,76 @@ export const isStateRef = (value: unknown): value is StateRef =>
   !Array.isArray(value) &&
   typeof (value as { $state?: unknown }).$state === 'string';
 
+/** The name of a column of a row, as ES|QL names it, which may have dots in it. */
+export const fieldNameSchema = z
+  .string()
+  .min(1)
+  .max(MAX_HEADING_LENGTH)
+  .regex(/^[A-Za-z_@][A-Za-z0-9_.@-]*$/);
+
+/** The id of a query the document declares. It is written as a node id is, without dots. */
+export const queryIdSchema = z
+  .string()
+  .min(1)
+  .max(MAX_NODE_ID_LENGTH)
+  .regex(/^[A-Za-z0-9_-]+$/);
+
+/**
+ * A column of the row a component is drawn for, which only the template of a list has: it is
+ * drawn once for each row of the query of the list.
+ */
+export const rowRefSchema = z.object({ $row: fieldNameSchema });
+export type RowRef = z.output<typeof rowRefSchema>;
+
+/** A column of the first row of a query the document declares, as it is now. */
+export const queryRefSchema = z.object({ $query: queryIdSchema, field: fieldNameSchema });
+export type QueryRef = z.output<typeof queryRefSchema>;
+
+const hasString = (value: unknown, key: string): boolean =>
+  typeof value === 'object' &&
+  value !== null &&
+  !Array.isArray(value) &&
+  typeof (value as Record<string, unknown>)[key] === 'string';
+
+export const isRowRef = (value: unknown): value is RowRef => hasString(value, '$row');
+
+export const isQueryRef = (value: unknown): value is QueryRef =>
+  hasString(value, '$query') && hasString(value, 'field');
+
+/** Anything a property can read instead of being written down. */
+export type BindingRef = StateRef | RowRef | QueryRef;
+
+export const isBindingRef = (value: unknown): value is BindingRef =>
+  isStateRef(value) || isRowRef(value) || isQueryRef(value);
+
+/**
+ * What a component can read besides the values of the app: the row it is drawn for, inside the
+ * template of a list, and the first row of each query the document declares, by its id.
+ */
+export interface BindingScope {
+  row?: Readonly<Record<string, unknown>>;
+  queries?: Readonly<Record<string, Readonly<Record<string, unknown>> | undefined>>;
+}
+
+/** What a reference reads now, before it is checked against the property. */
+export const readRef = (
+  ref: BindingRef,
+  values: Readonly<Record<string, unknown>>,
+  scope: BindingScope = {}
+): unknown => {
+  if (isStateRef(ref)) return values[ref.$state];
+  if (isRowRef(ref)) return scope.row?.[ref.$row];
+  return scope.queries?.[ref.$query]?.[ref.field];
+};
+
 /**
  * A property that can be given as a value or as `{ "$state": "key" }`, the value of that key as it is
  * now, so that a switch or a select can drive it. It is read as a value of its own type, because the
- * references are replaced by `resolveBoundProps` before anything draws the component.
+ * references are replaced by `resolveBoundProps` before anything draws the component. It can also be
+ * `{ "$row": "column" }` in the template of a list, and `{ "$query": "id", "field": "column" }`.
  */
 export const bindable = <T extends z.ZodType>(schema: T): T =>
-  z.union([schema, stateRefSchema]) as unknown as T;
+  z.union([schema, stateRefSchema, rowRefSchema, queryRefSchema]) as unknown as T;
 
 /**
  * A reference to a key for a property of a document written in code. It is typed as the value the
@@ -53,20 +118,46 @@ export const bindable = <T extends z.ZodType>(schema: T): T =>
  */
 export const stateRef = <T>(key: string): T => ({ $state: key } as unknown as T);
 
+const comparableSchema = z.union([
+  z.string().max(MAX_STATE_STRING_LENGTH),
+  z.number().finite(),
+  z.boolean(),
+]);
+
+/** How what is read is compared, at most one of them. With none, it is shown when it is true. */
+const visibilityOperators = {
+  equals: comparableSchema.optional(),
+  notEquals: comparableSchema.optional(),
+  gt: z.number().finite().optional(),
+  gte: z.number().finite().optional(),
+  lt: z.number().finite().optional(),
+  lte: z.number().finite().optional(),
+  isEmpty: z.literal(true).optional(),
+  isNotEmpty: z.literal(true).optional(),
+};
+
+export const VISIBILITY_OPERATORS = Object.keys(visibilityOperators) as Array<
+  keyof typeof visibilityOperators
+>;
+
 /**
  * Whether a component is shown: when the key is true, or, with `equals`, when it is that value, such
- * as the option of a select. Left out, it is always shown.
+ * as the option of a select. Left out, it is always shown. What it reads can also be a column of the
+ * first row of a declared query, or of the row of a list, and it can be compared in other ways.
  */
 export const visibleWhenSchema = z
-  .object({
-    $state: stateKeySchema,
-    equals: z
-      .union([z.string().max(MAX_STATE_STRING_LENGTH), z.number().finite(), z.boolean()])
-      .optional(),
-  })
+  .union([
+    z.object({ $state: stateKeySchema, ...visibilityOperators }),
+    z.object({ $query: queryIdSchema, field: fieldNameSchema, ...visibilityOperators }),
+    z.object({ $row: fieldNameSchema, ...visibilityOperators }),
+  ])
   .optional();
 
 export type VisibleWhen = NonNullable<z.output<typeof visibleWhenSchema>>;
+
+/** The operators a rule uses, which validation holds to one. */
+export const getVisibilityOperators = (rule: VisibleWhen): string[] =>
+  VISIBILITY_OPERATORS.filter((operator) => rule[operator] !== undefined);
 
 /** What a bindable property is when it is written down, and the kind of value that can set it. */
 export const calloutColorSchema = z
@@ -147,11 +238,13 @@ const withPath = <T extends object>(value: T, [key, ...rest]: string[], next: un
  */
 export const resolveBoundValue = (
   { schema }: BoundProp,
-  ref: StateRef,
-  values: Readonly<Record<string, unknown>>
+  ref: BindingRef,
+  values: Readonly<Record<string, unknown>>,
+  scope?: BindingScope
 ): unknown => {
-  const given = schema.safeParse(values[ref.$state]);
-  if (given.success && values[ref.$state] !== undefined) return given.data;
+  const read = readRef(ref, values, scope);
+  const given = schema.safeParse(read);
+  if (given.success && read !== undefined) return given.data;
   const fallback = schema.safeParse(undefined);
   return fallback.success ? fallback.data : undefined;
 };
@@ -162,15 +255,16 @@ export const resolveBoundValue = (
  */
 export const resolveBoundProps = (
   node: AppNode,
-  values: Readonly<Record<string, unknown>>
+  values: Readonly<Record<string, unknown>>,
+  scope?: BindingScope
 ): AppNode => {
   const props = BOUND_PROPS[node.type];
   if (!props) return node;
 
   return Object.entries(props).reduce<AppNode>((resolved, [path, bound]) => {
     const value = getPath(resolved, path);
-    return isStateRef(value)
-      ? withPath(resolved, path.split('.'), resolveBoundValue(bound, value, values))
+    return isBindingRef(value)
+      ? withPath(resolved, path.split('.'), resolveBoundValue(bound, value, values, scope))
       : resolved;
   }, node);
 };
@@ -181,25 +275,62 @@ export const resolveBoundProps = (
  */
 export const getBoundSignature = (
   node: AppNode,
-  values: Readonly<Record<string, unknown>>
+  values: Readonly<Record<string, unknown>>,
+  scope?: BindingScope
 ): string => {
   const props = BOUND_PROPS[node.type];
   if (!props) return '';
   return JSON.stringify(
     Object.entries(props).flatMap(([path, bound]) => {
       const value = getPath(node, path);
-      return isStateRef(value) ? [[path, resolveBoundValue(bound, value, values)]] : [];
+      return isBindingRef(value) ? [[path, resolveBoundValue(bound, value, values, scope)]] : [];
     })
   );
 };
 
-/** Whether the component is shown, given the values of the app. */
+const isEmptyValue = (value: unknown): boolean =>
+  value === undefined ||
+  value === null ||
+  value === '' ||
+  (Array.isArray(value) && value.length === 0);
+
+/** A value compared with a number: a number, or a text that is one, as a column can be. */
+const toNumber = (value: unknown): number | undefined => {
+  if (typeof value === 'number') return value;
+  if (typeof value === 'string' && value.trim() !== '' && Number.isFinite(Number(value))) {
+    return Number(value);
+  }
+  return undefined;
+};
+
+/** Whether what a rule reads passes it. */
+export const passesRule = (rule: VisibleWhen, value: unknown): boolean => {
+  if (rule.equals !== undefined) return value === rule.equals;
+  if (rule.notEquals !== undefined) return value !== rule.notEquals;
+  if (rule.isEmpty) return isEmptyValue(value);
+  if (rule.isNotEmpty) return !isEmptyValue(value);
+  const comparisons: Array<[number | undefined, (a: number, b: number) => boolean]> = [
+    [rule.gt, (a, b) => a > b],
+    [rule.gte, (a, b) => a >= b],
+    [rule.lt, (a, b) => a < b],
+    [rule.lte, (a, b) => a <= b],
+  ];
+  const comparison = comparisons.find(([operand]) => operand !== undefined);
+  if (comparison) {
+    const [operand, compare] = comparison;
+    const number = toNumber(value);
+    return number !== undefined && compare(number, operand as number);
+  }
+  return value === true;
+};
+
+/** Whether the component is shown, given the values of the app, and the rows it can read. */
 export const isNodeVisible = (
   node: { visibleWhen?: VisibleWhen },
-  values: Readonly<Record<string, unknown>>
+  values: Readonly<Record<string, unknown>>,
+  scope?: BindingScope
 ): boolean => {
   const { visibleWhen } = node;
   if (!visibleWhen) return true;
-  const value = values[visibleWhen.$state];
-  return visibleWhen.equals === undefined ? value === true : value === visibleWhen.equals;
+  return passesRule(visibleWhen, readRef(visibleWhen as BindingRef, values, scope));
 };

@@ -61,9 +61,20 @@ describe('the custom app saved object type', () => {
       { changes: unknown[]; schemas: { create: typeof customAppAttributesSchemaV1 } }
     >;
 
-    it('is the only version, and needs no change to the index mappings', () => {
-      expect(Object.keys(version)).toEqual(['1']);
+    it('needs no change to the index mappings in any version', () => {
+      expect(Object.keys(version)).toEqual(['1', '2']);
       expect(version['1'].changes).toEqual([]);
+      expect(version['2'].changes).toEqual([]);
+    });
+
+    it('accepts, from version 2, a document that declares queries', () => {
+      const withQueries = {
+        ...attributes,
+        document: { ...attributes.document, queries: { counts: { query: 'ROW n = 1' } } },
+      };
+
+      expect(() => version['1'].schemas.create.validate(withQueries)).toThrow();
+      expect(version['2'].schemas.create.validate(withQueries)).toEqual(withQueries);
     });
 
     it('accepts what the routes store, with or without a description', () => {

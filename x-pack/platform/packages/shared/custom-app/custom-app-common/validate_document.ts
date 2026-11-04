@@ -11,13 +11,30 @@ import {
   CASES_FILTERS,
   CASES_SEVERITIES,
   CASES_STATUSES,
+  MAX_DECLARED_QUERIES,
   MAX_NODE_COUNT,
   MAX_NODE_DEPTH,
   MAX_STATE_KEYS,
+  TEXT_FILTERS,
 } from './constants';
-import type { AppNode, AppTheme, StateDeclaration } from './document_schema';
-import { BOUND_PROPS, THEME_BOUND_PROPS, getPath, isStateRef, type StateRef } from './bindings';
-import { findStateReferences, hasMalformedReference } from './interpolation';
+import type { AppNode, AppTheme, DeclaredQuery, StateDeclaration } from './document_schema';
+import {
+  BOUND_PROPS,
+  THEME_BOUND_PROPS,
+  getPath,
+  getVisibilityOperators,
+  isQueryRef,
+  isRowRef,
+  isStateRef,
+  type StateRef,
+} from './bindings';
+import {
+  findFilterReferences,
+  findQueryReferences,
+  findRowReferences,
+  findStateReferences,
+  hasMalformedReference,
+} from './interpolation';
 import {
   getInterpolatedText,
   getNodeActions,
@@ -30,6 +47,7 @@ import {
 
 interface DocumentToValidate {
   state: Record<string, StateDeclaration>;
+  queries?: Record<string, DeclaredQuery>;
   root: AppNode;
   theme?: AppTheme;
 }
@@ -52,8 +70,10 @@ const WORKFLOW_EVENTS: readonly string[] = ['onClick', 'onRowClick', 'onChartCli
 const collectNodes = (
   root: AppNode,
   ctx: z.RefinementCtx
-): { nodes: AppNode[]; withinLimits: boolean } => {
+): { nodes: AppNode[]; rowScoped: Set<string>; withinLimits: boolean } => {
   const nodes: AppNode[] = [];
+  /** The ids of the nodes that are drawn for a row, and can read its columns. */
+  const rowScoped = new Set<string>();
   const seenIds = new Set<string>();
   const pending: Array<{ node: AppNode; depth: number }> = [{ node: root, depth: 1 }];
 
@@ -65,14 +85,14 @@ const collectNodes = (
         code: 'custom',
         message: `Nodes may be nested at most ${MAX_NODE_DEPTH} deep`,
       });
-      return { nodes, withinLimits: false };
+      return { nodes, rowScoped, withinLimits: false };
     }
     if (nodes.length >= MAX_NODE_COUNT) {
       ctx.addIssue({
         code: 'custom',
         message: `A document may hold at most ${MAX_NODE_COUNT} nodes`,
       });
-      return { nodes, withinLimits: false };
+      return { nodes, rowScoped, withinLimits: false };
     }
 
     if (seenIds.has(node.id)) {
@@ -91,7 +111,7 @@ const collectNodes = (
       .forEach((child) => pending.push({ node: child, depth: depth + 1 }));
   }
 
-  return { nodes, withinLimits: true };
+  return { nodes, rowScoped, withinLimits: true };
 };
 
 /**
@@ -111,8 +131,29 @@ export const validateDocument = (document: DocumentToValidate, ctx: z.Refinement
   if (Object.keys(state).length > MAX_STATE_KEYS) {
     issue(`A document may hold at most ${MAX_STATE_KEYS} state keys`);
   }
-  const { nodes, withinLimits } = collectNodes(document.root, ctx);
+  const queries = document.queries ?? {};
+  if (Object.keys(queries).length > MAX_DECLARED_QUERIES) {
+    issue(`A document may declare at most ${MAX_DECLARED_QUERIES} queries`);
+  }
+  const { nodes, rowScoped, withinLimits } = collectNodes(document.root, ctx);
   if (!withinLimits) return;
+
+  /** What is wrong with a reference to a row or a declared query, which have no kind to check. */
+  const checkScopedReference = (
+    nodeId: string,
+    property: string,
+    ref: { $row: string } | { $query: string; field: string }
+  ) => {
+    if ('$row' in ref && !rowScoped.has(nodeId)) {
+      issue(
+        `Node "${nodeId}" reads "${property}" from the column "${ref.$row}" of a row, which only the template of a list has`,
+        nodeId
+      );
+    }
+    if ('$query' in ref && !(ref.$query in queries)) {
+      issue(`Node "${nodeId}" reads "${property}" from unknown query "${ref.$query}"`, nodeId);
+    }
+  };
 
   /** What is wrong with a property that reads a value, and the value it starts as. */
   const checkReference = (
@@ -183,28 +224,61 @@ export const validateDocument = (document: DocumentToValidate, ctx: z.Refinement
       const value = getPath(node, path);
       if (isStateRef(value)) {
         checkReference(`Node "${node.id}"`, path, value, bound, node.id);
+      } else if (isRowRef(value) || isQueryRef(value)) {
+        checkScopedReference(node.id, path, value);
       }
     });
 
     if (node.visibleWhen) {
-      const { $state: key, equals } = node.visibleWhen;
-      const declaration = state[key];
-      if (!declaration) {
-        issue(`Node "${node.id}" is shown by unknown state key "${key}"`, node.id);
-      } else if (declaration.type === 'list') {
-        issue(`Node "${node.id}" is shown by state key "${key}", which is a list`, node.id);
-      } else if (equals === undefined && declaration.type !== 'boolean') {
+      const rule = node.visibleWhen;
+      const operators = getVisibilityOperators(rule);
+      const [operator] = operators;
+      if (operators.length > 1) {
         issue(
-          `Node "${node.id}" is shown by state key "${key}" (${declaration.type}); without "equals" it needs a boolean key`,
+          `Node "${node.id}" is shown by a rule with ${operators.join(
+            ' and '
+          )}; a rule compares in one way only`,
           node.id
         );
-      } else if (equals !== undefined && typeof equals !== declaration.type) {
-        issue(
-          `Node "${node.id}" is shown when state key "${key}" (${
-            declaration.type
-          }) equals ${JSON.stringify(equals)}, which is a ${typeof equals}`,
-          node.id
-        );
+      } else if ('$state' in rule) {
+        const { $state: key, equals } = rule;
+        const declaration = state[key];
+        const isNumeric = ['gt', 'gte', 'lt', 'lte'].includes(operator);
+        if (!declaration) {
+          issue(`Node "${node.id}" is shown by unknown state key "${key}"`, node.id);
+        } else if (operator === 'isEmpty' || operator === 'isNotEmpty') {
+          if (declaration.type !== 'string' && declaration.type !== 'list') {
+            issue(
+              `Node "${node.id}" is shown when state key "${key}" (${declaration.type}) is empty or not; that needs a string or a list key`,
+              node.id
+            );
+          }
+        } else if (declaration.type === 'list') {
+          issue(`Node "${node.id}" is shown by state key "${key}", which is a list`, node.id);
+        } else if (operator === undefined && declaration.type !== 'boolean') {
+          issue(
+            `Node "${node.id}" is shown by state key "${key}" (${declaration.type}); without "equals" it needs a boolean key`,
+            node.id
+          );
+        } else if (isNumeric && declaration.type !== 'number') {
+          issue(
+            `Node "${node.id}" is shown when state key "${key}" (${declaration.type}) is compared with ${operator}, which needs a number key`,
+            node.id
+          );
+        } else if (
+          (operator === 'equals' || operator === 'notEquals') &&
+          typeof rule[operator] !== declaration.type
+        ) {
+          const operand = operator === 'equals' ? equals : rule.notEquals;
+          issue(
+            `Node "${node.id}" is shown when state key "${key}" (${declaration.type}) ${
+              operator === 'equals' ? 'equals' : 'does not equal'
+            } ${JSON.stringify(operand)}, which is a ${typeof operand}`,
+            node.id
+          );
+        }
+      } else {
+        checkScopedReference(node.id, 'visibleWhen', rule);
       }
     }
 
@@ -351,6 +425,27 @@ export const validateDocument = (document: DocumentToValidate, ctx: z.Refinement
       findStateReferences(text)
         .filter((key) => !(key in state))
         .forEach((key) => issue(`Node "${node.id}" refers to unknown state key "${key}"`, node.id));
+      if (!rowScoped.has(node.id) && findRowReferences(text).length > 0) {
+        issue(
+          `Node "${node.id}" refers to a column of a row in "${prop}", which only the template of a list has`,
+          node.id
+        );
+      }
+      findQueryReferences(text)
+        .filter(({ id }) => !(id in queries))
+        .forEach(({ id }) => issue(`Node "${node.id}" refers to unknown query "${id}"`, node.id));
+      findFilterReferences(text)
+        .filter((filter) => !(TEXT_FILTERS as readonly string[]).includes(filter))
+        .forEach((filter) =>
+          issue(
+            `Node "${
+              node.id
+            }" uses the unknown filter "${filter}" in "${prop}"; it is one of ${TEXT_FILTERS.join(
+              ', '
+            )}`,
+            node.id
+          )
+        );
     });
 
     getNodeActions(node).forEach(({ event, actions }) => {

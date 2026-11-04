@@ -27,6 +27,16 @@ export type SourceState =
 
 export type StateValues = Readonly<Record<string, StateValue>>;
 
+/**
+ * The first row of what a source gave, by the names of its columns, for what reads a value of it
+ * rather than show it: the text and the rules of a document. Nothing, until it has one.
+ */
+export const toFirstRow = (state: SourceState): Readonly<Record<string, unknown>> | undefined => {
+  if (state.status !== 'success' || state.data.rows.length === 0) return undefined;
+  const [row] = state.data.rows;
+  return Object.fromEntries(state.data.columns.map(({ name }, index) => [name, row[index]]));
+};
+
 export interface SourceRequest {
   context: FetchContext;
   /** The panel's state, offered to the query as named parameters. */

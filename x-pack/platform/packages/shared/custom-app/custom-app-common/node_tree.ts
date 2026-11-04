@@ -5,8 +5,18 @@
  * 2.0.
  */
 
-import { ANNOTATIONS_SOURCE_SUFFIX, OPTIONS_SOURCE_SUFFIX } from './constants';
-import { isContainerNode, type Action, type AppNode, type DataSource } from './document_schema';
+import {
+  ANNOTATIONS_SOURCE_SUFFIX,
+  DECLARED_QUERY_SOURCE_PREFIX,
+  OPTIONS_SOURCE_SUFFIX,
+} from './constants';
+import {
+  isContainerNode,
+  type Action,
+  type AppNode,
+  type DataSource,
+  type DeclaredQuery,
+} from './document_schema';
 
 /** Returns the direct children of a node, empty for leaf nodes. */
 export const getNodeChildren = (node: AppNode): readonly AppNode[] =>
@@ -96,6 +106,21 @@ export const getOptionsSourceId = (nodeId: string): string => `${nodeId}${OPTION
 /** The id the source of the annotations of a chart is known by. */
 export const getAnnotationsSourceId = (nodeId: string): string =>
   `${nodeId}${ANNOTATIONS_SOURCE_SUFFIX}`;
+
+/** The id the source of a query the document declares is known by, which no component has. */
+export const getDeclaredQuerySourceId = (queryId: string): string =>
+  `${DECLARED_QUERY_SOURCE_PREFIX}${queryId}`;
+
+/** The sources of the queries a document declares, by the id they are known by. */
+export const collectDeclaredSources = (document: {
+  queries?: Readonly<Record<string, DeclaredQuery>>;
+}): Record<string, DataSource> =>
+  Object.fromEntries(
+    Object.entries(document.queries ?? {}).map(([id, { query }]) => [
+      getDeclaredQuerySourceId(id),
+      { type: 'esql' as const, query },
+    ])
+  );
 
 /** Every source in the tree, by the id of the node that shows it, and of the options of a select. */
 export const collectSources = (root: AppNode): Record<string, DataSource> => {

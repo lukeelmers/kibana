@@ -8,15 +8,15 @@
 import React from 'react';
 import { EuiProgress, EuiText } from '@elastic/eui';
 import { i18n } from '@kbn/i18n';
-import { interpolate, type AppNodeOfType } from '@kbn/custom-app-common';
+import type { AppNodeOfType } from '@kbn/custom-app-common';
 import type { SourceData } from '../data/data_layer';
 import { useDataLayer } from '../data/data_layer_context';
 import { useSource } from '../data/use_source';
-import { useStateValues } from '../runtime/app_runtime_context';
+import { useInterpolate } from '../runtime/use_interpolate';
 import { DataState } from './data_state';
 
 const ProgressValue = ({ node, data }: { node: AppNodeOfType<'progress'>; data: SourceData }) => {
-  const state = useStateValues();
+  const text = useInterpolate();
   const [value] = data.rows[0];
   const format = (number: number) => new Intl.NumberFormat(i18n.getLocale()).format(number);
 
@@ -38,7 +38,7 @@ const ProgressValue = ({ node, data }: { node: AppNodeOfType<'progress'>; data: 
       color={node.color}
       value={Math.max(0, Math.min(value, node.max))}
       max={node.max}
-      label={node.label === undefined ? undefined : interpolate(node.label, state)}
+      label={node.label === undefined ? undefined : text(node.label)}
       valueText={`${format(value)} / ${format(node.max)}`}
       data-test-subj="customAppProgress"
     />

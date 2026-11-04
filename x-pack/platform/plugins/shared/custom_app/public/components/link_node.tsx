@@ -7,10 +7,11 @@
 
 import React, { useMemo, type MouseEvent } from 'react';
 import { EuiLink, EuiText, EuiToolTip } from '@elastic/eui';
-import { interpolate, type AppNodeOfType } from '@kbn/custom-app-common';
+import type { AppNodeOfType } from '@kbn/custom-app-common';
 import { useDataLayer } from '../data/data_layer_context';
 import { toEsqlVariables } from '../data/esql_variables';
 import { useStateValues } from '../runtime/app_runtime_context';
+import { useInterpolate } from '../runtime/use_interpolate';
 import { getServices } from '../services';
 import { useSubjectValue } from '../utils/use_subject_value';
 import { resolveLink } from './link_target';
@@ -45,7 +46,8 @@ export const LinkNode = ({ node }: { node: AppNodeOfType<'link'> }) => {
       }),
     [node.to, state, context, layer, core.application, share]
   );
-  const label = interpolate(node.label, state);
+  const text = useInterpolate();
+  const label = text(node.label);
 
   if (link.status === 'unavailable') {
     return (

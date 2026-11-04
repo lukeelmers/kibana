@@ -8,11 +8,11 @@
 import React from 'react';
 import { EuiIcon, EuiPanel, EuiStat, EuiText } from '@elastic/eui';
 import { i18n } from '@kbn/i18n';
-import { interpolate, type AppNodeOfType } from '@kbn/custom-app-common';
+import type { AppNodeOfType } from '@kbn/custom-app-common';
 import type { SourceData } from '../data/data_layer';
 import { useDataLayer } from '../data/data_layer_context';
 import { useSource } from '../data/use_source';
-import { useStateValues } from '../runtime/app_runtime_context';
+import { useInterpolate } from '../runtime/use_interpolate';
 import { DataState } from './data_state';
 
 const formatNumber = (value: number): string =>
@@ -32,7 +32,7 @@ export const getChange = (value: unknown, previous: unknown): number | undefined
     : undefined;
 
 const MetricValue = ({ node, data }: { node: AppNodeOfType<'metric'>; data: SourceData }) => {
-  const state = useStateValues();
+  const text = useInterpolate();
   const [row] = data.rows;
   const [value] = row;
   const compareIndex =
@@ -51,7 +51,7 @@ const MetricValue = ({ node, data }: { node: AppNodeOfType<'metric'>; data: Sour
           ? formatNumber(value)
           : String(value)
       }
-      description={interpolate(node.title, state)}
+      description={text(node.title)}
       titleSize="l"
       reverse
       data-test-subj="customAppMetric"

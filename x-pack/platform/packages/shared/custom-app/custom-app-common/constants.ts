@@ -42,6 +42,12 @@ export const MAX_INPUT_OPTIONS = 50;
 export const MAX_QUERY_OPTIONS = 500;
 /** What is added to the id of a select to name the source of its options, which is not a component. */
 export const OPTIONS_SOURCE_SUFFIX = ':options';
+/** What is put before the id of a query the document declares, to name its source. */
+export const DECLARED_QUERY_SOURCE_PREFIX = 'query:';
+/** The queries a document declares for its text and its rules to read, which are few. */
+export const MAX_DECLARED_QUERIES = 20;
+/** What a filter in a reference of a text can do to the value: the closed set. */
+export const TEXT_FILTERS = ['greeting'] as const;
 /** The source of the annotations of a chart, which is not the one of the chart itself. */
 export const ANNOTATIONS_SOURCE_SUFFIX = ':annotations';
 /** The most annotations a chart draws; more than that is not a chart anyone can read. */

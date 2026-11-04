@@ -27,3 +27,13 @@ export const customAppAttributesSchemaV1 = schema.object({
     theme: schema.maybe(schema.recordOf(schema.string(), schema.any())),
   }),
 });
+
+/** The same, with the queries a document can declare for its text and its rules to read. */
+export const customAppAttributesSchemaV2 = customAppAttributesSchemaV1.extends({
+  document: schema.object({
+    state: schema.recordOf(schema.string(), schema.any()),
+    queries: schema.maybe(schema.recordOf(schema.string(), schema.any())),
+    root: schema.recordOf(schema.string(), schema.any()),
+    theme: schema.maybe(schema.recordOf(schema.string(), schema.any())),
+  }),
+});

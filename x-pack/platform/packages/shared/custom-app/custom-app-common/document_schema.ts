@@ -44,6 +44,7 @@ import {
   columnsCountSchema,
   progressColorSchema,
   progressMaxSchema,
+  queryIdSchema,
   sectionOpenSchema,
   stackDirectionSchema,
   stateKeySchema,
@@ -686,8 +687,17 @@ export const themeSchema = z.object({
   shape: bindable(themeShapeSchema),
 });
 
+/**
+ * A query the document declares by an id, for its text and its rules to read: the first row of it,
+ * by its columns, as `{{query.<id>.<column>}}` and `{ "$query": "<id>", "field": "<column>" }`. It
+ * runs for as long as the app is shown, with the values of the app as parameters, as any other.
+ */
+export const declaredQuerySchema = z.object({ query: querySchema });
+
 export const appDocumentShapeSchema = z.object({
   state: z.record(stateKeySchema, stateDeclarationSchema).default({}),
+  /** Left out, the document declares none. */
+  queries: z.record(queryIdSchema, declaredQuerySchema).optional(),
   root: nodeSchema,
   theme: themeSchema.optional(),
 });
@@ -695,6 +705,7 @@ export const appDocumentShapeSchema = z.object({
 export const appDocumentSchema = appDocumentShapeSchema.superRefine(validateDocument);
 
 export type StateDeclaration = z.output<typeof stateDeclarationSchema>;
+export type DeclaredQuery = z.output<typeof declaredQuerySchema>;
 export type AppTheme = z.output<typeof themeSchema>;
 export type AppDocument = z.output<typeof appDocumentSchema>;
 
