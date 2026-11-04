@@ -7,3 +7,4 @@
 
 export { customAppSavedObjectType } from './custom_app';
 export { customAppAttributesSchemaV1 } from './schemas';
+export { extractReferences, injectReferences } from './references';

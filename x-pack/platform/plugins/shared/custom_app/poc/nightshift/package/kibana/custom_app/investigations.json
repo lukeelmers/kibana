@@ -1,0 +1,592 @@
+{
+  "id": "investigations",
+  "type": "custom_app",
+  "attributes": {
+    "title": "Nightshift investigations",
+    "description": "Investigations grouped by severity, with a details flyout and a Create case action.",
+    "version": 1,
+    "document": {
+      "state": {
+        "q": {
+          "type": "string",
+          "default": ""
+        },
+        "selected_id": {
+          "type": "string",
+          "default": ""
+        },
+        "selected_title": {
+          "type": "string",
+          "default": ""
+        },
+        "selected_severity": {
+          "type": "string",
+          "default": ""
+        },
+        "selected_summary": {
+          "type": "string",
+          "default": ""
+        }
+      },
+      "root": {
+        "type": "stack",
+        "id": "page",
+        "direction": "vertical",
+        "children": [
+          {
+            "type": "stack",
+            "id": "header",
+            "direction": "horizontal",
+            "children": [
+              {
+                "type": "heading",
+                "id": "title",
+                "text": "Investigations"
+              },
+              {
+                "type": "link",
+                "id": "show_all_events",
+                "label": "Show all events",
+                "to": {
+                  "type": "app",
+                  "app": "nightshift",
+                  "path": "/detections/events"
+                }
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "id": "greeting",
+            "text": "Nightshift watches your data and opens an investigation when something looks wrong."
+          },
+          {
+            "type": "search",
+            "id": "search",
+            "label": "Search investigations",
+            "placeholder": "Search",
+            "bind": "q"
+          },
+          {
+            "type": "columns",
+            "id": "severity_tiles",
+            "columns": 4,
+            "children": [
+              {
+                "type": "stat",
+                "id": "tile_critical",
+                "title": "Critical",
+                "query": "FROM nightshift-app-investigations | WHERE severity == \"critical\" AND (?q == \"\" OR TO_LOWER(title) LIKE CONCAT(\"*\", TO_LOWER(?q), \"*\")) | STATS investigations = COUNT(*)"
+              },
+              {
+                "type": "stat",
+                "id": "tile_high",
+                "title": "High",
+                "query": "FROM nightshift-app-investigations | WHERE severity == \"high\" AND (?q == \"\" OR TO_LOWER(title) LIKE CONCAT(\"*\", TO_LOWER(?q), \"*\")) | STATS investigations = COUNT(*)"
+              },
+              {
+                "type": "stat",
+                "id": "tile_medium",
+                "title": "Medium",
+                "query": "FROM nightshift-app-investigations | WHERE severity == \"medium\" AND (?q == \"\" OR TO_LOWER(title) LIKE CONCAT(\"*\", TO_LOWER(?q), \"*\")) | STATS investigations = COUNT(*)"
+              },
+              {
+                "type": "stat",
+                "id": "tile_low",
+                "title": "Low",
+                "query": "FROM nightshift-app-investigations | WHERE severity == \"low\" AND (?q == \"\" OR TO_LOWER(title) LIKE CONCAT(\"*\", TO_LOWER(?q), \"*\")) | STATS investigations = COUNT(*)"
+              }
+            ]
+          },
+          {
+            "type": "accordion",
+            "id": "sections",
+            "children": [
+              {
+                "type": "section",
+                "id": "section_in_progress",
+                "label": "In progress",
+                "open": true,
+                "children": [
+                  {
+                    "type": "table",
+                    "id": "table_in_progress",
+                    "caption": "Investigations in progress",
+                    "query": "FROM nightshift-app-investigations | WHERE in_progress == true AND (?q == \"\" OR TO_LOWER(title) LIKE CONCAT(\"*\", TO_LOWER(?q), \"*\")) | KEEP id, created_at, title, summary, entities, severity, status, verdict | SORT created_at DESC | LIMIT 100",
+                    "columns": [
+                      {
+                        "field": "created_at",
+                        "label": "Started"
+                      },
+                      {
+                        "field": "title",
+                        "label": "Investigation"
+                      },
+                      {
+                        "field": "summary",
+                        "label": "Summary"
+                      },
+                      {
+                        "field": "entities",
+                        "label": "Impacted"
+                      }
+                    ],
+                    "onRowClick": [
+                      {
+                        "type": "setState",
+                        "key": "selected_id",
+                        "value": {
+                          "fromColumn": "id"
+                        }
+                      },
+                      {
+                        "type": "setState",
+                        "key": "selected_title",
+                        "value": {
+                          "fromColumn": "title"
+                        }
+                      },
+                      {
+                        "type": "setState",
+                        "key": "selected_severity",
+                        "value": {
+                          "fromColumn": "severity"
+                        }
+                      },
+                      {
+                        "type": "setState",
+                        "key": "selected_summary",
+                        "value": {
+                          "fromColumn": "summary"
+                        }
+                      },
+                      {
+                        "type": "openFlyout",
+                        "flyout": "investigation_flyout"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "section",
+                "id": "section_critical",
+                "label": "Critical",
+                "open": true,
+                "children": [
+                  {
+                    "type": "table",
+                    "id": "table_critical",
+                    "caption": "Critical investigations",
+                    "query": "FROM nightshift-app-investigations | WHERE in_progress == false AND severity == \"critical\" AND (?q == \"\" OR TO_LOWER(title) LIKE CONCAT(\"*\", TO_LOWER(?q), \"*\")) | KEEP id, created_at, title, summary, entities, severity, status, verdict | SORT created_at DESC | LIMIT 100",
+                    "columns": [
+                      {
+                        "field": "created_at",
+                        "label": "Started"
+                      },
+                      {
+                        "field": "title",
+                        "label": "Investigation"
+                      },
+                      {
+                        "field": "summary",
+                        "label": "Summary"
+                      },
+                      {
+                        "field": "entities",
+                        "label": "Impacted"
+                      }
+                    ],
+                    "onRowClick": [
+                      {
+                        "type": "setState",
+                        "key": "selected_id",
+                        "value": {
+                          "fromColumn": "id"
+                        }
+                      },
+                      {
+                        "type": "setState",
+                        "key": "selected_title",
+                        "value": {
+                          "fromColumn": "title"
+                        }
+                      },
+                      {
+                        "type": "setState",
+                        "key": "selected_severity",
+                        "value": {
+                          "fromColumn": "severity"
+                        }
+                      },
+                      {
+                        "type": "setState",
+                        "key": "selected_summary",
+                        "value": {
+                          "fromColumn": "summary"
+                        }
+                      },
+                      {
+                        "type": "openFlyout",
+                        "flyout": "investigation_flyout"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "section",
+                "id": "section_high",
+                "label": "High",
+                "open": true,
+                "children": [
+                  {
+                    "type": "table",
+                    "id": "table_high",
+                    "caption": "High investigations",
+                    "query": "FROM nightshift-app-investigations | WHERE in_progress == false AND severity == \"high\" AND (?q == \"\" OR TO_LOWER(title) LIKE CONCAT(\"*\", TO_LOWER(?q), \"*\")) | KEEP id, created_at, title, summary, entities, severity, status, verdict | SORT created_at DESC | LIMIT 100",
+                    "columns": [
+                      {
+                        "field": "created_at",
+                        "label": "Started"
+                      },
+                      {
+                        "field": "title",
+                        "label": "Investigation"
+                      },
+                      {
+                        "field": "summary",
+                        "label": "Summary"
+                      },
+                      {
+                        "field": "entities",
+                        "label": "Impacted"
+                      }
+                    ],
+                    "onRowClick": [
+                      {
+                        "type": "setState",
+                        "key": "selected_id",
+                        "value": {
+                          "fromColumn": "id"
+                        }
+                      },
+                      {
+                        "type": "setState",
+                        "key": "selected_title",
+                        "value": {
+                          "fromColumn": "title"
+                        }
+                      },
+                      {
+                        "type": "setState",
+                        "key": "selected_severity",
+                        "value": {
+                          "fromColumn": "severity"
+                        }
+                      },
+                      {
+                        "type": "setState",
+                        "key": "selected_summary",
+                        "value": {
+                          "fromColumn": "summary"
+                        }
+                      },
+                      {
+                        "type": "openFlyout",
+                        "flyout": "investigation_flyout"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "section",
+                "id": "section_medium",
+                "label": "Medium",
+                "open": true,
+                "children": [
+                  {
+                    "type": "table",
+                    "id": "table_medium",
+                    "caption": "Medium investigations",
+                    "query": "FROM nightshift-app-investigations | WHERE in_progress == false AND severity == \"medium\" AND (?q == \"\" OR TO_LOWER(title) LIKE CONCAT(\"*\", TO_LOWER(?q), \"*\")) | KEEP id, created_at, title, summary, entities, severity, status, verdict | SORT created_at DESC | LIMIT 100",
+                    "columns": [
+                      {
+                        "field": "created_at",
+                        "label": "Started"
+                      },
+                      {
+                        "field": "title",
+                        "label": "Investigation"
+                      },
+                      {
+                        "field": "summary",
+                        "label": "Summary"
+                      },
+                      {
+                        "field": "entities",
+                        "label": "Impacted"
+                      }
+                    ],
+                    "onRowClick": [
+                      {
+                        "type": "setState",
+                        "key": "selected_id",
+                        "value": {
+                          "fromColumn": "id"
+                        }
+                      },
+                      {
+                        "type": "setState",
+                        "key": "selected_title",
+                        "value": {
+                          "fromColumn": "title"
+                        }
+                      },
+                      {
+                        "type": "setState",
+                        "key": "selected_severity",
+                        "value": {
+                          "fromColumn": "severity"
+                        }
+                      },
+                      {
+                        "type": "setState",
+                        "key": "selected_summary",
+                        "value": {
+                          "fromColumn": "summary"
+                        }
+                      },
+                      {
+                        "type": "openFlyout",
+                        "flyout": "investigation_flyout"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "section",
+                "id": "section_low",
+                "label": "Low",
+                "open": true,
+                "children": [
+                  {
+                    "type": "table",
+                    "id": "table_low",
+                    "caption": "Low investigations",
+                    "query": "FROM nightshift-app-investigations | WHERE in_progress == false AND severity == \"low\" AND (?q == \"\" OR TO_LOWER(title) LIKE CONCAT(\"*\", TO_LOWER(?q), \"*\")) | KEEP id, created_at, title, summary, entities, severity, status, verdict | SORT created_at DESC | LIMIT 100",
+                    "columns": [
+                      {
+                        "field": "created_at",
+                        "label": "Started"
+                      },
+                      {
+                        "field": "title",
+                        "label": "Investigation"
+                      },
+                      {
+                        "field": "summary",
+                        "label": "Summary"
+                      },
+                      {
+                        "field": "entities",
+                        "label": "Impacted"
+                      }
+                    ],
+                    "onRowClick": [
+                      {
+                        "type": "setState",
+                        "key": "selected_id",
+                        "value": {
+                          "fromColumn": "id"
+                        }
+                      },
+                      {
+                        "type": "setState",
+                        "key": "selected_title",
+                        "value": {
+                          "fromColumn": "title"
+                        }
+                      },
+                      {
+                        "type": "setState",
+                        "key": "selected_severity",
+                        "value": {
+                          "fromColumn": "severity"
+                        }
+                      },
+                      {
+                        "type": "setState",
+                        "key": "selected_summary",
+                        "value": {
+                          "fromColumn": "summary"
+                        }
+                      },
+                      {
+                        "type": "openFlyout",
+                        "flyout": "investigation_flyout"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "section",
+                "id": "section_not_rated",
+                "label": "Not rated",
+                "open": true,
+                "children": [
+                  {
+                    "type": "table",
+                    "id": "table_not_rated",
+                    "caption": "Investigations without a severity",
+                    "query": "FROM nightshift-app-investigations | WHERE in_progress == false AND severity IS NULL AND (?q == \"\" OR TO_LOWER(title) LIKE CONCAT(\"*\", TO_LOWER(?q), \"*\")) | KEEP id, created_at, title, summary, entities, severity, status, verdict | SORT created_at DESC | LIMIT 100",
+                    "columns": [
+                      {
+                        "field": "created_at",
+                        "label": "Started"
+                      },
+                      {
+                        "field": "title",
+                        "label": "Investigation"
+                      },
+                      {
+                        "field": "summary",
+                        "label": "Summary"
+                      },
+                      {
+                        "field": "entities",
+                        "label": "Impacted"
+                      }
+                    ],
+                    "onRowClick": [
+                      {
+                        "type": "setState",
+                        "key": "selected_id",
+                        "value": {
+                          "fromColumn": "id"
+                        }
+                      },
+                      {
+                        "type": "setState",
+                        "key": "selected_title",
+                        "value": {
+                          "fromColumn": "title"
+                        }
+                      },
+                      {
+                        "type": "setState",
+                        "key": "selected_severity",
+                        "value": {
+                          "fromColumn": "severity"
+                        }
+                      },
+                      {
+                        "type": "setState",
+                        "key": "selected_summary",
+                        "value": {
+                          "fromColumn": "summary"
+                        }
+                      },
+                      {
+                        "type": "openFlyout",
+                        "flyout": "investigation_flyout"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "flyout",
+            "id": "investigation_flyout",
+            "title": "{{state.selected_title}}",
+            "children": [
+              {
+                "type": "key_value",
+                "id": "investigation_details",
+                "query": "FROM nightshift-app-investigations | WHERE id == ?selected_id | KEEP severity, status, in_progress, created_at, updated_at, subject_type, entities, pending_proposals, verdict | LIMIT 1",
+                "fields": [
+                  "severity",
+                  "status",
+                  "in_progress",
+                  "created_at",
+                  "updated_at",
+                  "subject_type",
+                  "entities",
+                  "pending_proposals",
+                  "verdict"
+                ]
+              },
+              {
+                "type": "heading",
+                "id": "summary_heading",
+                "text": "What happened"
+              },
+              {
+                "type": "text",
+                "id": "summary_text",
+                "text": "{{state.selected_summary}}"
+              },
+              {
+                "type": "stack",
+                "id": "flyout_actions",
+                "direction": "horizontal",
+                "children": [
+                  {
+                    "type": "button",
+                    "id": "create_case",
+                    "label": "Create case",
+                    "onClick": [
+                      {
+                        "type": "runWorkflow",
+                        "workflowRefName": "workflow_0",
+                        "inputs": {
+                          "investigation_id": {
+                            "fromState": "selected_id"
+                          },
+                          "title": {
+                            "fromState": "selected_title"
+                          },
+                          "severity": {
+                            "fromState": "selected_severity"
+                          },
+                          "summary": {
+                            "fromState": "selected_summary"
+                          }
+                        }
+                      },
+                      {
+                        "type": "closeFlyout"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "link",
+                    "id": "open_in_chat",
+                    "label": "Open in chat",
+                    "to": {
+                      "type": "app",
+                      "app": "agent_builder",
+                      "path": "/conversations/{{state.selected_id}}"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "references": [
+    {
+      "name": "workflow_0",
+      "type": "workflow",
+      "id": "nightshift-app-create-case"
+    }
+  ]
+}

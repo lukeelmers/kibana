@@ -108,5 +108,11 @@ export {
   type NodeLocation,
 } from './document_mutations';
 export { getDocumentIssues, type DocumentIssue } from './document_issues';
+export {
+  extractWorkflowReferences,
+  injectWorkflowReferences,
+  WORKFLOW_REFERENCE_TYPE,
+  type WorkflowReference,
+} from './workflow_references';
 
 export * from './a2ui';

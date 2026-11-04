@@ -207,6 +207,7 @@ describe('schema validation', () => {
         osquery_pack_asset: [],
         osquery_saved_query: [],
         workflow: [],
+        custom_app: [],
       },
       elasticsearch: {
         index_template: [],
