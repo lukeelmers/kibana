@@ -99,6 +99,16 @@ export const createDefaultNode = (
       return { type, id, query: DEFAULT_QUERY, onRowClick: [] };
     case 'key_value':
       return { type, id, query: DEFAULT_QUERY };
+    case 'list':
+      return {
+        type,
+        id,
+        query: DEFAULT_QUERY,
+        onRowClick: [],
+        rowActions: [],
+        // The column of the default query, for each row.
+        template: { type: 'text', id: `${id}-row`, text: '{{row.value}}' },
+      };
     case 'form':
       return {
         type,

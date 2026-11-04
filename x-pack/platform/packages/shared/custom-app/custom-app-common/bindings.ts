@@ -170,6 +170,7 @@ export const progressMaxSchema = z.number().finite().positive().default(100);
 export const progressColorSchema = z.enum(PROGRESS_COLORS).default('primary');
 export const badgeColorSchema = z.enum(BADGE_COLORS).default('default');
 export const stackDirectionSchema = z.enum(['vertical', 'horizontal']).default('vertical');
+export const stackSpacingSchema = z.enum(['tight', 'compact', 'normal']).optional();
 export const cardIconSchema = z.enum(CARD_ICONS).optional();
 export const columnsCountSchema = z.number().int().min(2).max(MAX_COLUMNS).default(2);
 export const sectionOpenSchema = z.boolean().optional();

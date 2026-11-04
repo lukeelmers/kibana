@@ -42,6 +42,7 @@ import {
   getNodeBindings,
   getNodeChildren,
   getNodeSource,
+  getNodeSubtrees,
   getSourceStateKeys,
 } from './node_tree';
 
@@ -75,10 +76,13 @@ const collectNodes = (
   /** The ids of the nodes that are drawn for a row, and can read its columns. */
   const rowScoped = new Set<string>();
   const seenIds = new Set<string>();
-  const pending: Array<{ node: AppNode; depth: number }> = [{ node: root, depth: 1 }];
+  const pending: Array<{ node: AppNode; depth: number; inRow: boolean }> = [
+    { node: root, depth: 1, inRow: false },
+  ];
 
   for (let current = pending.pop(); current; current = pending.pop()) {
-    const { node, depth } = current;
+    const { node, depth, inRow } = current;
+    if (inRow) rowScoped.add(node.id);
 
     if (depth > MAX_NODE_DEPTH) {
       ctx.addIssue({
@@ -106,9 +110,13 @@ const collectNodes = (
     nodes.push(node);
 
     // Pushed in reverse so nodes are visited, and issues reported, in document order.
-    [...getNodeChildren(node)]
-      .reverse()
-      .forEach((child) => pending.push({ node: child, depth: depth + 1 }));
+    [...getNodeSubtrees(node)].reverse().forEach((child) =>
+      pending.push({
+        node: child,
+        depth: depth + 1,
+        inRow: inRow || (node.type === 'list' && child === node.template),
+      })
+    );
   }
 
   return { nodes, rowScoped, withinLimits: true };
@@ -198,6 +206,25 @@ export const validateDocument = (document: DocumentToValidate, ctx: z.Refinement
   const flyoutIds = new Set(nodes.filter(({ type }) => type === 'flyout').map(({ id }) => id));
 
   nodes.forEach((node) => {
+    if (rowScoped.has(node.id)) {
+      // A template is drawn once for each row: what it holds shows the row, and does not fetch,
+      // set or open anything of its own, which would be done once for every row.
+      const what =
+        getNodeSource(node) !== undefined
+          ? 'shows data of its own'
+          : getNodeBindings(node).length > 0
+          ? 'is an input'
+          : node.type === 'flyout' || node.type === 'time_range'
+          ? `is a ${node.type === 'flyout' ? 'flyout' : 'time range'}`
+          : undefined;
+      if (what) {
+        issue(
+          `Node "${node.id}" is in the template of a list and ${what}; a template only shows its row`,
+          node.id
+        );
+      }
+    }
+
     const bindings = getNodeBindings(node);
     const wanted = getBindingType(node);
     bindings.forEach((binding) => {
@@ -328,7 +355,8 @@ export const validateDocument = (document: DocumentToValidate, ctx: z.Refinement
       node.type === 'metric' ||
       node.type === 'progress' ||
       node.type === 'table' ||
-      node.type === 'key_value'
+      node.type === 'key_value' ||
+      node.type === 'list'
     ) {
       if ((node.query === undefined) === (node.source === undefined)) {
         issue(
@@ -449,7 +477,9 @@ export const validateDocument = (document: DocumentToValidate, ctx: z.Refinement
     });
 
     getNodeActions(node).forEach(({ event, actions }) => {
-      const allowed = ACTION_VALUE_SOURCES[event] ?? { fromColumn: false, fromInput: false };
+      const eventSources = ACTION_VALUE_SOURCES[event] ?? { fromColumn: false, fromInput: false };
+      // In the template of a list, what is pressed is pressed for a row, whose columns it can hand on.
+      const allowed = rowScoped.has(node.id) ? { ...eventSources, fromColumn: true } : eventSources;
 
       actions.forEach((action) => {
         if (action.type === 'runWorkflow') {

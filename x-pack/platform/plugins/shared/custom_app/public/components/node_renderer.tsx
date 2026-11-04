@@ -51,6 +51,7 @@ import { FlyoutNode } from './flyout_node';
 import { FormNode } from './form_node';
 import { KeyValueNode } from './key_value_node';
 import { LinkNode } from './link_node';
+import { ListNode } from './list_node';
 import { ListInputNode } from './list_input_node';
 import { SearchNode } from './search_node';
 import { SelectNode } from './select_node';
@@ -213,6 +214,8 @@ export const NodeRenderer = ({ node: written }: NodeRendererProps) => {
       return <CustomContentNode node={node} />;
     case 'table':
       return <TableNode node={node} />;
+    case 'list':
+      return <ListNode node={node} />;
     case 'key_value':
       return <KeyValueNode node={node} />;
     case 'select':
@@ -258,7 +261,21 @@ export const NodeRenderer = ({ node: written }: NodeRendererProps) => {
         <EuiFlexGroup
           direction={isRow ? 'row' : 'column'}
           // Stacked things get room to breathe; things side by side belong together, so sit closer.
-          gutterSize={isRow ? 'm' : 'l'}
+          // A tight stack, such as the lines of a row of a list, keeps them together, and a compact
+          // one, such as a search over what it searches, keeps them close.
+          gutterSize={
+            node.spacing === 'tight'
+              ? isRow
+                ? 's'
+                : 'xs'
+              : node.spacing === 'compact'
+              ? isRow
+                ? 's'
+                : 'm'
+              : isRow
+              ? 'm'
+              : 'l'
+          }
           alignItems={isFilterBar ? 'flexEnd' : isCompactRow ? 'center' : 'stretch'}
           responsive={false}
           wrap={isRow}

@@ -109,6 +109,15 @@ const ENTRIES: Partial<Record<AppNodeType, Omit<NodeCatalogEntry, 'type'>>> = {
     group: 'data',
     isContainer: false,
   },
+  list: {
+    label: i18n.translate('xpack.customApp.catalog.list.label', { defaultMessage: 'List' }),
+    description: i18n.translate('xpack.customApp.catalog.list.description', {
+      defaultMessage: 'The rows of a query, each drawn with a template of its own.',
+    }),
+    iconType: 'list',
+    group: 'data',
+    isContainer: false,
+  },
   key_value: {
     label: i18n.translate('xpack.customApp.catalog.keyValue.label', {
       defaultMessage: 'Key-value list',

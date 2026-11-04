@@ -19,8 +19,11 @@ import {
   MAX_CHILDREN_PER_NODE,
   MAX_FORM_FIELDS,
   MAX_HEADING_LENGTH,
+  MAX_ICON_NAME_LENGTH,
   MAX_KEY_VALUE_FIELDS,
   MAX_LINK_APP_ID_LENGTH,
+  MAX_LIST_PAGE_SIZE,
+  MAX_ROW_ACTIONS,
   MAX_LINK_PATH_LENGTH,
   MAX_NODE_ID_LENGTH,
   MAX_PROMPT_LENGTH,
@@ -47,6 +50,7 @@ import {
   queryIdSchema,
   sectionOpenSchema,
   stackDirectionSchema,
+  stackSpacingSchema,
   stateKeySchema,
   themeAccentSchema,
   themeShapeSchema,
@@ -476,6 +480,8 @@ const stackFields = {
   id: nodeIdSchema,
   visibleWhen: visibleWhenSchema,
   direction: bindable(stackDirectionSchema),
+  /** How close together what is inside sits. Left out, it is the room a page gives. */
+  spacing: stackSpacingSchema,
 };
 
 const flyoutFields = {
@@ -513,6 +519,37 @@ const sectionFields = {
 };
 
 const tabsFields = { type: z.literal('tabs'), id: nodeIdSchema, visibleWhen: visibleWhenSchema };
+
+/** The name of an icon EUI draws, such as `productAgent` or `bolt`. */
+export const iconNameSchema = z
+  .string()
+  .min(1)
+  .max(MAX_ICON_NAME_LENGTH)
+  .regex(/^[A-Za-z][A-Za-z0-9]*$/);
+
+/** Something that can be done with a row, beside what a click on it does. */
+const rowActionSchema = z.object({
+  label: z.string().min(1).max(MAX_HEADING_LENGTH),
+  icon: iconNameSchema,
+  onClick: actionsSchema.default([]),
+});
+
+/**
+ * The rows of a query, each drawn with `template`, in which `{ "$row": "column" }` and
+ * `{{row.column}}` read the row it is drawn for. A click on a row runs `onRowClick`, as a row of a
+ * table does; `rowActions` are what else can be done with it. `pageSize` rows are shown at first,
+ * and more on asking; left out, every row is.
+ */
+const listFields = {
+  type: z.literal('list'),
+  id: nodeIdSchema,
+  visibleWhen: visibleWhenSchema,
+  ...dataFields,
+  emptyMessage: z.string().max(MAX_HEADING_LENGTH).optional(),
+  pageSize: z.number().int().min(1).max(MAX_LIST_PAGE_SIZE).optional(),
+  onRowClick: actionsSchema.default([]),
+  rowActions: z.array(rowActionSchema).max(MAX_ROW_ACTIONS).default([]),
+};
 const accordionFields = {
   type: z.literal('accordion'),
   id: nodeIdSchema,
@@ -549,6 +586,8 @@ type FlyoutNode = WithChildren<typeof flyoutFields>;
 type CardNode = WithChildren<typeof cardFields>;
 type ColumnsNode = WithChildren<typeof columnsFields>;
 type SectionNode = WithChildren<typeof sectionFields>;
+/** A list holds one node, its template, which is drawn for each row and is not a child. */
+type ListNode = z.output<z.ZodObject<typeof listFields>> & { template: AppNode };
 type TabsNode = WithChildren<typeof tabsFields>;
 type AccordionNode = WithChildren<typeof accordionFields>;
 
@@ -566,7 +605,7 @@ export type ContainerNode =
  * Written out by hand because TypeScript cannot infer a union that contains itself. The
  * `satisfies` on `nodeSchema` fails to compile if the schemas stop producing this type.
  */
-export type AppNode = LeafNode | ContainerNode;
+export type AppNode = LeafNode | ContainerNode | ListNode;
 export type AppNodeType = AppNode['type'];
 export type AppNodeOfType<T extends AppNodeType> = Extract<AppNode, { type: T }>;
 export type Action = z.output<typeof actionSchema>;
@@ -617,6 +656,13 @@ const tabsNodeSchema = z.object({
   },
 });
 
+const listNodeSchema = z.object({
+  ...listFields,
+  get template(): z.ZodType<AppNode> {
+    return nodeSchema;
+  },
+});
+
 const accordionNodeSchema = z.object({
   ...accordionFields,
   get children(): z.ZodArray<z.ZodType<AppNode>> {
@@ -652,6 +698,7 @@ export const nodeSchema = z.discriminatedUnion('type', [
   sectionNodeSchema,
   tabsNodeSchema,
   accordionNodeSchema,
+  listNodeSchema,
 ]) satisfies z.ZodType<AppNode>;
 
 const CONTAINER_TYPES: ReadonlySet<string> = new Set([
@@ -671,6 +718,10 @@ export const isContainerNode = (node: AppNode): node is ContainerNode =>
 /** Returns the direct children of a node, empty for leaf nodes. */
 export const getNodeChildren = (node: AppNode): readonly AppNode[] =>
   isContainerNode(node) ? node.children : [];
+
+/** The template a list draws for each of its rows, which is not one of its children. */
+export const getNodeTemplate = (node: AppNode): AppNode | undefined =>
+  node.type === 'list' ? node.template : undefined;
 
 /**
  * The shape of a document, without the checks that look across it. For anything that only needs

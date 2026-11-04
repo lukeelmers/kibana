@@ -11,6 +11,7 @@ import {
   OPTIONS_SOURCE_SUFFIX,
 } from './constants';
 import {
+  getNodeTemplate,
   isContainerNode,
   type Action,
   type AppNode,
@@ -21,6 +22,12 @@ import {
 /** Returns the direct children of a node, empty for leaf nodes. */
 export const getNodeChildren = (node: AppNode): readonly AppNode[] =>
   isContainerNode(node) ? node.children : [];
+
+/** What a node holds: its children, and the template of a list, which is drawn for each row. */
+export const getNodeSubtrees = (node: AppNode): readonly AppNode[] => {
+  const template = getNodeTemplate(node);
+  return template === undefined ? getNodeChildren(node) : [...getNodeChildren(node), template];
+};
 
 /**
  * Whether an app has nothing in it yet: a root that is a stack with no components. A new app starts
@@ -59,6 +66,13 @@ export const getInterpolatedText = (
       return node.label === undefined ? [] : [{ prop: 'label', text: node.label }];
     case 'section':
       return [{ prop: 'label', text: node.label }];
+    case 'list':
+      return [
+        ...(node.emptyMessage === undefined
+          ? []
+          : [{ prop: 'emptyMessage', text: node.emptyMessage }]),
+        ...node.rowActions.map(({ label }) => ({ prop: 'rowActions.label', text: label })),
+      ];
     case 'chart':
       return node.title === undefined ? [] : [{ prop: 'title', text: node.title }];
     case 'link':
@@ -81,7 +95,8 @@ export const getNodeQuery = (node: AppNode): string | undefined =>
   node.type === 'chart' ||
   node.type === 'custom_content' ||
   node.type === 'table' ||
-  node.type === 'key_value'
+  node.type === 'key_value' ||
+  node.type === 'list'
     ? node.query
     : undefined;
 
@@ -92,7 +107,8 @@ export const getNodeSource = (node: AppNode): DataSource | undefined => {
     node.type === 'metric' ||
     node.type === 'progress' ||
     node.type === 'table' ||
-    node.type === 'key_value'
+    node.type === 'key_value' ||
+    node.type === 'list'
   ) {
     if (node.source) return node.source;
   }
@@ -179,6 +195,12 @@ export const getNodeActions = (
   switch (node.type) {
     case 'table':
       return [{ event: 'onRowClick', actions: node.onRowClick }];
+    case 'list':
+      // What a row action does is done with its row, as a click on the row is.
+      return [
+        { event: 'onRowClick', actions: node.onRowClick },
+        ...node.rowActions.map(({ onClick }) => ({ event: 'onRowClick', actions: onClick })),
+      ];
     case 'chart':
       return [{ event: 'onChartClick', actions: node.onClick }];
     case 'button':

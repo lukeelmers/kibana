@@ -5,9 +5,10 @@
  * 2.0.
  */
 
-import React, { useState } from 'react';
+import React, { useContext, useState } from 'react';
 import { EuiButton, EuiToolTip } from '@elastic/eui';
 import type { AppNodeOfType } from '@kbn/custom-app-common';
+import { RowScopeContext } from '../runtime/binding_scope';
 import { useActionRunner } from '../workflows/use_action_runner';
 import { useWorkflowsGate } from '../workflows/use_workflows_gate';
 import { DroppedActions } from './dropped_actions';
@@ -19,6 +20,8 @@ import { DroppedActions } from './dropped_actions';
  */
 export const ButtonNode = ({ node }: { node: AppNodeOfType<'button'> }) => {
   const run = useActionRunner(node.id);
+  // In the template of a list, a button is pressed for its row, whose columns it can hand on.
+  const row = useContext(RowScopeContext);
   const [dropped, setDropped] = useState<string[]>([]);
 
   const unavailableReason = useWorkflowsGate(node.onClick);
@@ -29,7 +32,7 @@ export const ButtonNode = ({ node }: { node: AppNodeOfType<'button'> }) => {
         <EuiButton
           fill
           isDisabled={unavailableReason !== undefined}
-          onClick={() => setDropped(run(node.onClick))}
+          onClick={() => setDropped(run(node.onClick, row ? { row } : undefined))}
           data-test-subj="customAppButton"
         >
           {node.label}

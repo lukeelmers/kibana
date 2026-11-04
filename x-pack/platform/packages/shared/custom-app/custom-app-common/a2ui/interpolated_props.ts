@@ -23,4 +23,5 @@ export const INTERPOLATED_PROPS: Readonly<Record<string, readonly string[]>> = {
   progress: ['label'],
   section: ['label'],
   link: ['label'],
+  list: ['emptyMessage'],
 };

@@ -42,6 +42,12 @@ export const MAX_INPUT_OPTIONS = 50;
 export const MAX_QUERY_OPTIONS = 500;
 /** What is added to the id of a select to name the source of its options, which is not a component. */
 export const OPTIONS_SOURCE_SUFFIX = ':options';
+/** The most rows a list shows at first, and adds each time more are asked for. */
+export const MAX_LIST_PAGE_SIZE = 100;
+/** What can be done with a row of a list, beside a click on it: an icon, and a few in a menu. */
+export const MAX_ROW_ACTIONS = 5;
+/** The name of an EUI icon. */
+export const MAX_ICON_NAME_LENGTH = 64;
 /** What is put before the id of a query the document declares, to name its source. */
 export const DECLARED_QUERY_SOURCE_PREFIX = 'query:';
 /** The queries a document declares for its text and its rules to read, which are few. */

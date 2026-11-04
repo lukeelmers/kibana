@@ -20,6 +20,7 @@ import {
   getNodeBindings,
   getNodeChildren,
   getNodeSource,
+  getNodeSubtrees,
   getSourceStateKeys,
 } from './node_tree';
 
@@ -63,7 +64,7 @@ const collectIds = (root: AppNode): Set<string> => {
   const pending: AppNode[] = [root];
   for (let node = pending.pop(); node; node = pending.pop()) {
     ids.add(node.id);
-    pending.push(...getNodeChildren(node));
+    pending.push(...getNodeSubtrees(node));
   }
   return ids;
 };
@@ -285,7 +286,7 @@ export const pruneUnusedValues = (document: AppDocument): AppDocument => {
         }
       })
     );
-    pending.push(...getNodeChildren(node));
+    pending.push(...getNodeSubtrees(node));
   }
 
   const keys = Object.keys(document.state);
