@@ -6,6 +6,7 @@
  */
 import type {
   NavigationTreeDefinition,
+  NodeDefinition,
   PanelOpenerChildDefinition,
 } from '@kbn/core-chrome-browser';
 import type { CoreStart } from '@kbn/core/public';
@@ -56,6 +57,7 @@ function createNavTree({
   isCloudEnabled,
   ingestHubAvailable,
   entityInventoryNavGroup,
+  customAppNavItems = [],
 }: {
   coreStart: CoreStart;
   significantEventsAvailable: boolean;
@@ -64,6 +66,7 @@ function createNavTree({
   isCloudEnabled?: boolean;
   ingestHubAvailable?: boolean;
   entityInventoryNavGroup?: PanelOpenerChildDefinition;
+  customAppNavItems?: NodeDefinition[];
 }) {
   const navTree: NavigationTreeDefinition = {
     body: [
@@ -75,6 +78,8 @@ function createNavTree({
             },
           ]
         : []),
+      // Installed custom apps that asked to be listed, such as the one a Fleet package adds.
+      ...customAppNavItems,
       {
         link: 'observability-overview',
         title: i18n.translate('xpack.observability.obltNav.overview', {
@@ -752,17 +757,26 @@ export const createDefinition = (
       coreStart.settings.client.get$<AIChatExperience>(AI_CHAT_EXPERIENCE_TYPE),
       pluginsStart.ingestHub?.navigationAvailable$ || of(false),
       coreStart.featureFlags.getBooleanValue$(NIGHTSHIFT_ENABLED_FLAG, false),
+      pluginsStart.customApp?.navItems$ || of([]),
     ]).pipe(
-      map(([{ status }, chatExperience, ingestHubAvailable, significantEventsAvailable]) =>
-        createNavTree({
-          coreStart,
-          significantEventsAvailable,
-          streamsAvailable: status === 'enabled',
-          showAiAssistant: chatExperience !== AIChatExperience.Agent,
-          isCloudEnabled: pluginsStart.cloud?.isCloudEnabled,
+      map(
+        ([
+          { status },
+          chatExperience,
           ingestHubAvailable,
-          entityInventoryNavGroup: pluginsStart.entityInventoryApp?.navTreeGroup,
-        })
+          significantEventsAvailable,
+          customAppNavItems,
+        ]) =>
+          createNavTree({
+            coreStart,
+            significantEventsAvailable,
+            streamsAvailable: status === 'enabled',
+            showAiAssistant: chatExperience !== AIChatExperience.Agent,
+            isCloudEnabled: pluginsStart.cloud?.isCloudEnabled,
+            ingestHubAvailable,
+            entityInventoryNavGroup: pluginsStart.entityInventoryApp?.navTreeGroup,
+            customAppNavItems,
+          })
       )
     ),
   };

@@ -121,4 +121,23 @@ describe('Observability solution navigation tree', () => {
       expect(infraLinks).toContain('metrics:metrics-explorer');
     });
   });
+
+  it('lists installed custom apps right after Nightshift', async () => {
+    const coreStart = coreMock.createStart();
+    coreStart.featureFlags.getBooleanValue$ = jest.fn().mockReturnValue(of(true));
+    coreStart.settings.client.get$ = jest.fn().mockReturnValue(of(AIChatExperience.Classic));
+
+    const definition = createDefinition(coreStart, {
+      customApp: { navItems$: of([{ link: 'customApp:investigations', icon: 'apps' }]) },
+    } as unknown as ObservabilityPublicPluginsStart);
+
+    const { body } = (await firstValueFrom(definition.navigationTree$)) as NavigationTreeDefinition;
+    const links = body.map((item) => (item as NodeDefinition).link);
+
+    expect(links.slice(0, 3)).toEqual([
+      'nightshift',
+      'customApp:investigations',
+      'observability-overview',
+    ]);
+  });
 });
