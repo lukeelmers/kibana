@@ -1,0 +1,42 @@
+version: "1"
+# What the app's Save and Add buttons run, as the person who pressed them. The service name is the
+# id of the document, so saving a service that is there replaces its owner, and one that is not
+# adds it.
+name: Service owners save
+description: Write the owner of a service to the service_owners lookup index
+tags:
+  - service-owners-app
+enabled: true
+inputs:
+  - name: service_name
+    type: string
+    required: true
+  - name: team
+    type: string
+    required: true
+  - name: slack_channel
+    type: string
+    required: false
+  - name: tier
+    type: string
+    required: false
+  - name: runbook_url
+    type: string
+    required: false
+triggers:
+  - type: manual
+steps:
+  - name: save_owner
+    type: elasticsearch.index
+    with:
+      index: service_owners
+      id: "{{ inputs.service_name }}"
+      # The app reads the index again when the run ends, so the write is visible by then.
+      refresh: wait_for
+      document:
+        service.name: "{{ inputs.service_name }}"
+        team: "{{ inputs.team }}"
+        slack_channel: "{{ inputs.slack_channel | default: '' }}"
+        tier: "{{ inputs.tier | default: 'standard' }}"
+        runbook_url: "{{ inputs.runbook_url | default: '' }}"
+        updated_at: "${{ now }}"

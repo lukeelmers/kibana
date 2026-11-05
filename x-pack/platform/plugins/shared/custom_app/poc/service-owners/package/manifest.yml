@@ -1,0 +1,13 @@
+format_version: 3.0.0
+name: service_owners_app
+title: Service owners
+description: Who owns each service, kept in an ES|QL lookup index and edited from a custom app through a workflow.
+version: 0.1.0
+type: integration
+categories: []
+conditions:
+  kibana:
+    version: '^9.7.0'
+owner:
+  github: elastic/kibana-dashboards
+  type: elastic
