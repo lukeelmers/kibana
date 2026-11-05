@@ -7,5 +7,5 @@
  * License v3.0 only", or the "Server Side Public License, v 1".
  */
 
-export { HOME_APP_ID } from './deep_links';
-export type { AppId, DeepLinkId } from './deep_links';
+export { HOME_APP_ID, CUSTOM_APP_ID } from './deep_links';
+export type { AppId, DeepLinkId, CustomAppDeepLinkId } from './deep_links';

@@ -42,7 +42,9 @@
     "@kbn/data-views-plugin",
     "@kbn/visualization-utils",
     "@kbn/field-types",
-    "@kbn/expressions-plugin"
+    "@kbn/expressions-plugin",
+    "@kbn/core-chrome-browser",
+    "@kbn/deeplinks-shared"
   ],
   "exclude": ["target/**/*"]
 }

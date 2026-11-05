@@ -5,8 +5,11 @@
  * 2.0.
  */
 
+import { BehaviorSubject, map } from 'rxjs';
+import type { Observable } from 'rxjs';
 import { DEFAULT_APP_CATEGORIES } from '@kbn/core/public';
-import type { CoreSetup, CoreStart, Plugin } from '@kbn/core/public';
+import type { AppUpdater, CoreSetup, CoreStart, Plugin } from '@kbn/core/public';
+import type { NodeDefinition } from '@kbn/core-chrome-browser';
 import type { AgentBuilderPluginStart } from '@kbn/agent-builder-browser';
 import type { DataPublicPluginStart } from '@kbn/data-plugin/public';
 import type { DataViewsPublicPluginStart } from '@kbn/data-views-plugin/public';
@@ -30,6 +33,8 @@ import {
 } from '../common/constants';
 import { customAppContextAttachmentUiDefinition } from './attachment_types/custom_app_context';
 import { setServices } from './services';
+import { createSavedAppsClient } from './application/saved_apps_client';
+import { createNavApps, toDeepLinks, toNavItems } from './nav_apps';
 
 interface SetupDeps {
   embeddable: EmbeddableSetup;
@@ -45,7 +50,19 @@ interface StartDeps {
   share?: SharePluginStart;
 }
 
-export class CustomAppPlugin implements Plugin<void, void, SetupDeps, StartDeps> {
+export interface CustomAppPublicStart {
+  /** The installed apps that asked to be in the side navigation, as nodes of a solution's tree. */
+  navItems$: Observable<NodeDefinition[]>;
+  /** Reads the list of apps again, after one is installed, saved or deleted. */
+  refresh: () => void;
+}
+
+export class CustomAppPlugin implements Plugin<void, CustomAppPublicStart, SetupDeps, StartDeps> {
+  /** Publishes one deep link per app in the side navigation, once start has read the list. */
+  private readonly appUpdater$ = new BehaviorSubject<AppUpdater>(() => undefined);
+  private stopNavApps?: () => void;
+  private refreshNavApps: () => void = () => {};
+
   setup(core: CoreSetup<StartDeps>, { embeddable }: SetupDeps) {
     core.application.register({
       id: CUSTOM_APP_APPLICATION_ID,
@@ -55,10 +72,12 @@ export class CustomAppPlugin implements Plugin<void, void, SetupDeps, StartDeps>
       order: 9050,
       // In the side navigation, which takes people to the list of apps, and in search.
       visibleIn: ['classicSideNav', 'projectSideNav', 'globalSearch'],
-      async mount(params) {
+      updater$: this.appUpdater$,
+      mount: async (params) => {
         const [coreStart] = await core.getStartServices();
         const { renderApp } = await import('./application/mount');
-        return renderApp(coreStart, params);
+        // Saving or deleting an app changes what the side navigation lists.
+        return renderApp(coreStart, params, () => this.refreshNavApps());
       },
     });
 
@@ -89,7 +108,7 @@ export class CustomAppPlugin implements Plugin<void, void, SetupDeps, StartDeps>
   start(
     core: CoreStart,
     { data, dataViews, embeddable, lens, uiActions, agentBuilder, share }: StartDeps
-  ) {
+  ): CustomAppPublicStart {
     setServices(core, data.search.search, embeddable, dataViews, lens, agentBuilder, share);
 
     uiActions.registerActionAsync<EmbeddableApiContext>(ADD_CUSTOM_APP_ACTION_ID, async () => {
@@ -125,5 +144,35 @@ export class CustomAppPlugin implements Plugin<void, void, SetupDeps, StartDeps>
         customAppContextAttachmentUiDefinition
       );
     }
+
+    return this.startNavApps(core);
+  }
+
+  stop() {
+    this.stopNavApps?.();
+  }
+
+  private startNavApps(core: CoreStart): CustomAppPublicStart {
+    // Someone who cannot read apps gets no list, and no request that would fail.
+    if (core.application.capabilities.customApp?.show !== true) {
+      return { navItems$: new BehaviorSubject<NodeDefinition[]>([]), refresh: () => {} };
+    }
+
+    const navApps = createNavApps({
+      application: core.application,
+      client: createSavedAppsClient(core.http),
+    });
+    this.stopNavApps = navApps.stop;
+    this.refreshNavApps = navApps.refresh;
+
+    navApps.apps$.subscribe((apps) => {
+      const deepLinks = toDeepLinks(apps);
+      this.appUpdater$.next(() => ({ deepLinks }));
+    });
+
+    return {
+      navItems$: navApps.apps$.pipe(map(toNavItems)),
+      refresh: navApps.refresh,
+    };
   }
 }

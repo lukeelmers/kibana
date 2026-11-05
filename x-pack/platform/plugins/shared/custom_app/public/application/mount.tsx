@@ -14,15 +14,30 @@ import { createSavedAppsClient } from './saved_apps_client';
 
 export const renderApp = (
   core: CoreStart,
-  { element, history, onAppLeave }: AppMountParameters
+  { element, history, onAppLeave }: AppMountParameters,
+  onAppsChanged: () => void = () => {}
 ) => {
   const { agentBuilder, embeddable } = getServices();
+  const client = createSavedAppsClient(core.http);
+  // The side navigation lists some apps, so it is told when one is created, changed or deleted.
+  const notifying =
+    <Args extends unknown[], Result>(call: (...args: Args) => Promise<Result>) =>
+    async (...args: Args) => {
+      const result = await call(...args);
+      onAppsChanged();
+      return result;
+    };
   const root = createRoot(element);
   root.render(
     core.rendering.addContext(
       <App
         history={history}
-        client={createSavedAppsClient(core.http)}
+        client={{
+          ...client,
+          create: notifying(client.create),
+          update: notifying(client.update),
+          remove: notifying(client.remove),
+        }}
         chrome={core.chrome}
         notifications={core.notifications}
         onAppLeave={onAppLeave}
