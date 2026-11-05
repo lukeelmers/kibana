@@ -27,7 +27,12 @@ import { useStateValues } from '../runtime/app_runtime_context';
 import { useActionRunner } from '../workflows/use_action_runner';
 import { useWorkflowsGate } from '../workflows/use_workflows_gate';
 import { DroppedActions } from './dropped_actions';
-import { getFormAnswersKey, readFormAnswers, writeFormAnswers } from './form_answers_storage';
+import {
+  getFormAnswersKey,
+  readFormAnswers,
+  writeFormAnswers,
+  type FormAnswers,
+} from './form_answers_storage';
 
 const requiredLabel = i18n.translate('xpack.customApp.formNode.required', {
   defaultMessage: 'Required',
@@ -108,11 +113,12 @@ export const FormNode = ({ node }: { node: AppNodeOfType<'form'> }) => {
   const appId = useAppId();
   const storageKey = appId === undefined ? undefined : getFormAnswersKey(appId, node.id);
   /**
-   * What was typed, by value. A field that was not typed in shows the value as the app has it. For a
-   * saved app it is kept in this tab's session, so that a refresh does not lose it: it stays out of
-   * the URL, which is shared.
+   * What was typed, by value. A field that was not typed in shows the value as the app has it, and
+   * so does one whose value something else has changed since: a form that a row click fills shows
+   * the row that was clicked last. For a saved app it is kept in this tab's session, so that a
+   * refresh does not lose it: it stays out of the URL, which is shared.
    */
-  const [typed, setTyped] = useState<Readonly<Record<string, string>>>(() =>
+  const [typed, setTyped] = useState<FormAnswers>(() =>
     storageKey === undefined ? {} : readFormAnswers(storageKey, node.fields)
   );
   useEffect(() => {
@@ -121,7 +127,12 @@ export const FormNode = ({ node }: { node: AppNodeOfType<'form'> }) => {
   const [missing, setMissing] = useState<ReadonlySet<string>>(new Set());
   const [dropped, setDropped] = useState<string[]>([]);
 
-  const answerTo = ({ bind }: FormField): string => typed[bind] ?? String(state[bind] ?? '');
+  const valueOf = ({ bind }: FormField): string => String(state[bind] ?? '');
+  const answerTo = (field: FormField): string => {
+    const entry = typed[field.bind];
+    const value = valueOf(field);
+    return entry !== undefined && entry.over === value ? entry.answer : value;
+  };
 
   const unavailableReason = useWorkflowsGate(node.onSubmit);
 
@@ -134,6 +145,8 @@ export const FormNode = ({ node }: { node: AppNodeOfType<'form'> }) => {
     setMissing(new Set(empty.map(({ field }) => field.bind)));
     if (empty.length > 0) return;
 
+    // The answers are about to be the values of the app, which the fields show from now on.
+    setTyped({});
     setDropped(
       run([
         ...answers.map(({ field, answer }) => ({
@@ -180,7 +193,10 @@ export const FormNode = ({ node }: { node: AppNodeOfType<'form'> }) => {
                 value={answerTo(field)}
                 isInvalid={isInvalid}
                 onChange={(next) => {
-                  setTyped((current) => ({ ...current, [field.bind]: next }));
+                  setTyped((current) => ({
+                    ...current,
+                    [field.bind]: { answer: next, over: valueOf(field) },
+                  }));
                 }}
               />
             </EuiFormRow>

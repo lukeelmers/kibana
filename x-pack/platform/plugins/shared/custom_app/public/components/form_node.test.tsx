@@ -6,10 +6,13 @@
  */
 
 import React from 'react';
-import { act, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { appDocumentSchema, type AppDocument } from '@kbn/custom-app-common';
 import type { WorkflowRunner } from '../workflows/workflow_runner';
+import { createAppRuntime } from '../runtime/app_runtime';
+import { AppIdContext } from '../runtime/app_id_context';
+import { AppRuntimeContext } from '../runtime/app_runtime_context';
 import { NodeRenderer } from './node_renderer';
 import { renderWithRuntime } from './test_utils';
 
@@ -72,6 +75,7 @@ const submit = () => userEvent.click(screen.getByRole('button', { name: 'Escalat
 
 describe('the form', () => {
   beforeEach(() => {
+    window.sessionStorage.clear();
     (mockRunner.request as jest.Mock).mockReset();
     mockRunner.availability = { canRun: true };
     mockRunner.statuses = {};
@@ -207,6 +211,60 @@ describe('the form', () => {
     });
 
     expect(screen.getByLabelText('Reason')).toHaveValue('From elsewhere');
+  });
+
+  it('shows a value that another part of the app changes after it was typed in', async () => {
+    const { runtime } = show(documentWith());
+
+    await userEvent.type(screen.getByLabelText('Reason'), 'Typed for the first row');
+    act(() => {
+      runtime.run([{ type: 'setState', key: 'reason', value: 'The second row' }]);
+    });
+
+    expect(screen.getByLabelText('Reason')).toHaveValue('The second row');
+  });
+
+  it('shows the values of the app once it is submitted, as an action after it sets them', async () => {
+    show(
+      documentWith({
+        onSubmit: [run, { type: 'setState', key: 'reason', value: '' }],
+      })
+    );
+
+    await userEvent.type(screen.getByLabelText('Reason'), 'Sent');
+    await submit();
+
+    expect(mockRunner.request).toHaveBeenCalledWith(
+      [{ workflow: 'escalate', inputs: { reason: 'Sent', urgency: 'low' } }],
+      'ask'
+    );
+    expect(screen.getByLabelText('Reason')).toHaveValue('');
+  });
+
+  it('keeps what was typed in a saved app when it is shown again, unless the value has changed', async () => {
+    const document = documentWith();
+    const runtime = createAppRuntime(document);
+    const showSaved = () =>
+      render(
+        <AppIdContext.Provider value="saved-app">
+          <AppRuntimeContext.Provider value={runtime}>
+            <NodeRenderer node={document.root} />
+          </AppRuntimeContext.Provider>
+        </AppIdContext.Provider>
+      );
+
+    const first = showSaved();
+    await userEvent.type(screen.getByLabelText('Reason'), 'Not sent yet');
+    first.unmount();
+    const second = showSaved();
+    expect(screen.getByLabelText('Reason')).toHaveValue('Not sent yet');
+    second.unmount();
+
+    act(() => {
+      runtime.run([{ type: 'setState', key: 'reason', value: 'Another row' }]);
+    });
+    showSaved();
+    expect(screen.getByLabelText('Reason')).toHaveValue('Another row');
   });
 
   it('does the other things it was asked to as well, in order, after the answers are in', async () => {

@@ -7,8 +7,18 @@
 
 import { MAX_STATE_STRING_LENGTH, type FormField } from '@kbn/custom-app-common';
 
+/**
+ * What was typed into a field, and what the value it sets was when it was: an answer holds only
+ * over that value, so that one changed by something else, such as a click on another row, is shown
+ * instead of what was typed over the one before.
+ */
+export interface TypedAnswer {
+  answer: string;
+  over: string;
+}
+
 /** What a form has been typed into, by the value each field sets. */
-export type FormAnswers = Readonly<Record<string, string>>;
+export type FormAnswers = Readonly<Record<string, TypedAnswer>>;
 
 export const getFormAnswersKey = (appId: string, nodeId: string): string =>
   `customApp:formAnswers:${appId}:${nodeId}`;
@@ -22,9 +32,18 @@ const getStorage = (): Storage | undefined => {
   }
 };
 
+const isText = (value: unknown): value is string =>
+  typeof value === 'string' && value.length <= MAX_STATE_STRING_LENGTH;
+
+const isTypedAnswer = (value: unknown): value is TypedAnswer =>
+  typeof value === 'object' &&
+  value !== null &&
+  isText((value as Record<string, unknown>).answer) &&
+  isText((value as Record<string, unknown>).over);
+
 /**
  * What was typed and not sent, from this tab's session. It is read as untrusted, since the storage
- * can hold anything: only text for a field the form has, and no longer than a value can be.
+ * can hold anything: only an answer for a field the form has, with texts no longer than a value can be.
  */
 export const readFormAnswers = (key: string, fields: readonly FormField[]): FormAnswers => {
   try {
@@ -36,9 +55,7 @@ export const readFormAnswers = (key: string, fields: readonly FormField[]): Form
         const answer = Object.prototype.hasOwnProperty.call(answers, bind)
           ? answers[bind]
           : undefined;
-        return typeof answer === 'string' && answer.length <= MAX_STATE_STRING_LENGTH
-          ? [[bind, answer]]
-          : [];
+        return isTypedAnswer(answer) ? [[bind, { answer: answer.answer, over: answer.over }]] : [];
       })
     );
   } catch {
