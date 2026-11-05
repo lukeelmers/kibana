@@ -8,6 +8,7 @@
 import type {
   AppDeepLinkId,
   NavigationTreeDefinition,
+  NodeDefinition,
   PanelOpenerChildDefinition,
   RootNodeDefinition,
 } from '@kbn/core-chrome-browser';
@@ -40,6 +41,7 @@ export const createNavigationTree = ({
   isCasesAvailable = true,
   showAiAssistant = true,
   entityInventoryNavGroup,
+  customAppNavItems = [],
 }: {
   core: CoreStart;
   significantEventsAvailable?: boolean;
@@ -49,6 +51,7 @@ export const createNavigationTree = ({
   isCasesAvailable?: boolean;
   showAiAssistant?: boolean;
   entityInventoryNavGroup?: PanelOpenerChildDefinition;
+  customAppNavItems?: NodeDefinition[];
 }): NavigationTreeDefinition => {
   return {
     body: [
@@ -59,6 +62,8 @@ export const createNavigationTree = ({
         },
         significantEventsAvailable
       ),
+      // Installed custom apps that asked to be listed, such as the one a Fleet package adds.
+      ...customAppNavItems,
       {
         id: 'observability_project_nav',
         ...(overviewAvailable
