@@ -1,0 +1,71 @@
+version: "1"
+# Puts the service_owners lookup index in place and fills it with the owners of the services the
+# Nightshift demo data talks about. It only does something when the index is missing, so it never
+# overwrites an owner someone edited. The schedule means a fresh install needs no click.
+name: Service owners setup
+description: Create the service_owners lookup index and seed it, if it does not exist yet
+tags:
+  - service-owners-app
+enabled: true
+settings:
+  concurrency:
+    key: "service-owners-app-setup"
+    strategy: drop
+    max: 1
+triggers:
+  - type: manual
+  - type: scheduled
+    with:
+      every: "1m"
+steps:
+  - name: check_index
+    type: elasticsearch.indices.exists
+    with:
+      index: service_owners
+
+  - name: create_if_missing
+    type: if
+    condition: "steps.check_index.output : true"
+    steps:
+      - name: already_there
+        type: console
+        with:
+          message: "service_owners exists, nothing to do"
+    else:
+      # LOOKUP JOIN only reads indices in lookup mode, which is set when the index is created.
+      - name: create_index
+        type: elasticsearch.indices.create
+        with:
+          index: service_owners
+          settings:
+            index:
+              mode: lookup
+          mappings:
+            properties:
+              service.name: { type: keyword }
+              team: { type: keyword }
+              slack_channel: { type: keyword }
+              tier: { type: keyword }
+              runbook_url: { type: keyword }
+              updated_at: { type: date }
+
+      - name: seed_owners
+        type: elasticsearch.bulk
+        with:
+          index: service_owners
+          refresh: wait_for
+          operations:
+            - index: { _id: api-gateway }
+            - { service.name: api-gateway, team: Platform Edge, slack_channel: "#edge-oncall", tier: critical, runbook_url: "https://runbooks.example.com/api-gateway", updated_at: "2026-11-01T09:00:00Z" }
+            - index: { _id: payment-service }
+            - { service.name: payment-service, team: Payments, slack_channel: "#payments-oncall", tier: critical, runbook_url: "https://runbooks.example.com/payment-service", updated_at: "2026-11-01T09:00:00Z" }
+            - index: { _id: web-frontend }
+            - { service.name: web-frontend, team: Storefront, slack_channel: "#storefront", tier: critical, runbook_url: "https://runbooks.example.com/web-frontend", updated_at: "2026-11-01T09:00:00Z" }
+            - index: { _id: order-processors }
+            - { service.name: order-processors, team: Fulfilment, slack_channel: "#fulfilment-oncall", tier: standard, runbook_url: "https://runbooks.example.com/order-processors", updated_at: "2026-11-01T09:00:00Z" }
+            - index: { _id: cache-service }
+            - { service.name: cache-service, team: Platform Data, slack_channel: "#platform-data", tier: standard, runbook_url: "https://runbooks.example.com/cache-service", updated_at: "2026-11-01T09:00:00Z" }
+            - index: { _id: catalog-service }
+            - { service.name: catalog-service, team: Storefront, slack_channel: "#storefront", tier: standard, runbook_url: "https://runbooks.example.com/catalog-service", updated_at: "2026-11-01T09:00:00Z" }
+            - index: { _id: cert-manager }
+            - { service.name: cert-manager, team: Platform Security, slack_channel: "#platform-security", tier: internal, runbook_url: "https://runbooks.example.com/cert-manager", updated_at: "2026-11-01T09:00:00Z" }
