@@ -17,6 +17,7 @@ import {
   getSourceStateKeys,
 } from './node_tree';
 import {
+  MAX_ACTIONS_PER_EVENT,
   MAX_FORM_FIELDS,
   MAX_LIST_ITEMS,
   MAX_NODE_COUNT,
@@ -1077,7 +1078,7 @@ describe('what happens when a chart is clicked', () => {
     expect(
       appDocumentSchema.safeParse(
         chartDoc(
-          Array.from({ length: 6 }, () => remember),
+          Array.from({ length: MAX_ACTIONS_PER_EVENT + 1 }, () => remember),
           state
         )
       ).success
@@ -1392,9 +1393,15 @@ describe('table, flyout and key_value nodes', () => {
     ).toEqual(['Node "orders-table": fromInput is only valid on input nodes']);
   });
 
-  it('rejects more than five actions on one event, and unknown action types', () => {
+  it('takes enough actions on one event to fill every field of a form and open it, and no more', () => {
     const close = { type: 'closeFlyout' };
-    expect(issuesOf(tableDoc(Array.from({ length: 6 }, () => close)))).not.toEqual([]);
+    const closes = (length: number) => Array.from({ length }, () => close);
+    expect(MAX_ACTIONS_PER_EVENT).toBeGreaterThan(MAX_FORM_FIELDS);
+    expect(issuesOf(tableDoc(closes(MAX_ACTIONS_PER_EVENT)))).toEqual([]);
+    expect(issuesOf(tableDoc(closes(MAX_ACTIONS_PER_EVENT + 1)))).not.toEqual([]);
+  });
+
+  it('rejects unknown action types', () => {
     expect(issuesOf(tableDoc([{ type: 'runScript', code: 'alert(1)' }]))).not.toEqual([]);
   });
 

@@ -5,7 +5,7 @@
  * 2.0.
  */
 
-import { BehaviorSubject } from 'rxjs';
+import { BehaviorSubject, Subject } from 'rxjs';
 import isEqual from 'lodash/isEqual';
 import {
   MAX_LIST_ITEMS,
@@ -52,6 +52,8 @@ export interface RunActionsResult {
 
 export interface AppRuntime {
   state$: BehaviorSubject<StateValues>;
+  /** The key of each value an action sets, also when it sets the value it already has. */
+  stateWrites$: Subject<string>;
   /** The id of the flyout that is open, if any. */
   openFlyoutId$: BehaviorSubject<string | undefined>;
   /** Runs actions in order, each seeing the effect of the ones before it. */
@@ -131,6 +133,7 @@ export const createAppRuntime = (document: Pick<AppDocument, 'state' | 'root'>):
   let flyoutIds = collectFlyoutIds(document.root);
   const state$ = new BehaviorSubject<StateValues>(getStateDefaults(declarations));
   const openFlyoutId$ = new BehaviorSubject<string | undefined>(undefined);
+  const stateWrites$ = new Subject<string>();
 
   const setState = (
     key: string,
@@ -183,12 +186,15 @@ export const createAppRuntime = (document: Pick<AppDocument, 'state' | 'root'>):
       dropped.push(rejection);
       return;
     }
-    if (isEqual(state$.getValue()[key], resolved)) return;
-    state$.next({ ...state$.getValue(), [key]: resolved as StateValue });
+    if (!isEqual(state$.getValue()[key], resolved)) {
+      state$.next({ ...state$.getValue(), [key]: resolved as StateValue });
+    }
+    stateWrites$.next(key);
   };
 
   return {
     state$,
+    stateWrites$,
     openFlyoutId$,
     run: (actions, input = {}) => {
       const dropped: string[] = [];

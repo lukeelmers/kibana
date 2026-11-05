@@ -123,6 +123,7 @@ describe('the authoring guide', () => {
     expect(CUSTOM_APP_AUTHORING_GUIDE).toContain('only when it is submitted');
     expect(CUSTOM_APP_AUTHORING_GUIDE).toContain('hands them over with { "fromState": "<bind>" }');
     expect(CUSTOM_APP_AUTHORING_GUIDE).toContain('a form\'s "onSubmit"');
+    expect(CUSTOM_APP_AUTHORING_GUIDE).toContain('the form opens filled with that row');
   });
 
   it('says a text is Markdown, and that a heading and a callout are not', () => {

@@ -6,6 +6,7 @@
  */
 
 import React, { useEffect, useId, useState, type FormEvent } from 'react';
+import { omit } from 'lodash';
 import {
   EuiButton,
   EuiFieldText,
@@ -23,11 +24,16 @@ import {
   type FormField,
 } from '@kbn/custom-app-common';
 import { useAppId } from '../runtime/app_id_context';
-import { useStateValues } from '../runtime/app_runtime_context';
+import { useAppRuntime, useStateValues } from '../runtime/app_runtime_context';
 import { useActionRunner } from '../workflows/use_action_runner';
 import { useWorkflowsGate } from '../workflows/use_workflows_gate';
 import { DroppedActions } from './dropped_actions';
-import { getFormAnswersKey, readFormAnswers, writeFormAnswers } from './form_answers_storage';
+import {
+  getFormAnswersKey,
+  readFormAnswers,
+  writeFormAnswers,
+  type FormAnswers,
+} from './form_answers_storage';
 
 const requiredLabel = i18n.translate('xpack.customApp.formNode.required', {
   defaultMessage: 'Required',
@@ -102,26 +108,35 @@ const FieldInput = ({
  * answer says which, and does nothing.
  */
 export const FormNode = ({ node }: { node: AppNodeOfType<'form'> }) => {
+  const runtime = useAppRuntime();
   const state = useStateValues();
   const run = useActionRunner(node.id);
   const baseId = useId();
   const appId = useAppId();
   const storageKey = appId === undefined ? undefined : getFormAnswersKey(appId, node.id);
-  /**
-   * What was typed, by value. A field that was not typed in shows the value as the app has it. For a
-   * saved app it is kept in this tab's session, so that a refresh does not lose it: it stays out of
-   * the URL, which is shared.
-   */
-  const [typed, setTyped] = useState<Readonly<Record<string, string>>>(() =>
+  /** What was typed and not submitted, kept in this tab's session for a saved app. */
+  const [typed, setTyped] = useState<FormAnswers>(() =>
     storageKey === undefined ? {} : readFormAnswers(storageKey, node.fields)
   );
   useEffect(() => {
     if (storageKey !== undefined) writeFormAnswers(storageKey, typed);
   }, [storageKey, typed]);
+  // A value an action sets replaces what was typed over it, even when it is the same value.
+  useEffect(() => {
+    const subscription = runtime.stateWrites$.subscribe((key) =>
+      setTyped((current) => (key in current ? omit(current, key) : current))
+    );
+    return () => subscription.unsubscribe();
+  }, [runtime]);
   const [missing, setMissing] = useState<ReadonlySet<string>>(new Set());
   const [dropped, setDropped] = useState<string[]>([]);
 
-  const answerTo = ({ bind }: FormField): string => typed[bind] ?? String(state[bind] ?? '');
+  const valueOf = ({ bind }: FormField): string => String(state[bind] ?? '');
+  const answerTo = (field: FormField): string => {
+    const entry = typed[field.bind];
+    const value = valueOf(field);
+    return entry !== undefined && entry.over === value ? entry.answer : value;
+  };
 
   const unavailableReason = useWorkflowsGate(node.onSubmit);
 
@@ -134,6 +149,8 @@ export const FormNode = ({ node }: { node: AppNodeOfType<'form'> }) => {
     setMissing(new Set(empty.map(({ field }) => field.bind)));
     if (empty.length > 0) return;
 
+    // The answers are about to be the values of the app, which the fields show from now on.
+    setTyped({});
     setDropped(
       run([
         ...answers.map(({ field, answer }) => ({
@@ -180,7 +197,10 @@ export const FormNode = ({ node }: { node: AppNodeOfType<'form'> }) => {
                 value={answerTo(field)}
                 isInvalid={isInvalid}
                 onChange={(next) => {
-                  setTyped((current) => ({ ...current, [field.bind]: next }));
+                  setTyped((current) => ({
+                    ...current,
+                    [field.bind]: { answer: next, over: valueOf(field) },
+                  }));
                 }}
               />
             </EuiFormRow>

@@ -23,6 +23,7 @@ import { createView, getViewKeys, isSameView, type ViewState } from '../runtime/
 import { TimeRangeControlContext } from '../runtime/time_range_context';
 import { getServices } from '../services';
 import { WorkflowRunnerProvider } from '../workflows/workflow_runner';
+import { forgetFormAnswers } from './form_answers_storage';
 
 const DEFAULT_TIME_RANGE = { from: 'now-24h', to: 'now' };
 
@@ -82,6 +83,13 @@ export const LiveApp = ({ document, appId, view, onViewChange }: LiveAppProps) =
   }, [dataLayer, timeRange]);
 
   useEffect(() => () => dataLayer.destroy(), [dataLayer]);
+
+  // A form that is not shown, such as one in a closed flyout, cannot forget what was typed itself.
+  useEffect(() => {
+    if (appId === undefined) return;
+    const subscription = runtime.stateWrites$.subscribe((key) => forgetFormAnswers(appId, key));
+    return () => subscription.unsubscribe();
+  }, [appId, runtime]);
 
   // What is seen changed from outside, such as a link that was followed: the app follows it. What
   // it is compared with is read as it is now, and only a change of the view is acted on.
