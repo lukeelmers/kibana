@@ -23,6 +23,8 @@ export interface SavedAppListItem {
   id: string;
   title: string;
   description?: string;
+  /** Whether the app asks to be listed in the side navigation. */
+  showInNav?: boolean;
   updatedAt?: string;
 }
 
@@ -37,6 +39,7 @@ export interface SavedAppInput {
   title: string;
   description?: string;
   document: AppDocument;
+  showInNav?: boolean;
 }
 
 const options = { version: SAVED_APPS_API_VERSION } as const;

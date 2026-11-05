@@ -16,6 +16,7 @@ interface StoredApp {
   description?: string;
   version: number;
   document: SavedAppInput['document'];
+  showInNav?: boolean;
 }
 
 export interface SavedApp extends StoredApp {
@@ -27,6 +28,7 @@ export interface SavedAppListItem {
   id: string;
   title: string;
   description?: string;
+  showInNav?: boolean;
   updatedAt?: string;
 }
 
@@ -35,11 +37,14 @@ const toStored = ({
   title,
   description,
   document,
+  showInNav,
 }: SavedAppInput): { attributes: StoredApp; references: SavedObjectReference[] } =>
   extractReferences({
     attributes: {
       title,
       ...(description === undefined ? {} : { description }),
+      // Left out when not sent, so that an update keeps what is stored.
+      ...(showInNav === undefined ? {} : { showInNav }),
       version: CUSTOM_APP_STATE_VERSION,
       document,
     },
@@ -95,7 +100,7 @@ export const createSavedAppsService = (client: SavedObjectsClientContract) => ({
       sortField: 'updated_at',
       sortOrder: 'desc',
       // Only what a list shows: the documents can be large.
-      fields: ['title', 'description'],
+      fields: ['title', 'description', 'showInNav'],
       ...(search ? { search: `${search}*`, searchFields: ['title'] } : {}),
     });
 
@@ -104,6 +109,7 @@ export const createSavedAppsService = (client: SavedObjectsClientContract) => ({
         id,
         title: attributes.title,
         ...(attributes.description === undefined ? {} : { description: attributes.description }),
+        ...(attributes.showInNav === undefined ? {} : { showInNav: attributes.showInNav }),
         ...(updatedAt ? { updatedAt } : {}),
       })),
       total: result.total,

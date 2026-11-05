@@ -62,9 +62,17 @@ describe('the custom app saved object type', () => {
     >;
 
     it('needs no change to the index mappings in any version', () => {
-      expect(Object.keys(version)).toEqual(['1', '2']);
+      expect(Object.keys(version)).toEqual(['1', '2', '3']);
       expect(version['1'].changes).toEqual([]);
       expect(version['2'].changes).toEqual([]);
+      expect(version['3'].changes).toEqual([]);
+    });
+
+    it('accepts, from version 3, an app that asks to be listed in the side navigation', () => {
+      const listed = { ...attributes, showInNav: true };
+
+      expect(() => version['2'].schemas.create.validate(listed)).toThrow();
+      expect(version['3'].schemas.create.validate(listed)).toEqual(listed);
     });
 
     it('accepts, from version 2, a document that declares queries', () => {
