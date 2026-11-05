@@ -26,7 +26,6 @@ export const MAX_STATE_KEY_LENGTH = 64;
 export const MAX_STATE_STRING_LENGTH = 1_000;
 /** A list holds a few values to look for, as many as a person can paste into a box. */
 export const MAX_LIST_ITEMS = 1_000;
-export const MAX_ACTIONS_PER_EVENT = 5;
 /** A workflow is named by its id, which is a text of this length at most. */
 export const MAX_WORKFLOW_ID_LENGTH = 256;
 /** What an action can hand to a workflow: a few named inputs, as a workflow declares few. */
@@ -148,3 +147,8 @@ export const MAX_LINK_PATH_LENGTH = 500;
 export const MAX_LINK_APP_ID_LENGTH = 100;
 /** A form asks a few things; more than this is a page, not a form. */
 export const MAX_FORM_FIELDS = 10;
+/**
+ * The most actions one event runs: enough for a row click to set every field of a form and open
+ * the flyout it is in, so that a row opens in a form to be edited, with one to spare.
+ */
+export const MAX_ACTIONS_PER_EVENT = MAX_FORM_FIELDS + 2;
