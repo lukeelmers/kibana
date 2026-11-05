@@ -15,6 +15,8 @@ export const savedAppInputSchema = lazySchema(() =>
     title: z.string().min(1).max(MAX_APP_TITLE_LENGTH),
     description: z.string().max(MAX_APP_DESCRIPTION_LENGTH).optional(),
     document: appDocumentSchema,
+    /** Whether the app is listed in the side navigation. Left as it is when not sent. */
+    showInNav: z.boolean().optional(),
   })
 );
 

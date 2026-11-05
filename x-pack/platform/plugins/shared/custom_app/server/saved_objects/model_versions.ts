@@ -6,7 +6,11 @@
  */
 
 import type { SavedObjectsModelVersionMap } from '@kbn/core-saved-objects-server';
-import { customAppAttributesSchemaV1, customAppAttributesSchemaV2 } from './schemas';
+import {
+  customAppAttributesSchemaV1,
+  customAppAttributesSchemaV2,
+  customAppAttributesSchemaV3,
+} from './schemas';
 
 export const customAppModelVersions: SavedObjectsModelVersionMap = {
   '1': {
@@ -22,6 +26,14 @@ export const customAppModelVersions: SavedObjectsModelVersionMap = {
     schemas: {
       forwardCompatibility: customAppAttributesSchemaV2.extendsDeep({ unknowns: 'ignore' }),
       create: customAppAttributesSchemaV2,
+    },
+  },
+  // An app can ask to be listed in the side navigation. It is not mapped: the browser filters.
+  '3': {
+    changes: [],
+    schemas: {
+      forwardCompatibility: customAppAttributesSchemaV3.extendsDeep({ unknowns: 'ignore' }),
+      create: customAppAttributesSchemaV3,
     },
   },
 };

@@ -14,15 +14,18 @@ import { createSavedAppsClient } from './saved_apps_client';
 
 export const renderApp = (
   core: CoreStart,
-  { element, history, onAppLeave }: AppMountParameters
+  { element, history, onAppLeave }: AppMountParameters,
+  onAppsChanged: () => void
 ) => {
   const { agentBuilder, embeddable } = getServices();
+  const client = createSavedAppsClient(core.http);
   const root = createRoot(element);
   root.render(
     core.rendering.addContext(
       <App
         history={history}
-        client={createSavedAppsClient(core.http)}
+        client={client}
+        onAppsChanged={onAppsChanged}
         chrome={core.chrome}
         notifications={core.notifications}
         onAppLeave={onAppLeave}

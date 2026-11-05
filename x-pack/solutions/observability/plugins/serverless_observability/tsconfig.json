@@ -12,9 +12,7 @@
     "test/scout/**/*",
     "../../../../../typings/**/*"
   ],
-  "exclude": [
-    "target/**/*"
-  ],
+  "exclude": ["target/**/*"],
   "kbn_references": [
     "@kbn/core",
     "@kbn/config-schema",
@@ -44,5 +42,6 @@
     "@kbn/navigation-plugin",
     "@kbn/profiling-plugin",
     "@kbn/entity-inventory-app-plugin",
+    "@kbn/custom-app-plugin"
   ]
 }

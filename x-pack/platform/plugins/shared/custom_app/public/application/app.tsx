@@ -20,6 +20,8 @@ import type { SavedAppsClient } from './saved_apps_client';
 
 export interface AppServices {
   client: SavedAppsClient;
+  /** Called once an app is created, changed or deleted, which the side navigation may list. */
+  onAppsChanged: () => void;
   chrome: ChromeStart;
   notifications: NotificationsStart;
   /** Whether the user may create, change and delete apps. */

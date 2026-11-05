@@ -33,6 +33,7 @@ const toMessage = (error: unknown): string =>
  */
 export const CreatePage = ({
   client,
+  onAppsChanged,
   chrome,
   notifications,
   featureFlags,
@@ -104,6 +105,7 @@ export const CreatePage = ({
       setIsSaving(true);
       try {
         const { id } = await client.create({ title, description, document: draft });
+        onAppsChanged();
         setSavedId(id);
       } catch (error) {
         notifications.toasts.addDanger({
@@ -115,7 +117,7 @@ export const CreatePage = ({
         setIsSaving(false);
       }
     },
-    [client, draft, notifications]
+    [client, draft, notifications, onAppsChanged]
   );
 
   const menu: AppHeaderMenu = {

@@ -65,6 +65,7 @@ const toViewState = (app: SavedApp): ViewState => {
 
 export const ViewPage = ({
   client,
+  onAppsChanged,
   chrome,
   notifications,
   canSave,
@@ -172,6 +173,7 @@ export const ViewPage = ({
       setIsSaving(true);
       try {
         const saved = await client.update(id, { ...details, document });
+        onAppsChanged();
         // Saving the document saves the draft; saving only the details leaves a draft as it is.
         setState({ status: 'ready', app: saved, document });
         return true;
@@ -187,7 +189,7 @@ export const ViewPage = ({
         setIsSaving(false);
       }
     },
-    [client, id, notifications]
+    [client, id, notifications, onAppsChanged]
   );
 
   if (state.status === 'loading') {

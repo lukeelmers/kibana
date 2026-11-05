@@ -28,7 +28,13 @@ const setup = () => {
   const core = coreMock.createSetup();
 
   plugin.setup(core as never, { embeddable } as never);
-  plugin.start({} as never, { data: { search: { search: jest.fn() } }, uiActions } as never);
+  plugin.start(
+    coreMock.createStart() as never,
+    {
+      data: { search: { search: jest.fn() } },
+      uiActions,
+    } as never
+  );
 
   return { core, embeddable, uiActions };
 };
@@ -63,6 +69,14 @@ describe('CustomAppPlugin', () => {
         title: 'Custom apps',
         visibleIn: expect.arrayContaining(['classicSideNav', 'projectSideNav', 'globalSearch']),
       })
+    );
+  });
+
+  it('can change its deep links, which list the apps in the side navigation', () => {
+    const { core } = setup();
+
+    expect(core.application.register).toHaveBeenCalledWith(
+      expect.objectContaining({ updater$: expect.anything() })
     );
   });
 

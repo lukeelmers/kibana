@@ -40,7 +40,14 @@ const toMessage = (error: unknown): string =>
   (error as { body?: { message?: string } })?.body?.message ??
   (error instanceof Error ? error.message : String(error));
 
-export const ListPage = ({ client, chrome, notifications, canSave, agentBuilder }: AppServices) => {
+export const ListPage = ({
+  client,
+  onAppsChanged,
+  chrome,
+  notifications,
+  canSave,
+  agentBuilder,
+}: AppServices) => {
   const history = useHistory();
   const deleteTitleId = useId();
   const [search, setSearch] = useState('');
@@ -80,6 +87,7 @@ export const ListPage = ({ client, chrome, notifications, canSave, agentBuilder 
     setToDelete(undefined);
     try {
       await client.remove(id);
+      onAppsChanged();
       setReloads((count) => count + 1);
     } catch (error) {
       notifications.toasts.addDanger({
@@ -89,7 +97,7 @@ export const ListPage = ({ client, chrome, notifications, canSave, agentBuilder 
         text: toMessage(error),
       });
     }
-  }, [client, notifications, toDelete]);
+  }, [client, notifications, onAppsChanged, toDelete]);
 
   // An app the agent makes while this page is open is kept, and opened: asking the agent for one
   // from the list is asking for it to be there, not for a card to save by hand.
@@ -103,6 +111,7 @@ export const ListPage = ({ client, chrome, notifications, canSave, agentBuilder 
       ).slice(0, MAX_APP_TITLE_LENGTH);
       try {
         const { id } = await client.create({ title: name, document });
+        onAppsChanged();
         notifications.toasts.addSuccess(
           i18n.translate('xpack.customApp.standalone.madeInChat', {
             defaultMessage: 'The app "{title}" was created',
@@ -122,7 +131,7 @@ export const ListPage = ({ client, chrome, notifications, canSave, agentBuilder 
         });
       }
     },
-    [client, history, notifications]
+    [client, history, notifications, onAppsChanged]
   );
   useAppsMadeInChat({ agentBuilder, isEnabled: canSave, onCreated: keepApp });
 

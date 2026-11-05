@@ -226,6 +226,7 @@ const setup = ({
       <App
         history={history as unknown as ScopedHistory}
         client={client}
+        onAppsChanged={jest.fn()}
         chrome={chrome as never}
         notifications={notifications as never}
         canSave={canSave}

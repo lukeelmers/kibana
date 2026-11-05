@@ -37,3 +37,8 @@ export const customAppAttributesSchemaV2 = customAppAttributesSchemaV1.extends({
     theme: schema.maybe(schema.recordOf(schema.string(), schema.any())),
   }),
 });
+
+/** The same, with whether the app is listed in the side navigation, which it is not by default. */
+export const customAppAttributesSchemaV3 = customAppAttributesSchemaV2.extends({
+  showInNav: schema.maybe(schema.boolean()),
+});

@@ -143,7 +143,7 @@ describe('the saved apps service', () => {
           type: CUSTOM_APP_SAVED_OBJECT_TYPE,
           sortField: 'updated_at',
           sortOrder: 'desc',
-          fields: ['title', 'description'],
+          fields: ['title', 'description', 'showInNav'],
         })
       );
       expect(result).toEqual({

@@ -5,6 +5,8 @@
  * 2.0.
  */
 
+import { CUSTOM_APP_ID } from '@kbn/deeplinks-shared';
+
 export const ADD_CUSTOM_APP_ACTION_ID = 'ADD_CUSTOM_APP_PANEL';
 export const VIEW_CUSTOM_APP_SOURCE_ACTION_ID = 'VIEW_CUSTOM_APP_SOURCE';
 export const OPEN_CUSTOM_APP_ACTION_ID = 'OPEN_CUSTOM_APP';
@@ -18,6 +20,6 @@ export const MAX_APP_TITLE_LENGTH = 256;
 export const MAX_APP_DESCRIPTION_LENGTH = 2_000;
 
 /** The id of the standalone application, which is also its route: `/app/customApp`. */
-export const CUSTOM_APP_APPLICATION_ID = 'customApp';
+export const CUSTOM_APP_APPLICATION_ID = CUSTOM_APP_ID;
 export const SAVED_APPS_API_PATH = '/internal/custom_app/apps';
 export const SAVED_APPS_API_VERSION = '1';
