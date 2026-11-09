@@ -348,6 +348,84 @@ describe('SkillClient', () => {
     });
   });
 
+  describe('managed skills', () => {
+    const request: PersistedSkillCreateRequest = {
+      id: 'my-skill',
+      name: 'My Skill',
+      description: 'Package description',
+      content: 'Package content',
+      tool_ids: [],
+    };
+    const managedDoc = () => {
+      const doc = createMockSkillDoc();
+      return { ...doc, _source: { ...doc._source, managed_by: 'fleet:pkg' } };
+    };
+
+    it('creates a new managed skill with a stable document id', async () => {
+      mockEsClient.search.mockResolvedValue({ hits: { hits: [] } });
+
+      await client.upsertManaged(request, 'fleet:pkg');
+
+      expect(mockEsClient.index).toHaveBeenCalledWith({
+        id: 'fleet:pkg:default:my-skill',
+        document: expect.objectContaining({
+          id: 'my-skill',
+          content: 'Package content',
+          managed_by: 'fleet:pkg',
+          space: testSpace,
+        }),
+      });
+    });
+
+    it('replaces a skill managed by the same owner in place', async () => {
+      mockEsClient.search.mockResolvedValue({ hits: { hits: [managedDoc()] } });
+
+      await client.upsertManaged(request, 'fleet:pkg');
+
+      expect(mockEsClient.index).toHaveBeenCalledWith({
+        id: 'doc-my-skill',
+        document: expect.objectContaining({
+          content: 'Package content',
+          created_at: creationDate,
+          managed_by: 'fleet:pkg',
+        }),
+      });
+    });
+
+    it('refuses to replace an unmanaged skill or one of another owner', async () => {
+      mockEsClient.search.mockResolvedValue({ hits: { hits: [createMockSkillDoc()] } });
+      await expect(client.upsertManaged(request, 'fleet:pkg')).rejects.toThrow(
+        /not managed by 'fleet:pkg'/
+      );
+
+      mockEsClient.search.mockResolvedValue({ hits: { hits: [managedDoc()] } });
+      await expect(client.upsertManaged(request, 'fleet:other')).rejects.toThrow(
+        /not managed by 'fleet:other'/
+      );
+      expect(mockEsClient.index).not.toHaveBeenCalled();
+    });
+
+    it('refuses direct updates and deletes of a managed skill', async () => {
+      mockEsClient.search.mockResolvedValue({ hits: { hits: [managedDoc()] } });
+
+      await expect(client.update('my-skill', { content: 'x' })).rejects.toThrow(
+        /managed by 'fleet:pkg'/
+      );
+      await expect(client.delete('my-skill')).rejects.toThrow(/managed by 'fleet:pkg'/);
+    });
+
+    it('deletes a managed skill of the same owner and ignores missing skills', async () => {
+      mockEsClient.search.mockResolvedValue({ hits: { hits: [managedDoc()] } });
+      await client.deleteManaged('my-skill', 'fleet:pkg');
+      expect(mockEsClient.delete).toHaveBeenCalledWith({ id: 'doc-my-skill' });
+
+      mockEsClient.delete.mockClear();
+      mockEsClient.search.mockResolvedValue({ hits: { hits: [] } });
+      await client.deleteManaged('my-skill', 'fleet:pkg');
+      expect(mockEsClient.delete).not.toHaveBeenCalled();
+    });
+  });
+
   describe('bulkCreate', () => {
     const createRequest = (id: string): PersistedSkillCreateRequest => ({
       id,

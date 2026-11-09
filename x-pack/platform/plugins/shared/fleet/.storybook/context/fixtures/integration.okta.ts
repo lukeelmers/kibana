@@ -110,6 +110,7 @@ export const item: GetInfoResponse['item'] = {
       osquery_saved_query: [],
       workflow: [],
       custom_app: [],
+      skill: [],
       security_ai_prompt: [],
       security_rule: [],
       csp_rule_template: [],

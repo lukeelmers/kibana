@@ -134,6 +134,8 @@
     "@kbn/workflows-management-plugin",
     "@kbn/human-readable-id",
     "@kbn/workflows",
+    "@kbn/agent-builder-server",
+    "@kbn/agent-builder-skill-loader",
     "@kbn/deeplinks-observability",
     "@kbn/core-spaces-common",
     "@kbn/setup-node-env",

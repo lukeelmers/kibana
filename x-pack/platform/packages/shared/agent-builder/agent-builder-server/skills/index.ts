@@ -20,3 +20,4 @@ export type {
   StaticEsqlSkillBoundedTool,
 } from './tools';
 export type { SkillRegistry } from './registry';
+export type { ManagedSkill, ManagedSkillsClient } from './managed';

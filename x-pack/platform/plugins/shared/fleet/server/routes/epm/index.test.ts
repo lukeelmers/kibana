@@ -208,6 +208,7 @@ describe('schema validation', () => {
         osquery_saved_query: [],
         workflow: [],
         custom_app: [],
+        skill: [],
       },
       elasticsearch: {
         index_template: [],

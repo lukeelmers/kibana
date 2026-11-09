@@ -17,7 +17,7 @@ export const convertPersistedSkill = (
   basePath: skill.base_path ?? MOUNT_POINTS.skills,
   description: skill.description,
   content: skill.content,
-  readonly: !!skill.plugin_id,
+  readonly: !!skill.plugin_id || !!skill.managed_by,
   experimental: false,
   referencedContent: skill.referenced_content?.map((rc) => ({
     name: rc.name,
@@ -26,5 +26,6 @@ export const convertPersistedSkill = (
   })),
   getRegistryTools: () => skill.tool_ids ?? [],
   plugin_id: skill.plugin_id,
+  managed_by: skill.managed_by,
   referencedContentCount: skill.referenced_content_count,
 });

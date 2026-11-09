@@ -28,6 +28,7 @@ import type {
 } from '../../types';
 import { createArchiveIteratorFromMap } from '../../services/epm/archive/archive_iterator';
 import { stepInstallWorkflows } from '../../services/epm/packages/install_state_machine/steps/step_install_workflows';
+import { stepInstallSkills } from '../../services/epm/packages/install_state_machine/steps/step_install_skills';
 import { stepCreateAlertingAssets } from '../../services/epm/packages/install_state_machine/steps/step_create_alerting_assets';
 
 export async function checkIntegrationsAllPrivilegesForSpaces(
@@ -113,6 +114,15 @@ export const installPackageKibanaAssetsHandler: FleetRequestHandler<
       spaceId: spaceToInstallId,
       installedPkg: installation,
       installAsAdditionalSpace,
+      upgradeAdditionalSpaces: false,
+    });
+
+    await stepInstallSkills({
+      logger,
+      savedObjectsClient: spaceScopedClient,
+      packageInstallContext,
+      spaceId: spaceToInstallId,
+      installedPkg: installation,
       upgradeAdditionalSpaces: false,
     });
 

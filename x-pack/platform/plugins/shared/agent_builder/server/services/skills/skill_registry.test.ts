@@ -342,7 +342,8 @@ describe('createSkillRegistry', () => {
       expect(result).toHaveLength(1);
       expect(result[0].id).toBe('builtin-skill-1');
       expect(builtinProvider.list).toHaveBeenCalledWith({});
-      expect(persistedProvider.list).not.toHaveBeenCalled();
+      // Persisted skills are still read, for managed overrides of built-in skills.
+      expect(persistedProvider.list).toHaveBeenCalledWith({});
     });
 
     it('returns only persisted skills when type is persisted', async () => {
@@ -445,7 +446,8 @@ describe('createSkillRegistry', () => {
       const result = await registry.bulkGet(['builtin-skill-1']);
       expect(result.size).toBe(1);
       expect(result.get('builtin-skill-1')).toEqual(builtinSkill1);
-      expect(persistedProvider.bulkGet).not.toHaveBeenCalled();
+      // Persisted skills are still read, for managed overrides of built-in skills.
+      expect(persistedProvider.bulkGet).toHaveBeenCalledWith(['builtin-skill-1']);
     });
 
     it('falls through to persisted provider for non-builtin IDs', async () => {
@@ -695,6 +697,139 @@ describe('createSkillRegistry', () => {
 
       await registry.delete('non-existent');
       expect(persistedProvider.delete).toHaveBeenCalledWith('non-existent');
+    });
+  });
+
+  describe('managed overrides of built-in skills', () => {
+    const inlineTools = jest.fn(async () => []);
+    const builtin = createMockInternalSkillDefinition({
+      id: 'nightshift-sources-management',
+      name: 'nightshift-sources-management',
+      description: 'Built-in description',
+      content: 'Built-in content',
+      basePath: 'skills/observability/nightshift',
+      getRegistryTools: () => ['source_list', 'source_get'],
+      getInlineTools: inlineTools,
+    });
+    const override = createMockInternalSkillDefinition({
+      id: 'nightshift-sources-management',
+      name: 'renamed-by-package',
+      description: 'Package description',
+      content: 'Package content',
+      basePath: '/skills',
+      managed_by: 'fleet:nightshift_app',
+    });
+    const unmanagedWithBuiltinId = createMockInternalSkillDefinition({
+      id: 'nightshift-sources-management',
+      description: 'User description',
+      content: 'User content',
+      readonly: false,
+    });
+
+    const createRegistry = (persisted: InternalSkillDefinition[]) =>
+      createSkillRegistry({
+        builtinProvider: createMockBuiltinProvider([builtin]),
+        persistedProvider: createMockPersistedProvider(persisted),
+        toolRegistry: createMockToolRegistry(),
+        experimentalFeaturesEnabled: false,
+      });
+
+    it('get returns the built-in with the managed skill text', async () => {
+      const skill = await createRegistry([override]).get('nightshift-sources-management');
+
+      expect(skill).toMatchObject({
+        id: 'nightshift-sources-management',
+        name: 'nightshift-sources-management',
+        basePath: 'skills/observability/nightshift',
+        description: 'Package description',
+        content: 'Package content',
+        readonly: true,
+        managed_by: 'fleet:nightshift_app',
+      });
+      expect(skill?.getInlineTools).toBe(inlineTools);
+    });
+
+    it('inherits the built-in registry tools when the managed skill has none', async () => {
+      const skill = await createRegistry([override]).get('nightshift-sources-management');
+
+      expect(await skill?.getRegistryTools()).toEqual(['source_list', 'source_get']);
+    });
+
+    it('uses the managed skill tools when it has some', async () => {
+      const skill = await createRegistry([
+        { ...override, getRegistryTools: () => ['source_list'] },
+      ]).get('nightshift-sources-management');
+
+      expect(await skill?.getRegistryTools()).toEqual(['source_list']);
+    });
+
+    it('does not let an unmanaged persisted skill replace the built-in', async () => {
+      const registry = createRegistry([unmanagedWithBuiltinId]);
+
+      expect((await registry.get('nightshift-sources-management'))?.content).toBe(
+        'Built-in content'
+      );
+      expect(await registry.list()).toEqual([builtin]);
+    });
+
+    it('bulkGet returns the overridden built-in', async () => {
+      const result = await createRegistry([override]).bulkGet(['nightshift-sources-management']);
+
+      expect(result.get('nightshift-sources-management')?.content).toBe('Package content');
+    });
+
+    it('list returns the overridden built-in once', async () => {
+      const results = await createRegistry([override, persistedSkill1]).list();
+
+      expect(results.map(({ id, content }) => ({ id, content }))).toEqual([
+        { id: 'nightshift-sources-management', content: 'Package content' },
+        { id: 'custom-skill-1', content: 'Content for custom-skill-1' },
+      ]);
+    });
+
+    it('list with type built-in returns the overridden built-in', async () => {
+      const results = await createRegistry([override, persistedSkill1]).list({ type: 'built-in' });
+
+      expect(results.map(({ id, content }) => ({ id, content }))).toEqual([
+        { id: 'nightshift-sources-management', content: 'Package content' },
+      ]);
+    });
+
+    it('list with type persisted leaves the override out', async () => {
+      const results = await createRegistry([override, persistedSkill1]).list({ type: 'persisted' });
+
+      expect(results.map(({ id }) => id)).toEqual(['custom-skill-1']);
+    });
+
+    it('does not override a built-in that is not available', async () => {
+      const registry = createSkillRegistry({
+        builtinProvider: createMockBuiltinProvider([{ ...builtin, experimental: true }]),
+        persistedProvider: createMockPersistedProvider([override]),
+        toolRegistry: createMockToolRegistry(),
+        experimentalFeaturesEnabled: false,
+      });
+
+      expect(await registry.get('nightshift-sources-management')).toBeUndefined();
+      expect(await registry.has('nightshift-sources-management')).toBe(false);
+      expect(await registry.list()).toEqual([]);
+    });
+
+    it('still refuses to create, update or delete a skill with a built-in id', async () => {
+      const registry = createRegistry([override]);
+
+      await expect(
+        registry.create({
+          id: 'nightshift-sources-management',
+          name: 'n',
+          description: 'd',
+          content: 'c',
+          tool_ids: [],
+        })
+      ).rejects.toThrow(/already exists as a built-in skill/);
+      await expect(
+        registry.update('nightshift-sources-management', { content: 'x' })
+      ).rejects.toThrow(/read-only/);
+      await expect(registry.delete('nightshift-sources-management')).rejects.toThrow(/read-only/);
     });
   });
 

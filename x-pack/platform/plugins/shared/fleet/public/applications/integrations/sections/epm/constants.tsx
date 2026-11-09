@@ -89,6 +89,9 @@ export const AssetTitleMap: Record<
   custom_app: i18n.translate('xpack.fleet.epm.assetTitles.customApps', {
     defaultMessage: 'Custom apps',
   }),
+  skill: i18n.translate('xpack.fleet.epm.assetTitles.skills', {
+    defaultMessage: 'Agent Builder skills',
+  }),
   tag: i18n.translate('xpack.fleet.epm.assetTitles.tag', {
     defaultMessage: 'Tags',
   }),

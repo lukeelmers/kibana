@@ -171,7 +171,7 @@ export type {
   AiIndexDetail,
   AiIndexResolver,
 } from './agents';
-export type { SkillRegistry } from './skills';
+export type { SkillRegistry, ManagedSkill, ManagedSkillsClient } from './skills';
 export type { RendererTypeDefinition } from './renderers';
 export type {
   ConversationEventTypeDefinition,

@@ -157,13 +157,25 @@ const getWorkflowAssets = async (
 
 const isNotNull = <T>(value: T | null): value is T => value !== null;
 
+// Skills are not saved objects. They are listed by id, linking to the skill in Agent Builder,
+// without a lookup: the asset ref has no package name to build the managed skills client from.
+const getSkillAssets = (skillIds: string[]): BulkAssetItem[] =>
+  [...new Set(skillIds)].map((skillId) => ({
+    id: skillId,
+    type: KibanaSavedObjectType.skill,
+    attributes: { title: skillId },
+    appLink: `/app/agent_builder/manage/skills/${skillId}`,
+  }));
+
 export async function getBulkAssets(
   soClient: SavedObjectsClientContract,
   soTypeRegistry: ISavedObjectTypeRegistry,
   allAssetIds: AssetSOObject[]
 ) {
   const isWorkflow = ({ type }: AssetSOObject) => type === KibanaSavedObjectType.workflow;
-  const assetIds = allAssetIds.filter((asset) => !isWorkflow(asset));
+  const isSkill = ({ type }: AssetSOObject) => type === KibanaSavedObjectType.skill;
+  const assetIds = allAssetIds.filter((asset) => !isWorkflow(asset) && !isSkill(asset));
+  const skillAssets = getSkillAssets(allAssetIds.filter(isSkill).map(({ id }) => id));
   const workflowAssets = await getWorkflowAssets(
     allAssetIds.filter(isWorkflow).map(({ id }) => id),
     soClient.getCurrentNamespace() ?? DEFAULT_SPACE_ID
@@ -219,5 +231,5 @@ export async function getBulkAssets(
 
       return toAssetType(obj, types[obj.type], appLink);
     });
-  return [...res, ...workflowAssets];
+  return [...res, ...workflowAssets, ...skillAssets];
 }

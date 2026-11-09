@@ -14,7 +14,7 @@ import {
   type PersistedSkillUpdateRequest,
 } from '@kbn/agent-builder-common';
 import { createSpaceDslFilter } from '../../../../utils/spaces';
-import type { SkillStorage } from './storage';
+import type { SkillStorage, SkillProperties } from './storage';
 import { createStorage, skillIndexName } from './storage';
 import { fromEs, createAttributes, updateDocument } from './converters';
 import type { SkillDocument, SkillPersistedDefinition, SkillListOptions } from './types';
@@ -49,6 +49,15 @@ export interface SkillClient {
    */
   bulkGet(ids: string[]): Promise<SkillPersistedDefinition[]>;
   has(skillId: string): Promise<boolean>;
+  /**
+   * Creates the skill with `managed_by` set, or replaces it when it is already managed by the
+   * same owner. Throws when the id is used by an unmanaged skill or by another owner.
+   */
+  upsertManaged(request: PersistedSkillCreateRequest, managedBy: string): Promise<void>;
+  /**
+   * Deletes the skill when it is managed by `managedBy`. Missing skills are ignored.
+   */
+  deleteManaged(skillId: string, managedBy: string): Promise<void>;
 }
 
 export const createClient = ({
@@ -196,6 +205,11 @@ class SkillClientImpl implements SkillClient {
         `Skill '${id}' is managed by plugin '${skill.plugin_id}' and cannot be modified directly.`
       );
     }
+    if (skill.managed_by) {
+      throw createBadRequestError(
+        `Skill '${id}' is managed by '${skill.managed_by}' and cannot be modified directly.`
+      );
+    }
 
     const updatedAttributes = updateDocument({
       current: document._source!,
@@ -223,6 +237,11 @@ class SkillClientImpl implements SkillClient {
     if (skill.plugin_id) {
       throw createBadRequestError(
         `Skill '${id}' is managed by plugin '${skill.plugin_id}' and cannot be deleted directly.`
+      );
+    }
+    if (skill.managed_by) {
+      throw createBadRequestError(
+        `Skill '${id}' is managed by '${skill.managed_by}' and cannot be deleted directly.`
       );
     }
 
@@ -257,6 +276,39 @@ class SkillClientImpl implements SkillClient {
       track_total_hits: false,
     });
     return response.hits.hits.map((hit) => fromEs(hit as SkillDocument));
+  }
+
+  async upsertManaged(request: PersistedSkillCreateRequest, managedBy: string): Promise<void> {
+    const document = await this._get(request.id);
+    if (document && document._source?.managed_by !== managedBy) {
+      throw createBadRequestError(
+        `Skill '${request.id}' already exists and is not managed by '${managedBy}'.`
+      );
+    }
+
+    const now = new Date();
+    const attributes: SkillProperties = {
+      ...createAttributes({ createRequest: request, space: this.space, creationDate: now }),
+      created_at: document?._source?.created_at ?? now.toISOString(),
+      managed_by: managedBy,
+    };
+
+    await this.storage.getClient().index({
+      // A stable id for new documents, so 2 concurrent installs cannot create duplicates.
+      id: document?._id ?? `${managedBy}:${this.space}:${request.id}`,
+      document: attributes,
+    });
+  }
+
+  async deleteManaged(id: string, managedBy: string): Promise<void> {
+    const document = await this._get(id);
+    if (!document) {
+      return;
+    }
+    if (document._source?.managed_by !== managedBy) {
+      throw createBadRequestError(`Skill '${id}' is not managed by '${managedBy}'.`);
+    }
+    await this.storage.getClient().delete({ id: document._id });
   }
 
   async has(id: string): Promise<boolean> {
