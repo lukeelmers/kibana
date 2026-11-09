@@ -31,3 +31,6 @@ export const ENABLE_WORKFLOW_ASSETS_FLAG = 'fleet.enableWorkflowAssets';
 
 /** Feature flag that gates the installation of `kibana/custom_app` package assets as custom apps. Fallback is false. */
 export const ENABLE_CUSTOM_APP_ASSETS_FLAG = 'fleet.enableCustomAppAssets';
+
+/** Feature flag that gates the installation of `kibana/skill` package assets as Agent Builder skills. Fallback is false. */
+export const ENABLE_SKILL_ASSETS_FLAG = 'fleet.enableSkillAssets';

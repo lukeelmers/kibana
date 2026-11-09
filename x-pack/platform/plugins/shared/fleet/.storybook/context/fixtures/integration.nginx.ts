@@ -261,6 +261,7 @@ export const item: GetInfoResponse['item'] = {
       osquery_saved_query: [],
       workflow: [],
       custom_app: [],
+      skill: [],
     },
     elasticsearch: {
       ingest_pipeline: [

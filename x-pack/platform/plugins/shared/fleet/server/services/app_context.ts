@@ -30,6 +30,7 @@ import type { FeatureFlagsStart } from '@kbn/core-feature-flags-server';
 import type { LockManagerService } from '@kbn/lock-manager';
 import type { AlertingServerStart } from '@kbn/alerting-plugin/server';
 import type { WorkflowsExtensionsServerPluginStart } from '@kbn/workflows-extensions/server';
+import type { SkillsStart } from '@kbn/agent-builder-server';
 import type { ReportingStart } from '@kbn/reporting-plugin/server';
 import { ALL_SPACES_ID } from '@kbn/spaces-plugin/common/constants';
 
@@ -96,6 +97,7 @@ class AppContextService {
   private lockManagerService: LockManagerService | undefined;
   private alertingStart: AlertingServerStart | undefined;
   private managedWorkflowsClientInit: Promise<ManagedWorkflowsClient | undefined> | undefined;
+  private agentBuilderSkills: SkillsStart | undefined;
   private includedHiddenTypes: string[] = [
     UNINSTALL_TOKENS_SAVED_OBJECT_TYPE,
     KibanaSavedObjectType.alertingRuleTemplate,
@@ -369,6 +371,15 @@ class AppContextService {
 
   public setManagedWorkflowsClientInit(init: Promise<ManagedWorkflowsClient | undefined>) {
     this.managedWorkflowsClientInit = init;
+  }
+
+  public setAgentBuilderSkills(skills: SkillsStart | undefined) {
+    this.agentBuilderSkills = skills;
+  }
+
+  /** Agent Builder's skills service, or `undefined` when the Agent Builder plugin is disabled. */
+  public getAgentBuilderSkills(): SkillsStart | undefined {
+    return this.agentBuilderSkills;
   }
 
   /**

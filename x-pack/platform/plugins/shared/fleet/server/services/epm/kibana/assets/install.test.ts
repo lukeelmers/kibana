@@ -21,6 +21,7 @@ jest.mock('timers/promises', () => ({
 
 jest.mock('../../packages/remove', () => ({
   deleteWorkflowAssets: jest.fn(),
+  deleteSkillAssets: jest.fn(),
   deleteKibanaSavedObjectsAssets: jest.fn(),
 }));
 jest.mock('../../packages/install', () => ({
@@ -30,7 +31,11 @@ jest.mock('../../packages/install', () => ({
 import { savedObjectsClientMock } from '@kbn/core/server/mocks';
 
 import type { Installation } from '../../../../../common/types';
-import { deleteKibanaSavedObjectsAssets, deleteWorkflowAssets } from '../../packages/remove';
+import {
+  deleteKibanaSavedObjectsAssets,
+  deleteSkillAssets,
+  deleteWorkflowAssets,
+} from '../../packages/remove';
 import { saveKibanaAssetsRefs } from '../../packages/install';
 
 import { replaceIdsInKibanaAsset, type ArchiveAsset } from './install';
@@ -774,6 +779,13 @@ describe('deleteKibanaAssetsAndReferencesForSpace', () => {
     expect(deleteWorkflowAssets).toHaveBeenCalledWith({
       refs: [workflowRef],
       spaceId: 'other',
+      logger: mockLogger,
+      strict: true,
+    });
+    expect(deleteSkillAssets).toHaveBeenCalledWith({
+      refs: [workflowRef],
+      spaceId: 'other',
+      pkgName: 'pkg',
       logger: mockLogger,
       strict: true,
     });
