@@ -69,6 +69,11 @@ export interface InternalSkillDefinition {
    */
   plugin_id?: string;
   /**
+   * If this skill is managed by an installer outside Agent Builder (for example
+   * `fleet:<package name>`), the owner. See `SkillsStart.getManagedClient`.
+   */
+  managed_by?: string;
+  /**
    * Number of referenced content items.
    */
   referencedContentCount: number;

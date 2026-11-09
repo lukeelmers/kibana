@@ -80,6 +80,9 @@ export enum KibanaAssetType {
   // Excluded from SO install via validKibanaAssetTypes in kibana/assets/install.ts.
   workflow = 'workflow',
   customApp = 'custom_app',
+  // Not a saved object: `kibana/skill/<id>/SKILL.md` files are written to the Agent Builder skill
+  // store. Excluded from SO install via validKibanaAssetTypes in kibana/assets/install.ts.
+  skill = 'skill',
 }
 
 /*
@@ -105,6 +108,8 @@ export enum KibanaSavedObjectType {
   // Not a saved object; see KibanaAssetType.workflow. Used only as an asset ref type.
   workflow = 'workflow',
   customApp = 'custom_app',
+  // Not a saved object; see KibanaAssetType.skill. Used only as an asset ref type.
+  skill = 'skill',
 }
 
 export enum ElasticsearchAssetType {
@@ -811,6 +816,7 @@ export enum INSTALL_STATES {
   SAVE_KNOWLEDGE_BASE = 'save_knowledge_base',
   RESOLVE_KIBANA_PROMISE = 'resolve_kibana_promise',
   INSTALL_WORKFLOWS = 'install_workflows',
+  INSTALL_SKILLS = 'install_skills',
   VERIFY_ASSETS = 'verify_assets',
   UPDATE_SO = 'update_so',
 }

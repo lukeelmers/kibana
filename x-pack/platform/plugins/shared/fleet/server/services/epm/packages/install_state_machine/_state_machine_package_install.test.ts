@@ -49,6 +49,7 @@ import {
 } from './_state_machine_package_install';
 import { cleanupLatestExecutedState } from './steps';
 import { stepInstallWorkflows } from './steps/step_install_workflows';
+import { stepInstallSkills } from './steps/step_install_skills';
 
 jest.mock('./state_machine');
 jest.mock('../install');
@@ -383,6 +384,21 @@ describe('State machine parity', () => {
       INSTALL_STATES.INSTALL_WORKFLOWS
     );
     expect(streamingStatesDefinition.install_workflows.nextState).toEqual(
+      INSTALL_STATES.INSTALL_SKILLS
+    );
+  });
+
+  it('should run install_skills right after install_workflows in both definitions', () => {
+    [regularStatesDefinition, streamingStatesDefinition].forEach((definition) => {
+      expect(definition.install_skills.onTransition).toBe(stepInstallSkills);
+    });
+    expect(regularStatesDefinition.install_workflows.nextState).toEqual(
+      INSTALL_STATES.INSTALL_SKILLS
+    );
+    expect(regularStatesDefinition.install_skills.nextState).toEqual(
+      INSTALL_STATES.CREATE_ALERTING_ASSETS
+    );
+    expect(streamingStatesDefinition.install_skills.nextState).toEqual(
       INSTALL_STATES.SAVE_ARCHIVE_ENTRIES
     );
   });

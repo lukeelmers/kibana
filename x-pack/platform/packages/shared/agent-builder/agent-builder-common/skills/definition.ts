@@ -56,6 +56,11 @@ export interface PublicSkillDefinition {
    */
   plugin_id?: string;
   /**
+   * If this skill is managed by an installer outside Agent Builder (for example a Fleet package,
+   * as `fleet:<package name>`), the owner. Managed skills can only be changed by their owner.
+   */
+  managed_by?: string;
+  /**
    * When true, this skill is only available when experimental features are enabled.
    */
   experimental: boolean;

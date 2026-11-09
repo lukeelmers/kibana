@@ -27,6 +27,7 @@ export const fromEs = (document: SkillDocument): SkillPersistedDefinition => {
     referenced_content: referencedContent,
     tool_ids: document._source.tool_ids ?? [],
     plugin_id: document._source.plugin_id,
+    managed_by: document._source.managed_by,
     referenced_content_count:
       Array.isArray(countField) && countField.length > 0
         ? (countField[0] as number)

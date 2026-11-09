@@ -34,7 +34,12 @@ import {
 } from '../index_pattern/install';
 import { saveKibanaAssetsRefs } from '../../packages/install';
 import { getInstalledWorkflowRefs } from '../workflows/install';
-import { deleteKibanaSavedObjectsAssets, deleteWorkflowAssets } from '../../packages/remove';
+import { getInstalledSkillRefs } from '../skills/install';
+import {
+  deleteKibanaSavedObjectsAssets,
+  deleteSkillAssets,
+  deleteWorkflowAssets,
+} from '../../packages/remove';
 import { FleetError, KibanaSOReferenceError } from '../../../../errors';
 import { ENABLE_CUSTOM_APP_ASSETS_FLAG } from '../../../../../common/constants';
 import { withPackageSpan } from '../../packages/utils';
@@ -77,10 +82,13 @@ const formatImportErrorsForLog = (errors: SavedObjectsImportFailure[]) =>
   JSON.stringify(
     errors.map(({ type, id, error }) => ({ type, id, error })) // discard other fields
   );
-// Workflow is on KibanaAssetType for package paths / refs, but workflows are YAML installed via
-// the managed workflows client (not saved objects), so exclude them from SO asset install.
+// Workflow and skill are on KibanaAssetType for package paths / refs, but workflows are YAML
+// installed via the managed workflows client and skills are SKILL.md files written to the Agent
+// Builder skill store (not saved objects), so exclude them from SO asset install.
 const validKibanaAssetTypes = new Set<KibanaAssetType>(
-  Object.values(KibanaAssetType).filter((type) => type !== KibanaAssetType.workflow)
+  Object.values(KibanaAssetType).filter(
+    (type) => type !== KibanaAssetType.workflow && type !== KibanaAssetType.skill
+  )
 );
 type SavedObjectToBe = Required<
   Pick<SavedObjectsBulkCreateObject, keyof ArchiveAsset | 'originId'>
@@ -120,6 +128,7 @@ export const KibanaSavedObjectTypeMapping: Record<KibanaAssetType, KibanaSavedOb
   [KibanaAssetType.osquerySavedQuery]: KibanaSavedObjectType.osquerySavedQuery,
   [KibanaAssetType.workflow]: KibanaSavedObjectType.workflow,
   [KibanaAssetType.customApp]: KibanaSavedObjectType.customApp,
+  [KibanaAssetType.skill]: KibanaSavedObjectType.skill,
 };
 
 const AssetFilters: Record<string, (kibanaAssets: ArchiveAsset[]) => ArchiveAsset[]> = {
@@ -519,11 +528,16 @@ export async function installKibanaAssetsAndReferences({
       ? false
       : installAsAdditionalSpace;
 
-  // Workflows are installed by a later step; keep their refs so a failure in between does not orphan them
+  // Workflows and skills are installed by later steps; keep their refs so a failure in between
+  // does not orphan them
   installedKibanaAssetsRefs = await saveKibanaAssetsRefs(
     savedObjectsClient,
     pkgName,
-    [...assets, ...getInstalledWorkflowRefs(installedPkg, spaceId, !!saveAsAdditionalSpace)],
+    [
+      ...assets,
+      ...getInstalledWorkflowRefs(installedPkg, spaceId, !!saveAsAdditionalSpace),
+      ...getInstalledSkillRefs(installedPkg, spaceId, !!saveAsAdditionalSpace),
+    ],
     spaceId,
     saveAsAdditionalSpace
   );
@@ -565,10 +579,17 @@ export async function deleteKibanaAssetsAndReferencesForSpace({
       'Impossible to delete kibana assets from the space where the package was installed, you must uninstall the package.'
     );
   }
-  // Strict so the refs are not cleared below while workflows still exist in the space.
+  // Strict so the refs are not cleared below while workflows or skills still exist in the space.
   await deleteWorkflowAssets({
     refs: installedPkg.attributes.additional_spaces_installed_kibana?.[spaceId] ?? [],
     spaceId,
+    logger,
+    strict: true,
+  });
+  await deleteSkillAssets({
+    refs: installedPkg.attributes.additional_spaces_installed_kibana?.[spaceId] ?? [],
+    spaceId,
+    pkgName,
     logger,
     strict: true,
   });

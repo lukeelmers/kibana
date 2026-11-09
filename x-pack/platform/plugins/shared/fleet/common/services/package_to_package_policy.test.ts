@@ -82,6 +82,7 @@ describe('Fleet - packageToPackagePolicy', () => {
         osquery_saved_query: [],
         workflow: [],
         custom_app: [],
+        skill: [],
       },
       elasticsearch: {
         ingest_pipeline: [],

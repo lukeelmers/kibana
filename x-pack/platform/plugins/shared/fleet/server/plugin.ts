@@ -53,6 +53,7 @@ import type {
   WorkflowsExtensionsServerPluginStart,
 } from '@kbn/workflows-extensions/server';
 import type { WorkflowsServerPluginStart } from '@kbn/workflows-management-plugin/server';
+import type { AgentBuilderPluginStart } from '@kbn/agent-builder-server';
 import type { CloudSetup } from '@kbn/cloud-plugin/server';
 import type { SpacesPluginStart } from '@kbn/spaces-plugin/server';
 import type { SavedObjectTaggingStart } from '@kbn/saved-objects-tagging-plugin/server';
@@ -221,6 +222,7 @@ export interface FleetStartDeps {
   reporting: ReportingStart;
   workflowsExtensions?: WorkflowsExtensionsServerPluginStart;
   workflowsManagement?: WorkflowsServerPluginStart;
+  agentBuilder?: AgentBuilderPluginStart;
 }
 
 export interface FleetAppContext {
@@ -889,6 +891,7 @@ export class FleetPlugin
         logger: this.logger,
       })
     );
+    appContextService.setAgentBuilderSkills(plugins.agentBuilder?.skills);
     licenseService.start(plugins.licensing.license$);
     this.telemetryEventsSender.start(plugins.telemetry, core).catch(() => {});
     this.bulkActionsResolver?.start(plugins.taskManager).catch(() => {});

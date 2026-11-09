@@ -16,6 +16,7 @@ import type { RendererTypeDefinition } from './renderers';
 import type { ConversationEventTypeDefinition } from './conversation_events';
 import type { SkillDefinition } from './skills';
 import type { SkillRegistry } from './skills/registry';
+import type { ManagedSkillsClient } from './skills/managed';
 import type {
   BuiltInAgentDefinition,
   AgentTypeDefinition,
@@ -129,6 +130,12 @@ export interface SkillsStart {
    * Only affects future conversations (existing ones snapshot skills at creation time).
    */
   register: (skill: SkillDefinition) => Promise<void>;
+  /**
+   * Returns a client that writes the skills of one owner in one space, for installers such as
+   * Fleet that run without a user request. `managedBy` identifies the owner, e.g.
+   * `fleet:<package name>`.
+   */
+  getManagedClient: (opts: { spaceId: string; managedBy: string }) => ManagedSkillsClient;
 }
 
 export interface AgentsSetup {
