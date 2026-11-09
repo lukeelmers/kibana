@@ -61,6 +61,38 @@ export const validateToolIds = async (
   }
 };
 
+/**
+ * Replaces a built-in skill's text with a managed persisted skill of the same id.
+ *
+ * The package-shipped skill supplies the description and content, and its tools and referenced
+ * content when it has any. Everything else, including the id, name, base path (so the skill
+ * keeps its path in the skills filesystem), availability and inline tools, stays the built-in's:
+ * a package can change what a skill says, not ship code.
+ */
+export const applySkillOverride = (
+  builtin: InternalSkillDefinition,
+  override: InternalSkillDefinition
+): InternalSkillDefinition => {
+  const hasOwnReferencedContent = override.referencedContentCount > 0;
+  return {
+    ...builtin,
+    description: override.description,
+    content: override.content,
+    referencedContent: hasOwnReferencedContent
+      ? override.referencedContent
+      : builtin.referencedContent,
+    referencedContentCount: hasOwnReferencedContent
+      ? override.referencedContentCount
+      : builtin.referencedContentCount,
+    getRegistryTools: async () => {
+      const toolIds = await override.getRegistryTools();
+      return toolIds.length > 0 ? toolIds : builtin.getRegistryTools();
+    },
+    readonly: true,
+    managed_by: override.managed_by,
+  };
+};
+
 export interface SkillRegistry {
   has(skillId: string): Promise<boolean>;
   get(skillId: string): Promise<InternalSkillDefinition | undefined>;
@@ -117,8 +149,19 @@ export const createSkillRegistry = ({
     return skills.filter((_, i) => checks[i]);
   };
 
+  /**
+   * The managed persisted skill that replaces a built-in skill with the same id, if any.
+   * Unmanaged persisted skills never replace a built-in (they cannot be created with a built-in id).
+   */
+  const isOverride = (persisted: InternalSkillDefinition | undefined) =>
+    persisted !== undefined && !!persisted.managed_by;
+
+  const getVisible = async (skill: InternalSkillDefinition | undefined) =>
+    skill && (await isAvailable(skill)) ? skill : undefined;
+
   return {
     async has(skillId) {
+      // An override never changes whether a built-in skill is available.
       const builtinSkill = await builtinProvider.get(skillId);
       if (builtinSkill) {
         return isAvailable(builtinSkill);
@@ -133,49 +176,64 @@ export const createSkillRegistry = ({
     async get(skillId) {
       const builtin = await builtinProvider.get(skillId);
       if (builtin) {
-        return (await isAvailable(builtin)) ? builtin : undefined;
+        if (!(await isAvailable(builtin))) {
+          return undefined;
+        }
+        const persisted = await persistedProvider.get(skillId);
+        return isOverride(persisted) ? applySkillOverride(builtin, persisted!) : builtin;
       }
-      const persisted = await persistedProvider.get(skillId);
-      if (persisted) {
-        return (await isAvailable(persisted)) ? persisted : undefined;
-      }
-      return undefined;
+      return getVisible(await persistedProvider.get(skillId));
     },
 
     async bulkGet(ids) {
-      const builtinResult = await builtinProvider.bulkGet(ids);
-      for (const [id, skill] of builtinResult) {
-        if (!(await isAvailable(skill))) {
-          builtinResult.delete(id);
+      const [builtinResult, persistedResult] = await Promise.all([
+        builtinProvider.bulkGet(ids),
+        persistedProvider.bulkGet(ids),
+      ]);
+      const result = new Map<string, InternalSkillDefinition>();
+      for (const id of ids) {
+        const builtin = builtinResult.get(id);
+        const persisted = persistedResult.get(id);
+        if (builtin) {
+          if (await isAvailable(builtin)) {
+            result.set(
+              id,
+              isOverride(persisted) ? applySkillOverride(builtin, persisted!) : builtin
+            );
+          }
+        } else {
+          const visible = await getVisible(persisted);
+          if (visible) {
+            result.set(id, visible);
+          }
         }
       }
-      const remainingIds = ids.filter((id) => !builtinResult.has(id));
-      if (remainingIds.length === 0) {
-        return builtinResult;
-      }
-      const persistedResult = await persistedProvider.bulkGet(remainingIds);
-      for (const [id, skill] of persistedResult) {
-        if (await isAvailable(skill)) {
-          builtinResult.set(id, skill);
-        }
-      }
-      return builtinResult;
+      return result;
     },
 
     async list(options) {
       const { type, includePlugins, includeHidden, ...listOptions } = options ?? {};
-      let results: InternalSkillDefinition[];
-      if (type === 'built-in') {
-        results = await builtinProvider.list(listOptions);
-      } else if (type === 'persisted') {
-        results = await persistedProvider.list(listOptions);
-      } else {
-        const [builtinSkills, persistedSkills] = await Promise.all([
-          builtinProvider.list(listOptions),
-          persistedProvider.list(listOptions),
-        ]);
-        results = [...builtinSkills, ...persistedSkills];
-      }
+      // Persisted skills are always listed: they hold the overrides of built-in skills.
+      const [builtinSkills, persistedSkills] = await Promise.all([
+        type === 'persisted' ? [] : builtinProvider.list(listOptions),
+        persistedProvider.list(listOptions),
+      ]);
+      const overrides = new Map(
+        persistedSkills.filter((skill) => isOverride(skill)).map((skill) => [skill.id, skill])
+      );
+      const builtinIds = new Set(builtinSkills.map((skill) => skill.id));
+      const builtinResults = builtinSkills.map((skill) => {
+        const override = overrides.get(skill.id);
+        return override ? applySkillOverride(skill, override) : skill;
+      });
+      // A persisted skill with a built-in id is listed once, as the (overridden) built-in.
+      const persistedResults =
+        type === 'built-in' ? [] : persistedSkills.filter((skill) => !builtinIds.has(skill.id));
+
+      let results: InternalSkillDefinition[] =
+        type === 'persisted'
+          ? persistedResults
+          : [...builtinResults, ...(type === 'built-in' ? [] : persistedResults)];
       if (!includePlugins) {
         results = results.filter((skill) => !skill.plugin_id);
       }

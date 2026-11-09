@@ -13,7 +13,7 @@ import type {
 } from '@kbn/core/server';
 import type { KibanaRequest } from '@kbn/core-http-server';
 import type { SpacesPluginStart } from '@kbn/spaces-plugin/server';
-import type { SkillDefinition } from '@kbn/agent-builder-server/skills';
+import type { ManagedSkillsClient, SkillDefinition } from '@kbn/agent-builder-server/skills';
 import { validateSkillDefinition } from '@kbn/agent-builder-server/skills';
 import { isAllowedSkillRegistration } from '@kbn/agent-builder-server/allow_lists';
 import type { ToolRegistry } from '@kbn/agent-builder-server';
@@ -25,6 +25,7 @@ import { createSkillRegistry } from './skill_registry';
 import type { SkillRegistry } from './skill_registry';
 import { createBuiltinSkillProvider } from './builtin';
 import { createPersistedSkillProvider } from './persisted';
+import { createManagedSkillsClient } from './persisted/managed_client';
 
 export interface SkillServiceSetup {
   registerSkill(skill: SkillDefinition): void;
@@ -49,6 +50,11 @@ export interface SkillServiceStart {
    * existed at creation time.
    */
   registerSkill(skill: SkillDefinition): Promise<void>;
+
+  /**
+   * Returns a client that writes the skills of one owner in one space, without a user request.
+   */
+  getManagedClient(opts: { spaceId: string; managedBy: string }): ManagedSkillsClient;
 }
 
 export interface SkillService {
@@ -197,6 +203,13 @@ class SkillServiceImpl implements SkillService {
         this.mutationQueue = op.catch(() => {});
         return op;
       },
+      getManagedClient: ({ spaceId, managedBy }) =>
+        createManagedSkillsClient({
+          space: spaceId,
+          managedBy,
+          esClient: elasticsearch.client.asInternalUser,
+          logger,
+        }),
     };
   }
 }

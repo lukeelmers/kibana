@@ -29,6 +29,7 @@ const storageSettings = {
       base_path: types.keyword({}),
       tool_ids: types.keyword({}),
       plugin_id: types.keyword({}),
+      managed_by: types.keyword({}),
       created_at: types.date({}),
       updated_at: types.date({}),
     },
@@ -44,6 +45,8 @@ export interface SkillProperties {
   referenced_content?: SkillReferencedContent[];
   tool_ids: string[];
   plugin_id?: string;
+  /** Owner of a skill written through the managed skills client, e.g. `fleet:<package>`. */
+  managed_by?: string;
   base_path?: string;
   created_at: string;
   updated_at: string;

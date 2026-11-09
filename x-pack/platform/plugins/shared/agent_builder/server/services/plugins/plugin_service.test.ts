@@ -125,6 +125,8 @@ describe('PluginsService', () => {
       update: jest.fn(),
       delete: jest.fn(),
       deleteByPluginId: jest.fn(),
+      upsertManaged: jest.fn(),
+      deleteManaged: jest.fn(),
     };
 
     mockToolRegistry = {

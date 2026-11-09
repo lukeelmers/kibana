@@ -28,6 +28,7 @@ export const internalToPublicDefinition = async (
   tool_ids: await skill.getRegistryTools(),
   readonly: skill.readonly,
   plugin_id: skill.plugin_id,
+  managed_by: skill.managed_by,
   experimental: skill.experimental,
   exclude_from_elastic_capabilities: skill.excludeFromElasticCapabilities,
 });
@@ -45,6 +46,7 @@ export const internalToPublicSummary = async (
   tool_ids: await skill.getRegistryTools(),
   readonly: skill.readonly,
   plugin_id: skill.plugin_id,
+  managed_by: skill.managed_by,
   experimental: skill.experimental,
   exclude_from_elastic_capabilities: skill.excludeFromElasticCapabilities,
   referenced_content_count: skill.referencedContentCount,
