@@ -42,6 +42,7 @@ export type {
 } from './application/connector/types';
 
 export type { PluginSetupContract, PluginStartContract } from './plugin';
+export type { ConnectorCatalogStart, ManagedConnectorSpecsClient } from './catalog';
 export { RelayRequestError } from './lib/relay';
 export type {
   RelayBinding,

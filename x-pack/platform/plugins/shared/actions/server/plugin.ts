@@ -134,6 +134,7 @@ import { OAuthRateLimiter } from './lib/oauth_rate_limiter';
 import type { GetAxiosInstanceWithAuthFnOpts, GetCredentialFnOpts } from './lib/get_axios_instance';
 import { getAxiosInstanceWithAuth, getCredentialWithAuth } from './lib/get_axios_instance';
 import { RelayClient, type RelayClientContract } from './lib/relay';
+import { ConnectorCatalogService, type ConnectorCatalogStart } from './catalog';
 
 export interface PluginSetupContract {
   registerType<
@@ -262,6 +263,11 @@ export interface PluginStartContract {
     request: KibanaRequest,
     connectorIds: string[]
   ) => Promise<Set<string>>;
+
+  /**
+   * Connector types defined in YAML, which installers such as Fleet add and upgrade at runtime.
+   */
+  catalog: ConnectorCatalogStart;
 }
 
 export interface ActionsPluginsSetup {
@@ -327,6 +333,7 @@ export class ActionsPlugin
   // discarded when the action returns, so the plugin instance owns the pool.
   private readonly clientLeasePool: LeasePool<unknown>;
   private relayClient?: RelayClientContract;
+  private connectorCatalog?: ConnectorCatalogService;
 
   constructor(initContext: PluginInitializerContext) {
     this.logger = initContext.logger.get();
@@ -535,7 +542,7 @@ export class ActionsPlugin
       inboundEvents,
     });
 
-    return {
+    const setupContract: PluginSetupContract = {
       registerType: <
         Config extends ActionTypeConfig = ActionTypeConfig,
         Secrets extends ActionTypeSecrets = ActionTypeSecrets,
@@ -620,6 +627,14 @@ export class ActionsPlugin
         this.connectorEventEmitter = emitter;
       },
     };
+
+    this.connectorCatalog = new ConnectorCatalogService({
+      logger: this.logger.get('connector_catalog'),
+      actions: setupContract,
+      actionTypeRegistry,
+    });
+
+    return setupContract;
   }
 
   public start(core: CoreStart, plugins: ActionsPluginsStart): PluginStartContract {
@@ -896,6 +911,8 @@ export class ActionsPlugin
 
     this.connectorUsageReportingTask?.start(plugins.taskManager).catch(() => {});
 
+    const catalog = this.connectorCatalog!.start(core.elasticsearch.client.asInternalUser);
+
     return {
       isActionTypeEnabled: (id, options = { notifyUsage: false }) => {
         return this.actionTypeRegistry!.isActionTypeEnabled(id, options);
@@ -944,6 +961,7 @@ export class ActionsPlugin
           configurationUtilities: actionsConfigUtils,
         }).getUsableOAuthConnectorIds({ profileUid, connectorIds });
       },
+      catalog,
     };
   }
 

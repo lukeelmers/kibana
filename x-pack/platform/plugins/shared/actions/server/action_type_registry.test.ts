@@ -573,6 +573,34 @@ describe('actionTypeRegistry', () => {
     });
   });
 
+  describe('unregister()', () => {
+    test('registers a connector type again without redefining its task', () => {
+      const actionTypeRegistry = new ActionTypeRegistry(actionTypeRegistryParams);
+      actionTypeRegistry.register(getConnectorType());
+      actionTypeRegistry.unregister('my-connector-type');
+      expect(actionTypeRegistry.has('my-connector-type')).toEqual(false);
+
+      actionTypeRegistry.register(getConnectorType());
+      expect(actionTypeRegistry.has('my-connector-type')).toEqual(true);
+      expect(mockTaskManager.registerTaskDefinitions).toHaveBeenCalledTimes(1);
+    });
+
+    test('frees the id taken by a registration that failed late, so the previous type can return', () => {
+      const actionTypeRegistry = new ActionTypeRegistry(actionTypeRegistryParams);
+      const connectorType = getConnectorType({ minimumLicenseRequired: 'gold' });
+      jest
+        .mocked(actionTypeRegistryParams.licensing.featureUsage.register)
+        .mockImplementationOnce(() => {
+          throw new Error('registered with another license type');
+        });
+      expect(() => actionTypeRegistry.register(connectorType)).toThrow('another license type');
+
+      actionTypeRegistry.unregister('my-connector-type');
+      actionTypeRegistry.register(connectorType);
+      expect(actionTypeRegistry.has('my-connector-type')).toEqual(true);
+    });
+  });
+
   describe('isActionTypeEnabled', () => {
     let actionTypeRegistry: ActionTypeRegistry;
 

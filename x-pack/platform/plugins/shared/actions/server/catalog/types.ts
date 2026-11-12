@@ -7,19 +7,6 @@
 
 import type { ActionScope, AuthTypeDef, ConnectorSpec } from '@kbn/connector-specs';
 import type { LicenseType } from '@kbn/licensing-types';
-import type { ActionType, ActionTypeConfig, ActionTypeParams, ActionTypeSecrets } from '../types';
-
-export type CatalogActionType = ActionType<
-  ActionTypeConfig,
-  ActionTypeSecrets,
-  ActionTypeParams,
-  unknown
->;
-
-export interface DeclarativeConnectorIcon {
-  path: string;
-  contentHash: string;
-}
 
 export interface DeclarativeRequest {
   method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
@@ -65,11 +52,21 @@ export interface DeclarativeAuthTypeDef extends AuthTypeDef {
   prefix?: string;
 }
 
-/** Versioned contract YAML. Type metadata lives on the signed manifest, not here. */
-export interface CatalogContractSpec {
+export interface DeclarativeConnectorMetadata {
+  displayName: string;
+  description: string;
+  docsUrl?: string;
+  minimumLicense: LicenseType;
+  isTechnicalPreview?: boolean;
+  supportedFeatureIds: string[];
+}
+
+/** A YAML connector definition. Each `version` is immutable once stored. */
+export interface DeclarativeConnectorSpec {
   schemaVersion: 1;
   id: string;
   version: string;
+  metadata: DeclarativeConnectorMetadata;
   config: Record<string, unknown>;
   auth: {
     types: Array<string | DeclarativeAuthTypeDef>;
@@ -81,70 +78,11 @@ export interface CatalogContractSpec {
   };
 }
 
-export type DeclarativeConnectorSpec = CatalogContractSpec;
-
-export interface CatalogTypeMetadata {
-  displayName: string;
-  description: string;
-  docsUrl?: string;
-  icon?: DeclarativeConnectorIcon;
-  minimumLicense: LicenseType;
-  isTechnicalPreview?: boolean;
-  supportedFeatureIds: string[];
-}
-
-export interface CatalogManifestRow {
-  id: string;
-  version: string;
-  definitionUrl: string;
-  contentHash: string;
-}
-
-export interface CatalogManifest {
-  schemaVersion: 1;
-  catalogVersion: string;
-  sequence: number;
-  previousCatalogVersion?: string;
-  typeMetadata: Record<string, CatalogTypeMetadata>;
-  connectors: CatalogManifestRow[];
-  skippedTypeMetadata: string[];
-}
-
-/** @deprecated Use CatalogManifestRow. */
-export type DeclarativeCatalogEntry = CatalogManifestRow;
-
-export interface TypeMetadataState {
-  displayName: string;
-  description: string;
-  docsUrl?: string;
-  minimumLicense: LicenseType;
-  isTechnicalPreview?: boolean;
-  supportedFeatureIds: string[];
-  iconDataUrl?: string;
-}
-
 export interface BuiltVersion {
   id: string;
   version: string;
   contentHash: string;
-  contract: CatalogContractSpec;
-  spec: Omit<ConnectorSpec, 'metadata'>;
-}
-
-export interface CatalogSource {
-  readonly origin: string;
-  readManifest(): Promise<{ bytes: string; signature: string }>;
-  readText(path: string, maxBytes: number): Promise<string>;
-}
-
-export interface StoredManifest {
-  bytes: string;
-  signature: string;
-  sequence: number;
-  catalogVersion: string;
-  fetchedAt: string;
-  seqNo?: number;
-  primaryTerm?: number;
+  spec: ConnectorSpec;
 }
 
 export interface StoredDefinition {
@@ -152,26 +90,26 @@ export interface StoredDefinition {
   version: string;
   yaml: string;
   contentHash: string;
-  catalogVersion: string;
+  managedBy: string;
   addedAt: string;
 }
 
-export interface StoredAsset {
-  contentHash: string;
-  svg: string;
-  addedAt: string;
+/**
+ * Writes the connector specs of one owner (`managedBy`), for installers such as Fleet that run
+ * without a user request.
+ */
+export interface ManagedConnectorSpecsClient {
+  /**
+   * Stores the spec version and registers the connector type at its newest stored version.
+   * Stored versions are never overwritten: an older version stays stored after an upgrade, and
+   * re-sending a stored version with different content throws. Also throws when the id is a
+   * built-in connector type or belongs to another owner, or when the version cannot be registered.
+   */
+  upsertSpec(yaml: string): Promise<{ id: string }>;
+  /** Deletes every stored version of these connector types and unregisters them. */
+  deleteSpecs(ids: string[]): Promise<void>;
 }
 
-export type DeclarativeCatalogSkipReason = 'reserved_prefix' | 'already_registered' | 'load_failed';
-
-export interface DeclarativeCatalogSkippedEntry {
-  id: string;
-  version?: string;
-  reason: DeclarativeCatalogSkipReason;
-  detail?: string;
-}
-
-export interface DeclarativeCatalogPinnedVersionMissing {
-  id: string;
-  version: string;
+export interface ConnectorCatalogStart {
+  getManagedClient(options: { managedBy: string }): ManagedConnectorSpecsClient;
 }

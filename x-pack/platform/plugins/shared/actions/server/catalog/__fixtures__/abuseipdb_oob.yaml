@@ -1,6 +1,14 @@
 schemaVersion: 1
-id: .abuseipdb
+id: .abuseipdb_oob
 version: "1.1"
+metadata:
+  displayName: AbuseIPDB
+  description: IP reputation checks and abuse reports
+  minimumLicense: gold
+  isTechnicalPreview: true
+  supportedFeatureIds:
+    - workflows
+    - agentBuilder
 config:
   type: object
   additionalProperties: false
@@ -10,12 +18,11 @@ config:
     baseUrl:
       type: string
       format: uri
-      default: http://127.0.0.1:8090
+      default: https://api.abuseipdb.com
       description: AbuseIPDB API base URL
       xUi:
         label: Base URL
         placeholder: https://api.abuseipdb.com
-        helpText: Use the local mock URL for the PoC or https://api.abuseipdb.com for live testing.
         validate:
           allowedHosts: true
 auth:
@@ -27,7 +34,6 @@ auth:
         meta:
           Key:
             label: API key
-            placeholder: local-poc-key
 actions:
   checkIp:
     description: Check the reputation of an IPv4 address.
@@ -49,13 +55,6 @@ actions:
           maximum: 365
           default: 90
           description: Maximum report age in days
-        verbose:
-          type: boolean
-          default: false
-          description: Include reports from countries outside the top-level summary
-        someOtherParam:
-          type: string
-          description: Just to demonstrate how it all connects
     request:
       method: GET
       baseUrl: "{{ config.baseUrl }}"
@@ -63,8 +62,6 @@ actions:
       query:
         ipAddress: "{{ input.ipAddress }}"
         maxAgeInDays: "{{ input.maxAgeInDays }}"
-        verbose: "{{ input.verbose }}"
-        someOtherParam: "{{ input.someOtherParam }}"
       retry:
         statusCodes:
           - 429
@@ -118,6 +115,5 @@ test:
     query:
       ipAddress: 8.8.8.8
       maxAgeInDays: 1
-      verbose: false
     response:
       dataPath: data

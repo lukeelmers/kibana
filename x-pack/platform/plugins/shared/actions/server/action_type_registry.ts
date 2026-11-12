@@ -45,6 +45,7 @@ interface ListOpts {
 export class ActionTypeRegistry {
   private readonly taskManager: TaskManagerSetupContract;
   private readonly actionTypes: Map<string, ActionType> = new Map();
+  private readonly registeredTaskTypes = new Set<string>();
   private readonly taskRunnerFactory: TaskRunnerFactory;
   private readonly actionsConfigUtils: ActionsConfigurationUtilities;
   private readonly licenseState: ILicenseState;
@@ -153,28 +154,14 @@ export class ActionTypeRegistry {
   }
 
   /**
-   * Registers an action type to the action type registry
+   * Throws if the action type cannot be registered, apart from its id being taken
    */
-  public register<
+  public validateActionType<
     Config extends ActionTypeConfig = ActionTypeConfig,
     Secrets extends ActionTypeSecrets = ActionTypeSecrets,
     Params extends ActionTypeParams = ActionTypeParams,
     ExecutorResultData = void
   >(actionType: ActionType<Config, Secrets, Params, ExecutorResultData>) {
-    if (this.has(actionType.id)) {
-      throw new Error(
-        i18n.translate(
-          'xpack.actions.actionTypeRegistry.register.duplicateActionTypeErrorMessage',
-          {
-            defaultMessage: 'Action type "{id}" is already registered.',
-            values: {
-              id: actionType.id,
-            },
-          }
-        )
-      );
-    }
-
     if (!actionType.supportedFeatureIds || actionType.supportedFeatureIds.length === 0) {
       throw new Error(
         i18n.translate('xpack.actions.actionTypeRegistry.register.missingSupportedFeatureIds', {
@@ -224,6 +211,32 @@ export class ActionTypeRegistry {
         })
       );
     }
+  }
+
+  /**
+   * Registers an action type to the action type registry
+   */
+  public register<
+    Config extends ActionTypeConfig = ActionTypeConfig,
+    Secrets extends ActionTypeSecrets = ActionTypeSecrets,
+    Params extends ActionTypeParams = ActionTypeParams,
+    ExecutorResultData = void
+  >(actionType: ActionType<Config, Secrets, Params, ExecutorResultData>) {
+    if (this.has(actionType.id)) {
+      throw new Error(
+        i18n.translate(
+          'xpack.actions.actionTypeRegistry.register.duplicateActionTypeErrorMessage',
+          {
+            defaultMessage: 'Action type "{id}" is already registered.',
+            values: {
+              id: actionType.id,
+            },
+          }
+        )
+      );
+    }
+
+    this.validateActionType(actionType);
 
     const maxAttempts = this.actionsConfigUtils.getMaxAttempts({
       actionTypeId: actionType.id,
@@ -232,10 +245,17 @@ export class ActionTypeRegistry {
 
     this.actionTypes.set(actionType.id, { ...actionType } as unknown as ActionType);
 
-    // Skip task type registration for connectors without execute/params
-    if (actionType.executor && actionType.validate.params) {
+    // Skip task type registration for connectors without execute/params, and for types registered
+    // again after `unregister`, whose task definition Task Manager keeps (with the title and
+    // maxAttempts of the first registered version)
+    const taskType = `actions:${actionType.id}`;
+    if (
+      actionType.executor &&
+      actionType.validate.params &&
+      !this.registeredTaskTypes.has(taskType)
+    ) {
       this.taskManager.registerTaskDefinitions({
-        [`actions:${actionType.id}`]: {
+        [taskType]: {
           title: actionType.name,
           maxAttempts,
           cost: TaskCost.Tiny,
@@ -243,6 +263,7 @@ export class ActionTypeRegistry {
           createTaskRunner: (context: RunContext) => this.taskRunnerFactory.create(context),
         },
       });
+      this.registeredTaskTypes.add(taskType);
     }
     // No need to notify usage on basic action types
     if (actionType.minimumLicenseRequired !== 'basic') {
@@ -251,6 +272,13 @@ export class ActionTypeRegistry {
         actionType.minimumLicenseRequired
       );
     }
+  }
+
+  /**
+   * Removes an action type registered at runtime, such as a connector catalog type
+   */
+  public unregister(id: string) {
+    this.actionTypes.delete(id);
   }
 
   /**

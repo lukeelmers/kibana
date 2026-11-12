@@ -11,6 +11,8 @@ const createActionTypeRegistryMock = () => {
   const mocked: jest.Mocked<ActionTypeRegistryContract> = {
     has: jest.fn(),
     register: jest.fn(),
+    unregister: jest.fn(),
+    validateActionType: jest.fn(),
     get: jest.fn(),
     list: jest.fn(),
     getAllTypes: jest.fn(),

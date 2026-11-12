@@ -35,7 +35,6 @@ interface ExecuteDeclarativeRequestOptions {
   connector: DeclarativeConnectorSpec;
   request: DeclarativeRequest;
   input: Record<string, unknown>;
-  sleep?: (milliseconds: number) => Promise<void>;
 }
 
 const EXACT_TEMPLATE = /^\{\{\s*([a-zA-Z0-9_.]+)\s*\}\}$/;
@@ -193,7 +192,7 @@ const buildRequestConfig = ({
   request,
   input,
   url,
-}: Omit<ExecuteDeclarativeRequestOptions, 'sleep'> & { url: string }): ClientRequestConfig => {
+}: ExecuteDeclarativeRequestOptions & { url: string }): ClientRequestConfig => {
   const templateContext = {
     input,
     config: context.config ?? {},
@@ -221,10 +220,6 @@ const buildRequestConfig = ({
     headers,
     ...(renderedBody !== undefined ? { data } : {}),
   };
-};
-
-const defaultSleep = async (milliseconds: number): Promise<void> => {
-  await new Promise((resolve) => setTimeout(resolve, milliseconds));
 };
 
 const getResponseHeader = (
@@ -263,8 +258,7 @@ const getRetryDelay = (
 const requestWithRetry = async (
   client: ActionContext['client'],
   config: ClientRequestConfig,
-  request: DeclarativeRequest,
-  sleep: (milliseconds: number) => Promise<void>
+  request: DeclarativeRequest
 ): Promise<ClientResponse> => {
   const retry = request.retry;
   const maxAttempts = retry?.maxAttempts ?? 1;
@@ -277,14 +271,13 @@ const requestWithRetry = async (
       const shouldRetry =
         attempt < maxAttempts && status !== undefined && retry?.statusCodes.includes(status);
       if (!shouldRetry) throw error;
-      await sleep(
-        getRetryDelay(
-          requestError,
-          attempt,
-          retry?.initialDelayMs ?? 200,
-          retry?.maxDelayMs ?? 5000
-        )
+      const delay = getRetryDelay(
+        requestError,
+        attempt,
+        retry?.initialDelayMs ?? 200,
+        retry?.maxDelayMs ?? 5000
       );
+      await new Promise((resolve) => setTimeout(resolve, delay));
     }
   }
   throw new Error('Declarative request retry loop ended unexpectedly.');
@@ -331,7 +324,6 @@ export const executeDeclarativeRequest = async ({
   connector,
   request,
   input,
-  sleep = defaultSleep,
 }: ExecuteDeclarativeRequestOptions): Promise<Record<string, unknown>> => {
   const templateContext = { input, config: context.config ?? {} };
   const firstUrl = buildUrl(request, templateContext);
@@ -344,7 +336,7 @@ export const executeDeclarativeRequest = async ({
   let pages = 0;
 
   while (pages < maxPages) {
-    response = await requestWithRetry(context.client, currentConfig, request, sleep);
+    response = await requestWithRetry(context.client, currentConfig, request);
     pages++;
     if (!request.pagination) break;
 
