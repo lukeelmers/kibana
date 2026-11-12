@@ -134,11 +134,15 @@ async function createConnector({
 
   const actionType = context.actionTypeRegistry.get(actionTypeId);
   const configurationUtilities = context.actionTypeRegistry.getUtils();
+  // Pinned to the newest version for the connector's lifetime; upgrading is a separate action
+  const specVersion = actionType.specVersions?.getLatestVersion();
   const validatedActionTypeConfig = validateConfig(actionType, config, {
     configurationUtilities,
+    specVersion,
   });
   const validatedActionTypeSecrets = validateSecrets(actionType, secrets, {
     configurationUtilities,
+    specVersion,
   });
   if (actionType.validate?.connector) {
     validateConnector(actionType, { config, secrets });
@@ -224,6 +228,7 @@ async function createConnector({
           config: configForSave,
           secrets: validatedActionTypeSecrets,
           ...(authMode !== undefined ? { authMode } : {}),
+          ...(specVersion !== undefined ? { specVersion } : {}),
           ...(identityAttributes ? toRawActionIdentityAttributes(identityAttributes) : {}),
           hasInboundEventIdentity: Boolean(identityAttributes),
         },
@@ -314,6 +319,7 @@ async function createConnector({
     isDeprecated: isConnectorDeprecated(result.attributes),
     isConnectorTypeDeprecated: context.actionTypeRegistry.isDeprecated(actionTypeId),
     ...(result.attributes.authMode !== undefined ? { authMode: result.attributes.authMode } : {}),
+    ...(specVersion !== undefined ? { specVersion } : {}),
     ...(connectorTypeHasInboundEvents(actionTypeId) ? { isInboundEventsEnabled } : {}),
   };
 }

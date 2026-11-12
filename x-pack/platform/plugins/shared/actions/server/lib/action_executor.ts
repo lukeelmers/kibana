@@ -439,6 +439,7 @@ export class ActionExecutor {
         const { actionTypeId, name, config, secrets, rawAction, connectorVersion, isInMemory } =
           actionInfo;
         const authMode = rawAction.authMode;
+        const specVersion = rawAction.specVersion;
         const profileUid = providedProfileUid || currentUser?.profile_uid;
         const loggerId = actionTypeId.startsWith('.') ? actionTypeId.substring(1) : actionTypeId;
         const logger = this.actionExecutorContext!.logger.get(loggerId);
@@ -578,7 +579,7 @@ export class ActionExecutor {
               secrets,
               taskInfo,
             },
-            { configurationUtilities }
+            { configurationUtilities, specVersion }
           );
           validatedParams = validationResult.validatedParams;
           validatedConfig = validationResult.validatedConfig;
@@ -641,6 +642,7 @@ export class ActionExecutor {
             authMode,
             profileUid,
             connectorVersion: isInMemory ? IN_MEMORY_CONNECTOR_REVISION : connectorVersion,
+            specVersion,
           });
 
           if (rawResult && rawResult.status === 'error') {

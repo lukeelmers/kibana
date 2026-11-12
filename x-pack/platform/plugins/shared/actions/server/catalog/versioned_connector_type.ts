@@ -5,285 +5,137 @@
  * 2.0.
  */
 
-import type { Logger } from '@kbn/core/server';
-import type { ConnectorSpec } from '@kbn/connector-specs';
 import type { ActionTypeExecutorOptions, SpecVersionsContract, ValidatorServices } from '../types';
 import type { PluginSetupContract as ActionsPluginSetupContract } from '../plugin';
 import { createConnectorTypeFromSpec } from '../lib/single_file_connectors/create_connector_from_spec';
-import { SpecVersionRequestError } from '../lib/errors/spec_version_request_error';
-import type { CatalogActionType, BuiltVersion, TypeMetadataState } from './types';
-import { withTypeMetadata } from './build_spec';
-import {
-  compareSpecVersions,
-  isExactVersion,
-  isMajorRequest,
-  parseSpecVersion,
-} from './spec_version_format';
+import type { CatalogActionType, BuiltVersion } from './types';
 
-type SpecValidatorKey = 'config' | 'secrets' | 'params';
-type SpecExecutorOptions = ActionTypeExecutorOptions<
+type ValidatorKey = 'config' | 'secrets' | 'params';
+type ExecutorOptions = ActionTypeExecutorOptions<
   Record<string, unknown>,
   Record<string, unknown>,
   Record<string, unknown>
 >;
 
-export interface VersionedConnectorTypeOptions {
-  id: string;
-  versions: BuiltVersion[];
-  metadata: TypeMetadataState;
-  actions: ActionsPluginSetupContract;
-  logger: Logger;
-  loadVersion?: (id: string, version: string) => Promise<BuiltVersion>;
-}
-
-/** One registry entry per connector id that dispatches on the connector instance pin. */
+/** One registry entry per connector type id that dispatches on each connector's pinned version. */
 export interface VersionedConnectorType {
-  readonly id: string;
   readonly actionType: CatalogActionType;
-  addVersion(materialized: BuiltVersion): void;
-  updateMetadata(next: TypeMetadataState): void;
-  getMetadata(): TypeMetadataState;
-  getLatestVersions(): Record<string, string>;
-  getLatestVersion(major?: number): string | undefined;
-  getVersions(): string[];
+  addVersion(built: BuiltVersion): void;
   hasVersion(version: string): boolean;
-  getMaterialized(version: string): BuiltVersion | undefined;
+  getLatestVersion(major?: number): string | undefined;
 }
 
-interface VersionEntry {
-  materialized: BuiltVersion;
-  type: CatalogActionType;
-}
+const parse = (version: string) => version.split('.').map(Number);
+const compareVersions = (left: string, right: string) => {
+  const [leftMajor, leftMinor] = parse(left);
+  const [rightMajor, rightMinor] = parse(right);
+  return leftMajor - rightMajor || leftMinor - rightMinor;
+};
 
 export const createVersionedConnectorType = ({
   id,
   versions,
-  metadata: initialMetadata,
   actions,
-  logger,
-  loadVersion,
-}: VersionedConnectorTypeOptions): VersionedConnectorType => {
-  const entries = new Map<string, VersionEntry>();
-  const latestPerMajor = new Map<number, string>();
-  const inFlight = new Map<string, Promise<VersionEntry>>();
-  let metadata: TypeMetadataState = { ...initialMetadata };
+}: {
+  id: string;
+  versions: BuiltVersion[];
+  actions: ActionsPluginSetupContract;
+}): VersionedConnectorType => {
+  const types = new Map<string, { built: BuiltVersion; type: CatalogActionType }>();
 
-  const specFor = (materialized: BuiltVersion): ConnectorSpec =>
-    withTypeMetadata(id, materialized.spec, metadata);
+  const getLatestVersion = (major?: number) =>
+    [...types.keys()]
+      .filter((version) => major === undefined || parse(version)[0] === major)
+      .sort(compareVersions)
+      .pop();
+  // Connectors stored before pinning run the newest version of the lowest major
+  const getDefaultVersion = () =>
+    getLatestVersion(Math.min(...[...types.keys()].map((version) => parse(version)[0])))!;
 
-  const assertSameId = (materialized: BuiltVersion): void => {
-    if (materialized.id !== id) {
-      throw new Error(
-        `Connector type "${id}" cannot serve spec "${materialized.id}@${materialized.version}".`
-      );
+  const entry = (version = getDefaultVersion()) => {
+    const found = types.get(version);
+    if (!found) {
+      throw new Error(`Spec version "${version}" of connector type "${id}" is not installed`);
+    }
+    return found;
+  };
+  const newest = () => entry(getLatestVersion());
+
+  const addVersion = (built: BuiltVersion) => {
+    if (built.id !== id) {
+      throw new Error(`Connector type "${id}" cannot serve "${built.id}@${built.version}"`);
+    }
+    if (!types.has(built.version)) {
+      types.set(built.version, { built, type: createConnectorTypeFromSpec(built.spec, actions) });
     }
   };
+  versions.forEach(addVersion);
 
-  const recordLatest = (version: string): void => {
-    const { major } = parseSpecVersion(version);
-    const current = latestPerMajor.get(major);
-    if (current === undefined || compareSpecVersions(version, current) > 0) {
-      latestPerMajor.set(major, version);
-    }
-  };
-
-  const materialize = (materialized: BuiltVersion): VersionEntry => {
-    assertSameId(materialized);
-    const entry: VersionEntry = {
-      materialized,
-      type: createConnectorTypeFromSpec(specFor(materialized), actions),
+  const resolveSchema = (key: ValidatorKey, specVersion?: string) => {
+    const { built, type } = entry(specVersion);
+    const schema = type.validate[key]!.schema;
+    if (key !== 'params') return schema;
+    return {
+      parse: (value: unknown) => {
+        const { subAction } = value as { subAction?: string };
+        const latest = newest().built;
+        if (subAction && !built.spec.actions[subAction] && latest.spec.actions[subAction]) {
+          throw new Error(
+            `"${subAction}" is added in spec version ${latest.version} of "${id}", and this connector runs ${built.version}. Update the connector's spec version to use it.`
+          );
+        }
+        return schema.parse(value);
+      },
     };
-    entries.set(materialized.version, entry);
-    recordLatest(materialized.version);
-    return entry;
   };
 
-  for (const materialized of versions) {
-    materialize(materialized);
-  }
-  if (latestPerMajor.size === 0) {
-    throw new Error(`Connector type "${id}" has no materialized spec versions.`);
-  }
-
-  const newestMajor = (): number => Math.max(...latestPerMajor.keys());
-
-  const selectedVersion = (): string => {
-    const version = latestPerMajor.get(newestMajor());
-    if (version === undefined) {
-      throw new Error(`Connector type "${id}" has no accepted spec versions.`);
-    }
-    return version;
-  };
-
-  const latestOfMajor = (major: number): string => {
-    const version = latestPerMajor.get(major);
-    if (version === undefined) {
-      throw new SpecVersionRequestError({
-        reason: 'no_version_for_major',
-        actionTypeId: id,
-        requested: String(major),
-        message: `Connector type "${id}" has no accepted spec version for major ${major}`,
-      });
-    }
-    return version;
-  };
-
-  const selectedEntry = (): VersionEntry => {
-    const version = selectedVersion();
-    const entry = entries.get(version);
-    if (!entry) {
-      throw new Error(`Connector type "${id}" lost spec version "${version}".`);
-    }
-    return entry;
-  };
-
-  const major1Entry = (): VersionEntry => {
-    const version = latestOfMajor(1);
-    const entry = entries.get(version);
-    if (!entry) {
-      throw new Error(`Connector type "${id}" lost spec version "${version}".`);
-    }
-    return entry;
-  };
-
-  const loadedEntry = (version: string | undefined): VersionEntry => {
-    if (version === undefined) {
-      return major1Entry();
-    }
-    const entry = entries.get(version);
-    if (!entry) {
-      throw new Error(
-        `Spec version "${version}" of connector type "${id}" is not loaded on this node.`
-      );
-    }
-    return entry;
-  };
-
-  const ensureEntry = async (version: string): Promise<VersionEntry> => {
-    const loaded = entries.get(version);
-    if (loaded) {
-      return loaded;
-    }
-    if (!loadVersion) {
-      throw new SpecVersionRequestError({
-        reason: 'not_stored',
-        actionTypeId: id,
-        requested: version,
-        message: `Spec version "${version}" of connector type "${id}" is not stored in this cluster; retry after the next catalog reload or check that it exists`,
-      });
-    }
-    const pending = inFlight.get(version);
-    if (pending) {
-      return pending;
-    }
-    const promise = loadVersion(id, version)
-      .then((materialized) => entries.get(version) ?? materialize(materialized))
-      .catch((error) => {
-        throw new SpecVersionRequestError({
-          reason: 'not_stored',
-          actionTypeId: id,
-          requested: version,
-          message: `Spec version "${version}" of connector type "${id}" is not stored in this cluster; retry after the next catalog reload or check that it exists${
-            error instanceof Error && error.message ? ` (${error.message})` : ''
-          }`,
-        });
-      })
-      .finally(() => inFlight.delete(version));
-    inFlight.set(version, promise);
-    return promise;
-  };
-
-  const getLatestVersions = (): Record<string, string> =>
-    Object.fromEntries(
-      [...latestPerMajor.entries()]
-        .sort(([left], [right]) => left - right)
-        .map(([major, version]) => [String(major), version])
-    );
-
-  const getLatestVersion = (major?: number): string | undefined => {
-    if (major === undefined) {
-      return latestPerMajor.get(newestMajor());
-    }
-    return latestPerMajor.get(major);
-  };
-
-  const resolveRequest = async (
-    request: string | undefined,
-    currentMajor?: number
-  ): Promise<string> => {
-    if (request === undefined) {
-      return latestOfMajor(currentMajor ?? 1);
-    }
-    if (isMajorRequest(request)) {
-      return latestOfMajor(Number(request));
-    }
-    if (!isExactVersion(request)) {
-      throw new SpecVersionRequestError({
-        reason: 'invalid_request',
-        actionTypeId: id,
-        requested: request,
-        message: `Spec version "${request}" is not a valid N or N.M request`,
-      });
-    }
-    await ensureEntry(request);
-    return request;
-  };
-
-  const validatorSchema = (entry: VersionEntry, key: SpecValidatorKey) => {
-    const schema = entry.type.validate[key]?.schema;
-    if (!schema) {
-      throw new Error(`Connector type "${id}" has no ${key} validator.`);
-    }
-    return schema;
-  };
-
-  const validator = (key: SpecValidatorKey) => ({
+  const validator = (key: ValidatorKey) => ({
     get schema() {
-      return validatorSchema(selectedEntry(), key);
+      return newest().type.validate[key]!.schema;
     },
-    resolveSchema: (services: ValidatorServices) =>
-      validatorSchema(loadedEntry(services.specVersion), key),
+    resolveSchema: ({ specVersion }: ValidatorServices) => resolveSchema(key, specVersion),
     customValidator: (value: Record<string, unknown>, services: ValidatorServices) =>
-      loadedEntry(services.specVersion).type.validate[key]?.customValidator?.(value, services),
+      entry(services.specVersion).type.validate[key]?.customValidator?.(value, services),
   });
 
   const specVersions: SpecVersionsContract = {
-    getLatestVersions,
     getLatestVersion,
-    hasVersion: (version: string) => entries.has(version),
-    getSpec: async (version: string): Promise<ConnectorSpec> =>
-      specFor((await ensureEntry(version)).materialized),
-    resolveRequest,
+    getDefaultVersion,
+    hasVersion: (version) => types.has(version),
   };
 
+  // Type-level fields follow the newest version, which new connectors are created at
   const actionType: CatalogActionType = {
     id,
     get name() {
-      return metadata.displayName;
+      return newest().type.name;
     },
     get minimumLicenseRequired() {
-      return metadata.minimumLicense;
+      return newest().type.minimumLicenseRequired;
     },
     get supportedFeatureIds() {
-      return metadata.supportedFeatureIds;
+      return newest().type.supportedFeatureIds;
     },
     get source() {
-      return selectedEntry().type.source;
+      return newest().type.source;
     },
     get description() {
-      return metadata.description;
+      return newest().type.description;
     },
     get isExperimental() {
-      return metadata.isTechnicalPreview;
+      return newest().type.isExperimental;
     },
     get isTestable() {
-      return selectedEntry().type.isTestable;
+      return newest().type.isTestable;
     },
     get globalAuthHeaders() {
-      return selectedEntry().type.globalAuthHeaders;
+      return newest().type.globalAuthHeaders;
     },
-    get connectorSpec() {
-      return specFor(selectedEntry().materialized);
+    get sandboxSupportedAuthTypes() {
+      return newest().type.sandboxSupportedAuthTypes;
+    },
+    get spec() {
+      return newest().built.spec;
     },
     specVersions,
     validate: {
@@ -291,41 +143,8 @@ export const createVersionedConnectorType = ({
       secrets: validator('secrets'),
       params: validator('params'),
     },
-    executor: async (options: SpecExecutorOptions) => {
-      const { specVersion } = options;
-      const version = specVersion === undefined ? latestOfMajor(1) : specVersion;
-      const entry = await ensureEntry(version);
-      if (!entry.type.executor) {
-        throw new Error(
-          `Spec version "${entry.materialized.version}" of connector type "${id}" has no executor.`
-        );
-      }
-      return entry.type.executor(options);
-    },
+    executor: (options: ExecutorOptions) => entry(options.specVersion).type.executor!(options),
   };
 
-  return {
-    id,
-    actionType,
-    addVersion: (materialized) => {
-      assertSameId(materialized);
-      if (!entries.has(materialized.version)) {
-        materialize(materialized);
-      }
-    },
-    updateMetadata: (next) => {
-      metadata = { ...next };
-      logger.debug(
-        `Updated catalog type metadata for "${id}" (license=${next.minimumLicense}, preview=${
-          next.isTechnicalPreview === true
-        })`
-      );
-    },
-    getMetadata: () => metadata,
-    getLatestVersions,
-    getLatestVersion,
-    getVersions: () => [...entries.keys()].sort(compareSpecVersions),
-    hasVersion: (version) => entries.has(version),
-    getMaterialized: (version) => entries.get(version)?.materialized,
-  };
+  return { actionType, addVersion, hasVersion: specVersions.hasVersion, getLatestVersion };
 };

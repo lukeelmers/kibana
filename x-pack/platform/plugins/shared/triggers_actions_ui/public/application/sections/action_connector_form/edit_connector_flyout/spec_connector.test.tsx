@@ -190,10 +190,15 @@ describe('spec connector edit flyout Test tab', () => {
 
   it('shows error state on the Test tab when spec fetch fails and retries', async () => {
     const errorMessage = 'Failed to fetch spec';
-    appMockRenderer.coreStart.http.get = jest
+    const getSpec = jest
       .fn()
       .mockRejectedValueOnce(new Error(errorMessage))
       .mockResolvedValueOnce(mockSpecResponse(true));
+    appMockRenderer.coreStart.http.get = jest
+      .fn()
+      .mockImplementation((path: string, options?: unknown) =>
+        path.endsWith('/spec') ? getSpec(path, options) : Promise.resolve({})
+      );
 
     appMockRenderer.render(
       <EditConnectorFlyout
@@ -218,7 +223,7 @@ describe('spec connector edit flyout Test tab', () => {
     await userEvent.click(screen.getByTestId('connector-spec-load-retry'));
 
     expect(await screen.findByTestId('test-connector-form')).toBeInTheDocument();
-    expect(appMockRenderer.coreStart.http.get).toHaveBeenCalledTimes(2);
+    expect(getSpec).toHaveBeenCalledTimes(2);
   });
 });
 

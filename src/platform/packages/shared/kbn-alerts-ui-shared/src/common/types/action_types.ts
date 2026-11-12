@@ -57,6 +57,8 @@ export interface ActionConnectorProps<Config, Secrets> {
   authMode?: 'shared' | 'per-user';
   userAuthStatus?: ConnectorUserAuthStatus;
   isInboundEventsEnabled?: boolean;
+  specVersion?: string;
+  latestSpecVersion?: string;
 }
 
 export type SystemAction = Omit<ActionConnectorProps<never, never>, 'config' | 'secrets'> & {

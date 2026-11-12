@@ -65,6 +65,7 @@ const getAxiosInstanceWithAuth = jest.fn();
 
 const actionTypeRegistry: ActionTypeRegistry = {
   get: jest.fn(),
+  has: jest.fn().mockReturnValue(false),
   isSystemActionType: jest.fn().mockReturnValue(false),
   ensureActionTypeEnabled: jest.fn(),
   isDeprecated: jest.fn().mockReturnValue(false),

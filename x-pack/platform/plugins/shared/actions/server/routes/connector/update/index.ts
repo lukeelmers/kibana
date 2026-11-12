@@ -6,3 +6,4 @@
  */
 
 export { updateConnectorRoute } from './update';
+export { updateConnectorSpecVersionRoute } from './update_spec_version';

@@ -16,6 +16,7 @@ import { connectorFromInMemoryConnector } from '../../lib/connector_from_in_memo
 import { getAuthMode } from '../../lib/get_auth_mode';
 import { hasInboundEventIdentityAttributes } from '../../../../inbound/event_identity';
 import { readInboundEventsEnabled } from '../../../../inbound/inbound_events_enabled';
+import { getConnectorSpecVersions } from '../../../../lib/spec_version';
 
 export async function get({
   context,
@@ -76,6 +77,13 @@ export async function get({
       id,
     });
     const authMode = getAuthMode(result.attributes.authMode as Connector['authMode'] | undefined);
+    const { actionTypeId } = result.attributes;
+    const specVersions = actionTypeRegistry.has(actionTypeId)
+      ? getConnectorSpecVersions(
+          actionTypeRegistry.get(actionTypeId),
+          result.attributes.specVersion
+        )
+      : {};
     hasIdentity = hasInboundEventIdentityAttributes(result.attributes);
 
     context.auditLogger?.log(
@@ -96,6 +104,7 @@ export async function get({
       isDeprecated: isConnectorDeprecated(result.attributes),
       isConnectorTypeDeprecated: actionTypeRegistry.isDeprecated(result.attributes.actionTypeId),
       authMode,
+      ...specVersions,
     };
   }
 

@@ -21,6 +21,8 @@ export const transformConnectorResponse = (
     isSystemAction,
     isConnectorTypeDeprecated,
     authMode,
+    specVersion,
+    latestSpecVersion,
     isInboundEventsEnabled,
   }: Connector,
   { includeInboundEventsField }: { includeInboundEventsField: boolean }
@@ -35,6 +37,8 @@ export const transformConnectorResponse = (
   is_system_action: isSystemAction,
   is_connector_type_deprecated: isConnectorTypeDeprecated,
   ...(authMode !== undefined ? { auth_mode: authMode } : {}),
+  ...(specVersion !== undefined ? { spec_version: specVersion } : {}),
+  ...(latestSpecVersion !== undefined ? { latest_spec_version: latestSpecVersion } : {}),
   ...(includeInboundEventsField && isInboundEventsEnabled !== undefined
     ? { is_inbound_events_enabled: isInboundEventsEnabled }
     : {}),

@@ -152,19 +152,14 @@ export interface ValidatorServices {
   specVersion?: string;
 }
 
-/**
- * Version dispatch contract of a spec-sourced connector type that serves more than one spec
- * version behind a single registry id.
- */
+/** Spec versions served by a catalog connector type behind a single registry id. */
 export interface SpecVersionsContract {
-  getLatestVersions(): Record<string, string>;
+  /** Newest version, or the newest version of `major` */
   getLatestVersion(major?: number): string | undefined;
+  /** Version run by connectors stored without a pin */
+  getDefaultVersion(): string;
   hasVersion(version: string): boolean;
-  getSpec(version: string): Promise<ConnectorSpec>;
-  resolveRequest(request: string | undefined, currentMajor?: number): Promise<string>;
 }
-
-export type { SpecVersionRequestError } from './lib/errors/spec_version_request_error';
 
 export interface ActionValidationService {
   isHostnameAllowed(hostname: string): boolean;
@@ -267,6 +262,8 @@ export interface ActionTypeCoreFields<
    * Spec this type was generated from; only set for spec-backed types
    */
   spec?: ConnectorSpec;
+  /** Present when the type serves several spec versions behind one id. */
+  specVersions?: SpecVersionsContract;
   subFeature?: SubFeature;
   isDeprecated?: boolean;
   /**
@@ -288,10 +285,6 @@ export interface ActionTypeCoreFields<
    * When true, the connector type is shown as technical preview in the UI.
    */
   isExperimental?: boolean;
-  /** Materialized ConnectorSpec when this type was registered from a spec. */
-  connectorSpec?: ConnectorSpec;
-  /** Present when the type serves several spec versions behind one id. */
-  specVersions?: SpecVersionsContract;
   /**
    * Auth type ids from the connector spec that opted into sandbox credential injection.
    * Populated for spec-backed connectors via createConnectorTypeFromSpec.
@@ -383,6 +376,7 @@ export interface RawAction extends Record<string, unknown> {
   uiamApiKey?: string | null;
   uiamApiKeyExternal?: boolean;
   hasInboundEventIdentity?: boolean;
+  specVersion?: string;
 }
 
 export interface ActionTaskParams extends SavedObjectAttributes {

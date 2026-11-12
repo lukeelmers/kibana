@@ -15,11 +15,11 @@ import { authTypeSpecs } from '@kbn/connector-specs/server';
 import { z } from '@kbn/zod/v4';
 import { declarativeJsonSchemaToZod } from './json_schema';
 import { executeDeclarativeRequest } from './runtime';
-import type { CatalogContractSpec, TypeMetadataState } from './types';
+import type { DeclarativeConnectorSpec } from './types';
 
 const registeredAuthTypeIds = new Set(Object.values(authTypeSpecs).map(({ id }) => id));
 
-const buildAuthTypes = (connector: CatalogContractSpec): Array<string | AuthTypeDef> => {
+const buildAuthTypes = (connector: DeclarativeConnectorSpec): Array<string | AuthTypeDef> => {
   return connector.auth.types.map((authType) => {
     const authTypeId = typeof authType === 'string' ? authType : authType.type;
     if (!registeredAuthTypeIds.has(authTypeId)) {
@@ -33,14 +33,13 @@ const buildAuthTypes = (connector: CatalogContractSpec): Array<string | AuthType
   });
 };
 
-/** Builds the versioned contract portion of a ConnectorSpec (no type metadata). */
-export const buildContract = (contract: CatalogContractSpec): Omit<ConnectorSpec, 'metadata'> => {
-  const configSchema = declarativeJsonSchemaToZod(contract.config, 'config');
+export const buildConnectorSpec = (connector: DeclarativeConnectorSpec): ConnectorSpec => {
+  const configSchema = declarativeJsonSchemaToZod(connector.config, 'config');
   if (!(configSchema instanceof z.ZodObject)) {
-    throw new Error(`Declarative connector "${contract.id}" config must be an object schema.`);
+    throw new Error(`Declarative connector "${connector.id}" config must be an object schema.`);
   }
   const actions = Object.fromEntries(
-    Object.entries(contract.actions).map(([actionId, action]) => [
+    Object.entries(connector.actions).map(([actionId, action]) => [
       actionId,
       {
         description: action.description,
@@ -50,7 +49,7 @@ export const buildContract = (contract: CatalogContractSpec): Omit<ConnectorSpec
         handler: async (context: ActionContext, input: unknown) =>
           executeDeclarativeRequest({
             context,
-            connector: contract,
+            connector,
             request: action.request,
             input: input as Record<string, unknown>,
           }),
@@ -59,40 +58,27 @@ export const buildContract = (contract: CatalogContractSpec): Omit<ConnectorSpec
   ) as ConnectorSpec['actions'];
 
   return {
+    metadata: {
+      ...connector.metadata,
+      id: connector.id,
+      supportedFeatureIds: connector.metadata
+        .supportedFeatureIds as ConnectorMetadata['supportedFeatureIds'],
+    },
     auth: {
-      types: buildAuthTypes(contract),
+      types: buildAuthTypes(connector),
     },
     schema: configSchema,
     actions,
     test: {
       enabled: true,
-      description: contract.test.description,
+      description: connector.test.description,
       handler: async (context) =>
         executeDeclarativeRequest({
           context,
-          connector: contract,
-          request: contract.test.request,
+          connector,
+          request: connector.test.request,
           input: {},
         }),
     },
   };
 };
-
-/** Attaches live type metadata (including the icon data URL) onto a built contract. */
-export const withTypeMetadata = (
-  id: string,
-  built: Omit<ConnectorSpec, 'metadata'>,
-  metadata: TypeMetadataState
-): ConnectorSpec => ({
-  ...built,
-  metadata: {
-    id,
-    displayName: metadata.displayName,
-    description: metadata.description,
-    docsUrl: metadata.docsUrl,
-    minimumLicense: metadata.minimumLicense,
-    isTechnicalPreview: metadata.isTechnicalPreview,
-    supportedFeatureIds: metadata.supportedFeatureIds as ConnectorMetadata['supportedFeatureIds'],
-    ...(metadata.iconDataUrl ? { icon: metadata.iconDataUrl } : {}),
-  },
-});

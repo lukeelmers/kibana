@@ -49,6 +49,23 @@ const connectorResponseFields = {
       },
     })
   ),
+  spec_version: schema.maybe(
+    schema.string({
+      maxLength: 16,
+      meta: {
+        description: 'Exact spec version the connector runs. Omitted for classic connector types.',
+      },
+    })
+  ),
+  latest_spec_version: schema.maybe(
+    schema.string({
+      maxLength: 16,
+      meta: {
+        description:
+          'Newest spec version of the same major, which the connector can be updated to.',
+      },
+    })
+  ),
 };
 
 const isInboundEventsEnabledResponseField = {

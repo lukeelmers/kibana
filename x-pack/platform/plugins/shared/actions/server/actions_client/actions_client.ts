@@ -35,6 +35,7 @@ import { getConnectorSpecAsJsonSchema } from '../application/connector/methods/g
 import type { GetAuthStatusResult } from '../application/connector/methods/get_auth_status/types';
 import { update } from '../application/connector/methods/update';
 import { rotateInboundIngress } from '../application/connector/methods/rotate_inbound_ingress';
+import { updateSpecVersion } from '../application/connector/methods/update_spec_version';
 import { listTypes } from '../application/connector/methods/list_types';
 import { create } from '../application/connector/methods/create';
 import { execute } from '../application/connector/methods/execute';
@@ -253,6 +254,19 @@ export class ActionsClient {
     action,
   }: Pick<ConnectorUpdateParams, 'id' | 'action'>): Promise<Connector> {
     return update({ context: this.context, id, action });
+  }
+
+  /**
+   * Move a connector to another spec version of its type
+   */
+  public async updateSpecVersion({
+    id,
+    specVersion,
+  }: {
+    id: string;
+    specVersion: string;
+  }): Promise<Connector> {
+    return updateSpecVersion({ context: this.context, id, specVersion });
   }
 
   /**

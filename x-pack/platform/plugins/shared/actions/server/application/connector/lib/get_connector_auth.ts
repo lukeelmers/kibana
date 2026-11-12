@@ -89,6 +89,7 @@ export async function getConnectorAuth(
   );
 
   let secrets;
+  let specVersion: string | undefined;
 
   if (inMemoryAction) {
     secrets = inMemoryAction.secrets;
@@ -109,10 +110,14 @@ export async function getConnectorAuth(
 
     secrets = rawAction.attributes.secrets;
     config = rawAction.attributes.config ?? config;
+    specVersion = rawAction.attributes.specVersion;
   }
 
   const configurationUtilities = actionTypeRegistry.getUtils();
-  const validatedSecrets = validateSecrets(actionType, secrets, { configurationUtilities });
+  const validatedSecrets = validateSecrets(actionType, secrets, {
+    configurationUtilities,
+    specVersion,
+  });
 
   const profileUid = await getCurrentUserProfileId?.(request);
 

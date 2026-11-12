@@ -12,6 +12,8 @@ export const ACTION_ATTRIBUTES_INCLUDED_IN_AAD = new Set([
   'actionTypeId',
   'isMissingSecrets',
   'config',
+  // PoC: added in one step. Production must stage this across two releases.
+  'specVersion',
 ]);
 
 const ACTION_ATTRIBUTES_TO_ENCRYPT_V2 = new Set(['secrets']);

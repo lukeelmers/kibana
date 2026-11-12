@@ -29,6 +29,10 @@ import type { Option } from 'fp-ts/Option';
 import { none, some } from 'fp-ts/Option';
 import type { ConnectorFormSchema } from '@kbn/alerts-ui-shared';
 import { useActionTypeModel } from '@kbn/alerts-ui-shared/src/common/hooks/use_action_type_model';
+import {
+  fetchConnector,
+  transformConnectorResponse,
+} from '@kbn/alerts-ui-shared/src/common/apis/fetch_connector';
 import { connectorTypeIsDual } from '@kbn/connector-specs';
 import { ReadOnlyConnectorMessage } from './read_only';
 import type {
@@ -43,6 +47,7 @@ import { useUpdateConnector } from '../../../hooks/use_edit_connector';
 import { useKibana } from '../../../../common/lib/kibana';
 import { ConnectorContext } from '../../../context/connector_context';
 import { hasSaveActionsCapability } from '../../../lib/capabilities';
+import { INTERNAL_BASE_ACTION_API_PATH } from '../../../constants';
 import { getSpecConnectorTestExecutionParams } from '../../../lib/get_spec_connector_test_execution_params';
 import { TestConnectorForm } from '../test_connector_form';
 import { ConnectorRulesList } from '../connector_rules_list';
@@ -189,6 +194,7 @@ export const EditConnectorFlyoutContent: React.FC<EditConnectorFlyoutContentProp
     docLinks,
     http,
     uiSettings,
+    notifications: { toasts },
     application: { capabilities },
   } = services;
   const isClusterInboundEventsEnabled = readClusterInboundEventsEnabled(
@@ -271,6 +277,57 @@ export const EditConnectorFlyoutContent: React.FC<EditConnectorFlyoutContentProp
 
   const isSpecConnector = !actionTypeRegistry.has(connector.actionTypeId);
   const isTestable = actionTypeModel?.isTestable ?? actionTypeRegistry.has(connector.actionTypeId);
+
+  // Spec versions come only from the single-connector GET.
+  const [specVersions, setSpecVersions] = useState<
+    Pick<ActionConnector, 'specVersion' | 'latestSpecVersion'>
+  >({});
+  const [isUpdatingSpecVersion, setIsUpdatingSpecVersion] = useState(false);
+  const [specVersionError, setSpecVersionError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!isSpecConnector || connector.isPreconfigured) {
+      return;
+    }
+    fetchConnector(connector.id, { http })
+      .then(({ specVersion, latestSpecVersion }) => {
+        if (isMounted.current) {
+          setSpecVersions({ specVersion, latestSpecVersion });
+        }
+      })
+      .catch(() => undefined);
+  }, [connector.id, connector.isPreconfigured, http, isSpecConnector]);
+
+  const onUpdateSpecVersion = useCallback(async () => {
+    const version = specVersions.latestSpecVersion;
+    setSpecVersionError(null);
+    setIsUpdatingSpecVersion(true);
+    try {
+      const res = await http.post<Parameters<typeof transformConnectorResponse>[0]>(
+        `${INTERNAL_BASE_ACTION_API_PATH}/connector/${encodeURIComponent(
+          connector.id
+        )}/_spec_version`,
+        { body: JSON.stringify({ spec_version: version }) }
+      );
+      const updatedConnector = transformConnectorResponse(res) as ActionConnector;
+      toasts.addSuccess(
+        i18n.translate('xpack.triggersActionsUI.sections.editConnectorForm.specVersionUpdated', {
+          defaultMessage: 'Updated to {version}',
+          values: { version },
+        })
+      );
+      setSpecVersions({
+        specVersion: updatedConnector.specVersion,
+        latestSpecVersion: updatedConnector.latestSpecVersion,
+      });
+      setFormConnector(updatedConnector);
+      onConnectorUpdated?.(updatedConnector);
+    } catch (error) {
+      setSpecVersionError(error.body?.message ?? error.message);
+    } finally {
+      setIsUpdatingSpecVersion(false);
+    }
+  }, [connector.id, http, onConnectorUpdated, specVersions.latestSpecVersion, toasts]);
 
   const onIngestTokenRotated = useCallback(
     (ingestToken: string) => {
@@ -532,6 +589,47 @@ export const EditConnectorFlyoutContent: React.FC<EditConnectorFlyoutContentProp
         <>
           {isEdit && (
             <>
+              {canSave &&
+                specVersions.specVersion &&
+                specVersions.latestSpecVersion &&
+                specVersions.specVersion !== specVersions.latestSpecVersion && (
+                  <>
+                    <EuiCallOut
+                      announceOnMount
+                      size="s"
+                      color={specVersionError ? 'danger' : 'primary'}
+                      iconType="info"
+                      data-test-subj="connector-spec-version-callout"
+                      title={i18n.translate(
+                        'xpack.triggersActionsUI.sections.editConnectorForm.specVersionAvailable',
+                        {
+                          defaultMessage: 'Spec version {current}. Version {latest} is available.',
+                          values: {
+                            current: specVersions.specVersion,
+                            latest: specVersions.latestSpecVersion,
+                          },
+                        }
+                      )}
+                    >
+                      {specVersionError && <p>{specVersionError}</p>}
+                      <EuiButton
+                        size="s"
+                        isLoading={isUpdatingSpecVersion}
+                        onClick={onUpdateSpecVersion}
+                        data-test-subj="connector-spec-version-update-button"
+                      >
+                        {i18n.translate(
+                          'xpack.triggersActionsUI.sections.editConnectorForm.specVersionUpdate',
+                          {
+                            defaultMessage: 'Update to {version}',
+                            values: { version: specVersions.latestSpecVersion },
+                          }
+                        )}
+                      </EuiButton>
+                    </EuiCallOut>
+                    <EuiSpacer size="m" />
+                  </>
+                )}
               {showFormErrors && (
                 <>
                   <EuiCallOut
@@ -599,6 +697,11 @@ export const EditConnectorFlyoutContent: React.FC<EditConnectorFlyoutContentProp
     refetchConnectorSpec,
     inboundSettingsContent,
     formRevision,
+    canSave,
+    specVersions,
+    specVersionError,
+    isUpdatingSpecVersion,
+    onUpdateSpecVersion,
   ]);
 
   const renderTestTab = useCallback(() => {

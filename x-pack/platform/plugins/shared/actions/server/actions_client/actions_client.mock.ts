@@ -18,6 +18,7 @@ const createActionsClientMock = () => {
     delete: jest.fn(),
     update: jest.fn(),
     rotateInboundIngress: jest.fn(),
+    updateSpecVersion: jest.fn(),
     getAll: jest.fn(),
     getAllSystemConnectors: jest.fn(),
     getAuthStatus: jest.fn(),

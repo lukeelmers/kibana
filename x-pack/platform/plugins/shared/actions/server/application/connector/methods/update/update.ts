@@ -125,11 +125,14 @@ export async function update({ context, id, action }: ConnectorUpdateParams): Pr
 
   const actionType = context.actionTypeRegistry.get(actionTypeId);
   const configurationUtilities = context.actionTypeRegistry.getUtils();
+  const { specVersion } = attributes;
   const validatedActionTypeConfig = validateConfig(actionType, config, {
     configurationUtilities,
+    specVersion,
   });
   const validatedActionTypeSecrets = validateSecrets(actionType, secrets, {
     configurationUtilities,
+    specVersion,
   });
   if (actionType.validate?.connector) {
     validateConnector(actionType, { config, secrets });

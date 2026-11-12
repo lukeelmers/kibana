@@ -5,19 +5,21 @@
  * 2.0.
  */
 
-import { getContentHash } from './icon';
-import { parseCatalogContract } from './parse_spec';
-import { buildContract } from './build_spec';
+import { createHash } from 'crypto';
+import { parseDeclarativeConnectorSpec } from './parse_spec';
+import { buildConnectorSpec } from './build_spec';
 import type { BuiltVersion } from './types';
 
-/** Parses a contract YAML document and builds the versioned ConnectorSpec body. */
+const getContentHash = (raw: string): string =>
+  `sha256:${createHash('sha256').update(raw, 'utf8').digest('hex')}`;
+
+/** Parses a connector YAML document and builds its ConnectorSpec. */
 export const buildVersion = (yaml: string): BuiltVersion => {
-  const contract = parseCatalogContract(yaml);
+  const connector = parseDeclarativeConnectorSpec(yaml);
   return {
-    id: contract.id,
-    version: contract.version,
+    id: connector.id,
+    version: connector.version,
     contentHash: getContentHash(yaml),
-    contract,
-    spec: buildContract(contract),
+    spec: buildConnectorSpec(connector),
   };
 };
