@@ -71,6 +71,7 @@ dependsOn:
   - '@kbn/core-security-common'
   - '@kbn/core-security-server'
   - '@kbn/core-test-helpers-model-versions'
+  - '@kbn/storage-adapter'
 tags:
   - plugin
   - prod
