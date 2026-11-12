@@ -32,6 +32,7 @@ export const featureFlagSnapshotAllowlist: readonly string[] = [
   'x-pack/platform/plugins/shared/entity_store/server/infra/feature_flags/dual_process.ts',
   'x-pack/platform/plugins/shared/entity_store/server/infra/feature_flags/legacy_security_assets_migration.ts',
   'x-pack/platform/plugins/shared/fleet/server/services/epm/kibana/assets/custom_app_assets.ts',
+  'x-pack/platform/plugins/shared/fleet/server/services/epm/packages/install_state_machine/steps/step_install_connectors.ts',
   'x-pack/platform/plugins/shared/fleet/server/services/epm/packages/install_state_machine/steps/step_install_skills.ts',
   'x-pack/platform/plugins/shared/fleet/server/services/epm/packages/install_state_machine/steps/step_install_workflows.ts',
   'x-pack/platform/plugins/shared/fleet/server/services/outputs/helpers.ts',

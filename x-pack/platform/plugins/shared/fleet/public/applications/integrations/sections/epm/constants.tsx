@@ -92,6 +92,9 @@ export const AssetTitleMap: Record<
   skill: i18n.translate('xpack.fleet.epm.assetTitles.skills', {
     defaultMessage: 'Agent Builder skills',
   }),
+  connector: i18n.translate('xpack.fleet.epm.assetTitles.connectors', {
+    defaultMessage: 'Connector types',
+  }),
   tag: i18n.translate('xpack.fleet.epm.assetTitles.tag', {
     defaultMessage: 'Tags',
   }),

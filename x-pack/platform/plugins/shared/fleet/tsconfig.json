@@ -136,6 +136,7 @@
     "@kbn/workflows",
     "@kbn/agent-builder-server",
     "@kbn/agent-builder-skill-loader",
+    "@kbn/actions-plugin",
     "@kbn/deeplinks-observability",
     "@kbn/core-spaces-common",
     "@kbn/setup-node-env",

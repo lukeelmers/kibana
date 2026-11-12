@@ -61,6 +61,7 @@ import { populatePackagePolicyAssignedAgentsCount } from '../../package_policies
 import { deleteEsqlViews } from '../elasticsearch/esql_views/remove';
 import { uninstallWorkflows } from '../kibana/workflows/install';
 import { getPackageSkillOwner, uninstallSkills } from '../kibana/skills/install';
+import { getPackageConnectorOwner, uninstallConnectors } from '../kibana/connectors/install';
 import type { PackageSpecConditions } from '../../../../common';
 
 import { isTrustedInstallSource } from './install_source';
@@ -144,7 +145,7 @@ export async function cleanupDependenciesStep(options: {
   }
 }
 
-const deleteInstallationWorkflowsAndSkills = async ({
+const deleteInstallationNonSavedObjectAssets = async ({
   name: pkgName,
   installed_kibana: installedKibana,
   installed_kibana_space_id: spaceId = DEFAULT_SPACE_ID,
@@ -153,6 +154,8 @@ const deleteInstallationWorkflowsAndSkills = async ({
   const logger = appContextService.getLogger();
   await deleteWorkflowAssets({ refs: installedKibana, spaceId, logger, strict: true });
   await deleteSkillAssets({ refs: installedKibana, spaceId, pkgName, logger, strict: true });
+  // Connectors created from these types are kept, but stop working until the types are reinstalled
+  await deleteConnectorAssets({ refs: installedKibana, pkgName, logger, strict: true });
   for (const [additionalSpaceId, refs] of Object.entries(additionalSpaces)) {
     await deleteWorkflowAssets({ refs, spaceId: additionalSpaceId, logger, strict: true });
     await deleteSkillAssets({ refs, spaceId: additionalSpaceId, pkgName, logger, strict: true });
@@ -236,15 +239,15 @@ export async function removeInstallation(options: {
     }
   }
 
-  // Workflows and skills are removed before anything else and failures abort the uninstall: once
-  // the package SO is deleted their refs are lost and they could never be cleaned up. `force`
-  // keeps going.
+  // Workflows, skills and connectors are removed before anything else and failures abort the
+  // uninstall: once the package SO is deleted their refs are lost and they could never be cleaned
+  // up. `force` keeps going.
   try {
-    await deleteInstallationWorkflowsAndSkills(installation);
+    await deleteInstallationNonSavedObjectAssets(installation);
   } catch (err) {
     if (!options.force) {
       const error = new PackageRemovalError(
-        `Unable to remove workflows or skills of package ${pkgName}:${
+        `Unable to remove workflows, skills or connectors of package ${pkgName}:${
           pkgVersion ?? installation.version
         }: ${err.message}`
       );
@@ -254,13 +257,15 @@ export async function removeInstallation(options: {
     appContextService
       .getLogger()
       .warn(
-        `Forced uninstall of ${pkgName}, workflows or skills may be left behind: ${err.message}`
+        `Forced uninstall of ${pkgName}, workflows, skills or connectors may be left behind: ${err.message}`
       );
   }
 
   // Delete the installed assets. Don't include installation.package_assets. Those are irrelevant to users
   const installedAssets = [...installation.installed_kibana, ...installation.installed_es];
-  await deleteAssets(savedObjectsClient, installation, esClient, { skipWorkflowsAndSkills: true });
+  await deleteAssets(savedObjectsClient, installation, esClient, {
+    skipNonSavedObjectAssets: true,
+  });
 
   // Delete the manager saved object with references to the asset objects
   // could also update with [] or some other state
@@ -355,6 +360,38 @@ export const deleteSkillAssets = async ({
 };
 
 /**
+ * Removes the connector types referenced in `refs`; they are not saved objects.
+ */
+export const deleteConnectorAssets = async ({
+  refs,
+  pkgName,
+  logger,
+  strict = false,
+}: {
+  refs: KibanaAssetReference[];
+  pkgName: string;
+  logger: Logger;
+  strict?: boolean;
+}) => {
+  const connectorRefs = refs.filter(({ type }) => type === KibanaSavedObjectType.connector);
+  if (!connectorRefs.length) return;
+
+  const catalog = appContextService.getConnectorCatalog();
+  if (!catalog) {
+    const message = `The connector catalog is not available, ${connectorRefs.length} connector asset(s) were not removed`;
+    if (strict) throw new FleetError(message);
+    logger.warn(message);
+    return;
+  }
+  await uninstallConnectors({
+    client: catalog.getManagedClient({ managedBy: getPackageConnectorOwner(pkgName) }),
+    refs: connectorRefs,
+    logger,
+    strict,
+  });
+};
+
+/**
  * This method deletes saved objects resolving them whenever necessary.
  *
  * Resolving is needed when deleting assets that were installed in 7.x to
@@ -374,9 +411,13 @@ export async function deleteKibanaAssets({
   packageSpecConditions?: PackageSpecConditions;
   spaceId?: string;
 }) {
-  // Workflows and skills are not saved objects, see deleteWorkflowAssets and deleteSkillAssets
+  // Workflows, skills and connectors are not saved objects, see deleteWorkflowAssets,
+  // deleteSkillAssets and deleteConnectorAssets
   const installedObjects = allInstalledObjects.filter(
-    ({ type }) => type !== KibanaSavedObjectType.workflow && type !== KibanaSavedObjectType.skill
+    ({ type }) =>
+      type !== KibanaSavedObjectType.workflow &&
+      type !== KibanaSavedObjectType.skill &&
+      type !== KibanaSavedObjectType.connector
   );
   const savedObjectsClient = appContextService.getSavedObjects().getUnsafeInternalClient({
     includedHiddenTypes: [
@@ -598,7 +639,7 @@ async function deleteAssets(
     install_source: installSource,
   }: Installation,
   esClient: ElasticsearchClient,
-  { skipWorkflowsAndSkills = false }: { skipWorkflowsAndSkills?: boolean } = {}
+  { skipNonSavedObjectAssets = false }: { skipNonSavedObjectAssets?: boolean } = {}
 ) {
   const logger = appContextService.getLogger();
   const { indexTemplatesAndPipelines, indexAssets, transformAssets, otherAssets } =
@@ -632,11 +673,12 @@ async function deleteAssets(
         packageSpecConditions: packageInfo?.conditions,
         logger,
       }),
-      ...(skipWorkflowsAndSkills
+      ...(skipNonSavedObjectAssets
         ? []
         : [
             deleteWorkflowAssets({ refs: installedKibana, spaceId, logger }),
             deleteSkillAssets({ refs: installedKibana, spaceId, pkgName: name, logger }),
+            deleteConnectorAssets({ refs: installedKibana, pkgName: name, logger }),
           ]),
       ...Object.entries(installedInAdditionalSpacesKibana).map(
         ([additionalSpaceId, kibanaAssets]) =>
@@ -647,7 +689,7 @@ async function deleteAssets(
               logger,
               packageSpecConditions: packageInfo?.conditions,
             }),
-            ...(skipWorkflowsAndSkills
+            ...(skipNonSavedObjectAssets
               ? []
               : [
                   deleteWorkflowAssets({ refs: kibanaAssets, spaceId: additionalSpaceId, logger }),
@@ -705,7 +747,8 @@ export async function deleteKibanaSavedObjectsAssets({
   if (!refsToDelete.length) return;
 
   const logger = appContextService.getLogger();
-  // Workflows and skills are not deleted here: on upgrade/reinstall their steps update them in place
+  // Workflows, skills and connectors are not deleted here: on upgrade/reinstall their steps update
+  // them in place
   const assetsToDelete = refsToDelete
     .filter(({ type }) => kibanaSavedObjectTypes.includes(type))
     .map(({ id, type }) => ({ id, type } as KibanaAssetReference));

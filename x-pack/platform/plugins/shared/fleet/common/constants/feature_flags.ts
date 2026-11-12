@@ -34,3 +34,6 @@ export const ENABLE_CUSTOM_APP_ASSETS_FLAG = 'fleet.enableCustomAppAssets';
 
 /** Feature flag that gates the installation of `kibana/skill` package assets as Agent Builder skills. Fallback is false. */
 export const ENABLE_SKILL_ASSETS_FLAG = 'fleet.enableSkillAssets';
+
+/** Feature flag that gates the installation of `kibana/connector` package assets as connector types. Fallback is false. */
+export const ENABLE_CONNECTOR_ASSETS_FLAG = 'fleet.enableConnectorAssets';

@@ -45,7 +45,8 @@
       "reporting",
       "workflowsExtensions",
       "workflowsManagement",
-      "agentBuilder"
+      "agentBuilder",
+      "actions"
     ],
     "requiredBundles": [
       "kibanaReact",

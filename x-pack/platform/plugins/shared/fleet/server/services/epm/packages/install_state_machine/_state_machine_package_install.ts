@@ -65,6 +65,7 @@ import { stepCreateAlertingAssets } from './steps/step_create_alerting_assets';
 import { cleanupEsqlViewsStep, stepInstallEsqlViews } from './steps/step_install_esql_views';
 import { stepInstallWorkflows } from './steps/step_install_workflows';
 import { stepInstallSkills } from './steps/step_install_skills';
+import { stepInstallConnectors } from './steps/step_install_connectors';
 import { stepResolveDependencies } from './steps/step_resolve_dependencies';
 
 export interface InstallContext extends StateContext<StateNames> {
@@ -190,6 +191,11 @@ export const regularStatesDefinition: StateMachineStates<StateNames> = {
   },
   install_skills: {
     onTransition: stepInstallSkills,
+    nextState: INSTALL_STATES.INSTALL_CONNECTORS,
+    onPostTransition: updateLatestExecutedState,
+  },
+  install_connectors: {
+    onTransition: stepInstallConnectors,
     nextState: INSTALL_STATES.CREATE_ALERTING_ASSETS,
     onPostTransition: updateLatestExecutedState,
   },
@@ -228,6 +234,11 @@ export const streamingStatesDefinition: StateMachineStates<string> = {
   },
   install_skills: {
     onTransition: stepInstallSkills,
+    nextState: INSTALL_STATES.INSTALL_CONNECTORS,
+    onPostTransition: updateLatestExecutedState,
+  },
+  install_connectors: {
+    onTransition: stepInstallConnectors,
     nextState: INSTALL_STATES.SAVE_ARCHIVE_ENTRIES,
     onPostTransition: updateLatestExecutedState,
   },

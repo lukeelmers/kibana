@@ -209,6 +209,7 @@ describe('schema validation', () => {
         workflow: [],
         custom_app: [],
         skill: [],
+        connector: [],
       },
       elasticsearch: {
         index_template: [],

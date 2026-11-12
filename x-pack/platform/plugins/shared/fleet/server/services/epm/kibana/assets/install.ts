@@ -35,6 +35,7 @@ import {
 import { saveKibanaAssetsRefs } from '../../packages/install';
 import { getInstalledWorkflowRefs } from '../workflows/install';
 import { getInstalledSkillRefs } from '../skills/install';
+import { getInstalledConnectorRefs } from '../connectors/install';
 import {
   deleteKibanaSavedObjectsAssets,
   deleteSkillAssets,
@@ -82,12 +83,16 @@ const formatImportErrorsForLog = (errors: SavedObjectsImportFailure[]) =>
   JSON.stringify(
     errors.map(({ type, id, error }) => ({ type, id, error })) // discard other fields
   );
-// Workflow and skill are on KibanaAssetType for package paths / refs, but workflows are YAML
-// installed via the managed workflows client and skills are SKILL.md files written to the Agent
-// Builder skill store (not saved objects), so exclude them from SO asset install.
+// Workflow, skill and connector are on KibanaAssetType for package paths / refs, but workflows are
+// YAML installed via the managed workflows client, skills are SKILL.md files written to the Agent
+// Builder skill store and connectors are YAML specs stored by the Actions connector catalog (not
+// saved objects), so exclude them from SO asset install.
 const validKibanaAssetTypes = new Set<KibanaAssetType>(
   Object.values(KibanaAssetType).filter(
-    (type) => type !== KibanaAssetType.workflow && type !== KibanaAssetType.skill
+    (type) =>
+      type !== KibanaAssetType.workflow &&
+      type !== KibanaAssetType.skill &&
+      type !== KibanaAssetType.connector
   )
 );
 type SavedObjectToBe = Required<
@@ -129,6 +134,7 @@ export const KibanaSavedObjectTypeMapping: Record<KibanaAssetType, KibanaSavedOb
   [KibanaAssetType.workflow]: KibanaSavedObjectType.workflow,
   [KibanaAssetType.customApp]: KibanaSavedObjectType.customApp,
   [KibanaAssetType.skill]: KibanaSavedObjectType.skill,
+  [KibanaAssetType.connector]: KibanaSavedObjectType.connector,
 };
 
 const AssetFilters: Record<string, (kibanaAssets: ArchiveAsset[]) => ArchiveAsset[]> = {
@@ -528,8 +534,8 @@ export async function installKibanaAssetsAndReferences({
       ? false
       : installAsAdditionalSpace;
 
-  // Workflows and skills are installed by later steps; keep their refs so a failure in between
-  // does not orphan them
+  // Workflows, skills and connectors are installed by later steps; keep their refs so a failure in
+  // between does not orphan them
   installedKibanaAssetsRefs = await saveKibanaAssetsRefs(
     savedObjectsClient,
     pkgName,
@@ -537,6 +543,7 @@ export async function installKibanaAssetsAndReferences({
       ...assets,
       ...getInstalledWorkflowRefs(installedPkg, spaceId, !!saveAsAdditionalSpace),
       ...getInstalledSkillRefs(installedPkg, spaceId, !!saveAsAdditionalSpace),
+      ...(saveAsAdditionalSpace ? [] : getInstalledConnectorRefs(installedPkg)),
     ],
     spaceId,
     saveAsAdditionalSpace

@@ -167,6 +167,15 @@ const getSkillAssets = (skillIds: string[]): BulkAssetItem[] =>
     appLink: `/app/agent_builder/manage/skills/${skillId}`,
   }));
 
+// Connector types are not saved objects. They are listed by id, linking to the Connectors page.
+const getConnectorAssets = (connectorTypeIds: string[]): BulkAssetItem[] =>
+  [...new Set(connectorTypeIds)].map((connectorTypeId) => ({
+    id: connectorTypeId,
+    type: KibanaSavedObjectType.connector,
+    attributes: { title: connectorTypeId },
+    appLink: '/app/management/insightsAndAlerting/triggersActionsConnectors/connectors',
+  }));
+
 export async function getBulkAssets(
   soClient: SavedObjectsClientContract,
   soTypeRegistry: ISavedObjectTypeRegistry,
@@ -174,8 +183,12 @@ export async function getBulkAssets(
 ) {
   const isWorkflow = ({ type }: AssetSOObject) => type === KibanaSavedObjectType.workflow;
   const isSkill = ({ type }: AssetSOObject) => type === KibanaSavedObjectType.skill;
-  const assetIds = allAssetIds.filter((asset) => !isWorkflow(asset) && !isSkill(asset));
+  const isConnector = ({ type }: AssetSOObject) => type === KibanaSavedObjectType.connector;
+  const assetIds = allAssetIds.filter(
+    (asset) => !isWorkflow(asset) && !isSkill(asset) && !isConnector(asset)
+  );
   const skillAssets = getSkillAssets(allAssetIds.filter(isSkill).map(({ id }) => id));
+  const connectorAssets = getConnectorAssets(allAssetIds.filter(isConnector).map(({ id }) => id));
   const workflowAssets = await getWorkflowAssets(
     allAssetIds.filter(isWorkflow).map(({ id }) => id),
     soClient.getCurrentNamespace() ?? DEFAULT_SPACE_ID
@@ -231,5 +244,5 @@ export async function getBulkAssets(
 
       return toAssetType(obj, types[obj.type], appLink);
     });
-  return [...res, ...workflowAssets, ...skillAssets];
+  return [...res, ...workflowAssets, ...skillAssets, ...connectorAssets];
 }

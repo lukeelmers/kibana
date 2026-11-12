@@ -83,6 +83,9 @@ export enum KibanaAssetType {
   // Not a saved object: `kibana/skill/<id>/SKILL.md` files are written to the Agent Builder skill
   // store. Excluded from SO install via validKibanaAssetTypes in kibana/assets/install.ts.
   skill = 'skill',
+  // Not a saved object: `kibana/connector/<name>.yml` files are stored as connector types by the
+  // Actions connector catalog. Excluded from SO install via validKibanaAssetTypes in kibana/assets/install.ts.
+  connector = 'connector',
 }
 
 /*
@@ -110,6 +113,8 @@ export enum KibanaSavedObjectType {
   customApp = 'custom_app',
   // Not a saved object; see KibanaAssetType.skill. Used only as an asset ref type.
   skill = 'skill',
+  // Not a saved object; see KibanaAssetType.connector. Used only as an asset ref type.
+  connector = 'connector',
 }
 
 export enum ElasticsearchAssetType {
@@ -817,6 +822,7 @@ export enum INSTALL_STATES {
   RESOLVE_KIBANA_PROMISE = 'resolve_kibana_promise',
   INSTALL_WORKFLOWS = 'install_workflows',
   INSTALL_SKILLS = 'install_skills',
+  INSTALL_CONNECTORS = 'install_connectors',
   VERIFY_ASSETS = 'verify_assets',
   UPDATE_SO = 'update_so',
 }
