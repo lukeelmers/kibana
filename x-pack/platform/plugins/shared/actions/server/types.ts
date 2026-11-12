@@ -102,6 +102,8 @@ export interface ActionTypeExecutorOptions<
   authMode?: AuthMode;
   profileUid?: string;
   connectorVersion?: string;
+  /** Spec version the connector instance is pinned to; undefined for classic and legacy connectors. */
+  specVersion?: string;
 }
 
 export type ActionResult = Connector;
@@ -135,12 +137,34 @@ export type ExecutorType<
 type Validator<T> = Pick<z4.ZodType, 'parse'>;
 export interface ValidatorType<T> {
   schema: Validator<T>;
+  /**
+   * Resolves the schema for one validation call. Spec-versioned connector types use it to
+   * dispatch on `validatorServices.specVersion`; classic types leave it undefined and `schema`
+   * is used.
+   */
+  resolveSchema?: (validatorServices: ValidatorServices) => Validator<T>;
   customValidator?: (value: T, validatorServices: ValidatorServices) => void;
 }
 
 export interface ValidatorServices {
   configurationUtilities: ActionsConfigurationUtilities;
+  /** Spec version the connector instance is pinned to; undefined for classic and legacy connectors. */
+  specVersion?: string;
 }
+
+/**
+ * Version dispatch contract of a spec-sourced connector type that serves more than one spec
+ * version behind a single registry id.
+ */
+export interface SpecVersionsContract {
+  getLatestVersions(): Record<string, string>;
+  getLatestVersion(major?: number): string | undefined;
+  hasVersion(version: string): boolean;
+  getSpec(version: string): Promise<ConnectorSpec>;
+  resolveRequest(request: string | undefined, currentMajor?: number): Promise<string>;
+}
+
+export type { SpecVersionRequestError } from './lib/errors/spec_version_request_error';
 
 export interface ActionValidationService {
   isHostnameAllowed(hostname: string): boolean;
@@ -264,6 +288,10 @@ export interface ActionTypeCoreFields<
    * When true, the connector type is shown as technical preview in the UI.
    */
   isExperimental?: boolean;
+  /** Materialized ConnectorSpec when this type was registered from a spec. */
+  connectorSpec?: ConnectorSpec;
+  /** Present when the type serves several spec versions behind one id. */
+  specVersions?: SpecVersionsContract;
   /**
    * Auth type ids from the connector spec that opted into sandbox credential injection.
    * Populated for spec-backed connectors via createConnectorTypeFromSpec.
