@@ -8,19 +8,27 @@
  */
 
 import { WorkflowsConnectorFeatureId } from '@kbn/actions-plugin/common/connector_feature_config';
-import type { ActionsClient, IUnsecuredActionsClient } from '@kbn/actions-plugin/server';
+import type {
+  ActionsClient,
+  PluginStartContract as ActionsPluginStartContract,
+  IUnsecuredActionsClient,
+} from '@kbn/actions-plugin/server';
 import type { FindActionResult } from '@kbn/actions-plugin/server/types';
 import { connectorSpecHasEvents, connectorsSpecs } from '@kbn/connector-specs';
 import type { KibanaRequest } from '@kbn/core/server';
 import { brandSpaceId } from '@kbn/core-spaces-common';
 import type { PublicMethodsOf } from '@kbn/utility-types';
-import type { ConnectorTypeInfo } from '@kbn/workflows';
+import type { ConnectorSubAction, ConnectorTypeInfo } from '@kbn/workflows';
 import type {
   ConnectorInstanceConfig,
   GetAvailableConnectorsResponse,
 } from '@kbn/workflows/types/v1';
+import { z } from '@kbn/zod/v4';
 
-import { CONNECTOR_SUB_ACTIONS_MAP } from '../../../common/connector_sub_actions_map';
+import {
+  CONNECTOR_SUB_ACTIONS_MAP,
+  getConnectorSpecSubActions,
+} from '../../../common/connector_sub_actions_map';
 
 const eventConnectorTypeIds = new Set(
   Object.values(connectorsSpecs)
@@ -29,9 +37,34 @@ const eventConnectorTypeIds = new Set(
 );
 
 type ListedActionType = Awaited<ReturnType<PublicMethodsOf<ActionsClient>['listTypes']>>[number];
+type GetConnectorSpec = ActionsPluginStartContract['getConnectorSpec'];
 
-const toConnectorTypeInfo = (actionType: ListedActionType): ConnectorTypeInfo => {
-  const subActions = CONNECTOR_SUB_ACTIONS_MAP[actionType.id];
+/**
+ * Sub-actions of bundled connector types are known statically. Types registered at run time
+ * (the connector catalog) carry their actions and params as JSON Schema from the live spec.
+ */
+const getSubActions = (
+  actionTypeId: string,
+  getConnectorSpec: GetConnectorSpec
+): ConnectorSubAction[] => {
+  const spec = getConnectorSpec(actionTypeId);
+  if (CONNECTOR_SUB_ACTIONS_MAP[actionTypeId] || !spec) {
+    return CONNECTOR_SUB_ACTIONS_MAP[actionTypeId];
+  }
+  return getConnectorSpecSubActions(spec).map((subAction) => ({
+    ...subAction,
+    inputSchema: z.toJSONSchema(spec.actions[subAction.name].input, {
+      unrepresentable: 'any',
+      io: 'input',
+    }) as Record<string, unknown>,
+  }));
+};
+
+const toConnectorTypeInfo = (
+  actionType: ListedActionType,
+  getConnectorSpec: GetConnectorSpec
+): ConnectorTypeInfo => {
+  const subActions = getSubActions(actionType.id, getConnectorSpec);
   return {
     actionTypeId: actionType.id,
     displayName: actionType.name,
@@ -73,10 +106,12 @@ const getConnectorInstanceConfig = (
 export const getAvailableConnectors = async (params: {
   getActionsClient: () => Promise<IUnsecuredActionsClient>;
   getActionsClientWithRequest: (request: KibanaRequest) => Promise<PublicMethodsOf<ActionsClient>>;
+  getConnectorSpec: GetConnectorSpec;
   spaceId: string;
   request: KibanaRequest;
 }): Promise<GetAvailableConnectorsResponse> => {
-  const { getActionsClient, getActionsClientWithRequest, spaceId, request } = params;
+  const { getActionsClient, getActionsClientWithRequest, getConnectorSpec, spaceId, request } =
+    params;
   const actionsClient = await getActionsClient();
   const actionsClientWithRequest = await getActionsClientWithRequest(request);
 
@@ -91,7 +126,7 @@ export const getAvailableConnectors = async (params: {
   const connectorTypes: Record<string, ConnectorTypeInfo> = {};
 
   actionTypes.forEach((actionType) => {
-    connectorTypes[actionType.id] = toConnectorTypeInfo(actionType);
+    connectorTypes[actionType.id] = toConnectorTypeInfo(actionType, getConnectorSpec);
   });
 
   const missingEventTypeIds = [...eventConnectorTypeIds].filter((id) => !connectorTypes[id]);
@@ -101,7 +136,7 @@ export const getAvailableConnectors = async (params: {
     });
     for (const actionType of allActionTypes) {
       if (missingEventTypeIds.includes(actionType.id)) {
-        connectorTypes[actionType.id] = toConnectorTypeInfo(actionType);
+        connectorTypes[actionType.id] = toConnectorTypeInfo(actionType, getConnectorSpec);
       }
     }
   }

@@ -207,6 +207,9 @@ export interface PluginStartContract {
 
   listTypes(featureId?: string): ReturnType<ActionTypeRegistry['list']>;
 
+  /** Returns the spec of a registered spec-based connector type, including catalog types. */
+  getConnectorSpec: ActionTypeRegistry['getSpec'];
+
   getActionsClientWithRequest(request: KibanaRequest): Promise<PublicMethodsOf<ActionsClient>>;
 
   /**
@@ -928,6 +931,7 @@ export class ActionsPlugin
       listTypes: (featureId?: string) => {
         return this.actionTypeRegistry!.list({ featureId, exposeValidation: true });
       },
+      getConnectorSpec: actionTypeRegistry!.getSpec.bind(actionTypeRegistry),
       getActionsAuthorizationWithRequest(request: KibanaRequest) {
         return instantiateAuthorization(request);
       },

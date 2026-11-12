@@ -111,6 +111,7 @@ export const item: GetInfoResponse['item'] = {
       workflow: [],
       custom_app: [],
       skill: [],
+      connector: [],
       security_ai_prompt: [],
       security_rule: [],
       csp_rule_template: [],

@@ -83,6 +83,7 @@ describe('Fleet - packageToPackagePolicy', () => {
         workflow: [],
         custom_app: [],
         skill: [],
+        connector: [],
       },
       elasticsearch: {
         ingest_pipeline: [],

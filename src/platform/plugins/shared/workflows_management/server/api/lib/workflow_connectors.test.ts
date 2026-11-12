@@ -7,7 +7,10 @@
  * License v3.0 only", or the "Server Side Public License, v 1".
  */
 
+import type { ConnectorSpec } from '@kbn/connector-specs';
+import { z } from '@kbn/zod/v4';
 import { getAvailableConnectors } from './workflow_connectors';
+import { getWorkflowZodSchema } from '../../../common/schema';
 
 const mockActionType = (overrides: Record<string, unknown> = {}) => ({
   id: '.slack',
@@ -41,6 +44,7 @@ describe('getAvailableConnectors', () => {
     const result = await getAvailableConnectors({
       getActionsClient: jest.fn().mockResolvedValue(actionsClient),
       getActionsClientWithRequest: jest.fn().mockResolvedValue(actionsClientWithRequest),
+      getConnectorSpec: jest.fn(),
       spaceId: 'default',
       request,
     });
@@ -63,6 +67,7 @@ describe('getAvailableConnectors', () => {
     const result = await getAvailableConnectors({
       getActionsClient: jest.fn().mockResolvedValue(actionsClient),
       getActionsClientWithRequest: jest.fn().mockResolvedValue(actionsClientWithRequest),
+      getConnectorSpec: jest.fn(),
       spaceId: 'default',
       request,
     });
@@ -87,6 +92,7 @@ describe('getAvailableConnectors', () => {
     const result = await getAvailableConnectors({
       getActionsClient: jest.fn().mockResolvedValue(actionsClient),
       getActionsClientWithRequest: jest.fn().mockResolvedValue(actionsClientWithRequest),
+      getConnectorSpec: jest.fn(),
       spaceId: 'default',
       request,
     });
@@ -111,6 +117,7 @@ describe('getAvailableConnectors', () => {
     const result = await getAvailableConnectors({
       getActionsClient: jest.fn().mockResolvedValue(actionsClient),
       getActionsClientWithRequest: jest.fn().mockResolvedValue(actionsClientWithRequest),
+      getConnectorSpec: jest.fn(),
       spaceId: 'default',
       request,
     });
@@ -141,6 +148,7 @@ describe('getAvailableConnectors', () => {
     const result = await getAvailableConnectors({
       getActionsClient: jest.fn().mockResolvedValue(actionsClient),
       getActionsClientWithRequest: jest.fn().mockResolvedValue(actionsClientWithRequest),
+      getConnectorSpec: jest.fn(),
       spaceId: 'default',
       request,
     });
@@ -171,6 +179,7 @@ describe('getAvailableConnectors', () => {
     const result = await getAvailableConnectors({
       getActionsClient: jest.fn().mockResolvedValue(actionsClient),
       getActionsClientWithRequest: jest.fn().mockResolvedValue(actionsClientWithRequest),
+      getConnectorSpec: jest.fn(),
       spaceId: 'default',
       request,
     });
@@ -194,6 +203,7 @@ describe('getAvailableConnectors', () => {
     const result = await getAvailableConnectors({
       getActionsClient: jest.fn().mockResolvedValue(actionsClient),
       getActionsClientWithRequest: jest.fn().mockResolvedValue(actionsClientWithRequest),
+      getConnectorSpec: jest.fn(),
       spaceId: 'default',
       request,
     });
@@ -220,6 +230,7 @@ describe('getAvailableConnectors', () => {
     const result = await getAvailableConnectors({
       getActionsClient: jest.fn().mockResolvedValue(actionsClient),
       getActionsClientWithRequest: jest.fn().mockResolvedValue(actionsClientWithRequest),
+      getConnectorSpec: jest.fn(),
       spaceId: 'default',
       request,
     });
@@ -255,6 +266,7 @@ describe('getAvailableConnectors', () => {
     const result = await getAvailableConnectors({
       getActionsClient: jest.fn().mockResolvedValue(actionsClient),
       getActionsClientWithRequest: jest.fn().mockResolvedValue(actionsClientWithRequest),
+      getConnectorSpec: jest.fn(),
       spaceId: 'default',
       request,
     });
@@ -274,6 +286,7 @@ describe('getAvailableConnectors', () => {
     const result = await getAvailableConnectors({
       getActionsClient: jest.fn().mockResolvedValue(actionsClient),
       getActionsClientWithRequest: jest.fn().mockResolvedValue(actionsClientWithRequest),
+      getConnectorSpec: jest.fn(),
       spaceId: 'default',
       request,
     });
@@ -299,6 +312,7 @@ describe('getAvailableConnectors', () => {
     await getAvailableConnectors({
       getActionsClient: jest.fn().mockResolvedValue({ getAll }),
       getActionsClientWithRequest: jest.fn().mockResolvedValue({ listTypes }),
+      getConnectorSpec: jest.fn(),
       spaceId: 'default',
       request,
     });
@@ -306,5 +320,42 @@ describe('getAvailableConnectors', () => {
     // Both starts precede both ends — proves parallel, not sequential.
     expect(order.indexOf('getAll:start')).toBeLessThan(order.indexOf('listTypes:end'));
     expect(order.indexOf('listTypes:start')).toBeLessThan(order.indexOf('getAll:end'));
+  });
+
+  it('builds catalog connector steps from the live spec, so an upgrade adds actions', async () => {
+    const catalogSpec = (actions: string[]) =>
+      ({
+        actions: Object.fromEntries(
+          actions.map((name) => [name, { input: z.object({ ip: z.string() }) }])
+        ),
+      } as unknown as ConnectorSpec);
+    const isValid = async (
+      spec: ConnectorSpec,
+      type: string,
+      params: object = { ip: '10.0.0.1' }
+    ) => {
+      const listTypes = jest
+        .fn()
+        .mockResolvedValue([mockActionType(), mockActionType({ id: '.abuseipdb_oob' })]);
+      const { connectorTypes } = await getAvailableConnectors({
+        getActionsClient: jest.fn().mockResolvedValue({ getAll: jest.fn().mockResolvedValue([]) }),
+        getActionsClientWithRequest: jest.fn().mockResolvedValue({ listTypes }),
+        getConnectorSpec: (id: string) => (id === '.abuseipdb_oob' ? spec : undefined),
+        spaceId: 'default',
+        request,
+      });
+      const step = { name: 's', type, 'connector-id': 'c1', with: params };
+      const workflow = { name: 'w', triggers: [{ type: 'manual' }], steps: [step] };
+      return getWorkflowZodSchema(connectorTypes).safeParse(workflow).success;
+    };
+
+    const v10 = catalogSpec(['checkIp']);
+    expect(await isValid(v10, 'abuseipdb_oob.checkIp')).toBe(true);
+    expect(await isValid(v10, 'abuseipdb_oob.checkIp', {})).toBe(false);
+    expect(await isValid(v10, 'abuseipdb_oob.checkBlock')).toBe(false);
+    expect(await isValid(v10, 'slack', { message: 'hi' })).toBe(true);
+
+    const v11 = catalogSpec(['checkIp', 'checkBlock']);
+    expect(await isValid(v11, 'abuseipdb_oob.checkBlock')).toBe(true);
   });
 });

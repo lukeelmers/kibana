@@ -7,7 +7,11 @@
  * License v3.0 only", or the "Server Side Public License, v 1".
  */
 
-import type { ActionsClient, IUnsecuredActionsClient } from '@kbn/actions-plugin/server';
+import type {
+  ActionsClient,
+  PluginStartContract as ActionsPluginStartContract,
+  IUnsecuredActionsClient,
+} from '@kbn/actions-plugin/server';
 import type {
   CoreStart,
   ElasticsearchClient,
@@ -75,6 +79,7 @@ export interface WorkflowValidationDeps {
   workflowsExtensions: WorkflowsExtensionsServerPluginStart;
   getActionsClient: () => Promise<IUnsecuredActionsClient>;
   getActionsClientWithRequest: (request: KibanaRequest) => Promise<PublicMethodsOf<ActionsClient>>;
+  getConnectorSpec: ActionsPluginStartContract['getConnectorSpec'];
   getCoreStart: () => CoreStart;
   licensing: LicensingPluginStart;
   logger: Logger;

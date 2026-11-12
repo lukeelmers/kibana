@@ -22,6 +22,7 @@ import { isOutdatedKibanaVersion } from '../../packages/kibana_version_check';
 
 import { getInstalledWorkflowRefs } from '../workflows/install';
 import { getInstalledSkillRefs } from '../skills/install';
+import { getInstalledConnectorRefs } from '../connectors/install';
 import { indexPatternTypes } from '../index_pattern/install';
 
 import type { ArchiveAsset } from './install';
@@ -131,12 +132,13 @@ export async function installKibanaAssetsWithStreaming({
   }
 
   // Update the installation saved object with installed kibana assets
-  // Workflows and skills are installed by later steps; keep their refs so a failure in between
-  // does not orphan them
+  // Workflows, skills and connectors are installed by later steps; keep their refs so a failure in
+  // between does not orphan them
   const refsToSave = [
     ...assetRefs,
     ...getInstalledWorkflowRefs(installedPkg, spaceId, false),
     ...getInstalledSkillRefs(installedPkg, spaceId, false),
+    ...getInstalledConnectorRefs(installedPkg),
   ];
   await saveKibanaAssetsRefs(savedObjectsClient, pkgName, refsToSave, spaceId);
 

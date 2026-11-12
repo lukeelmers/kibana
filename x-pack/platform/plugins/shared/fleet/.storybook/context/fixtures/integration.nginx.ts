@@ -262,6 +262,7 @@ export const item: GetInfoResponse['item'] = {
       workflow: [],
       custom_app: [],
       skill: [],
+      connector: [],
     },
     elasticsearch: {
       ingest_pipeline: [

@@ -56,7 +56,9 @@ import {
   SUB_ACTION as XSOAR_SUB_ACTION,
 } from '@kbn/connector-schemas/xsoar/constants';
 
+import type { ConnectorSpec } from '@kbn/connector-specs';
 import { connectorsSpecs } from '@kbn/connector-specs';
+import type { ConnectorSubAction } from '@kbn/workflows';
 
 // Helper function to format sub-action names for display
 function formatSubActionName(action: string): string {
@@ -72,6 +74,12 @@ function formatSubActionName(action: string): string {
       .join(' ')
   );
 }
+
+export const getConnectorSpecSubActions = (connectorSpec: ConnectorSpec): ConnectorSubAction[] =>
+  Object.keys(connectorSpec.actions).map((action) => ({
+    name: action,
+    displayName: formatSubActionName(action),
+  }));
 
 // Helper function to create sub-actions mapping
 function createSubActionsMapping() {
@@ -147,10 +155,7 @@ function createSubActionsMapping() {
   });
 
   Object.values(connectorsSpecs).forEach((connectorSpec) => {
-    mapping[connectorSpec.metadata.id] = Object.keys(connectorSpec.actions).map((action) => ({
-      name: action,
-      displayName: formatSubActionName(action),
-    }));
+    mapping[connectorSpec.metadata.id] = getConnectorSpecSubActions(connectorSpec);
   });
 
   return mapping;

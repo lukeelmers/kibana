@@ -7,6 +7,7 @@
  * License v3.0 only", or the "Server Side Public License, v 1".
  */
 
+import type { JSONSchema7 } from 'json-schema';
 import type {
   BaseConnectorContract,
   ConnectorContractUnion,
@@ -18,6 +19,7 @@ import type {
 } from '@kbn/workflows';
 import {
   builtInStepDefinitions,
+  convertJsonSchemaToZod,
   DEPRECATED_STEP_METADATA,
   generateLightweightYamlSchema,
   generateYamlSchemaFromConnectors,
@@ -230,7 +232,9 @@ function convertDynamicConnectorsToContractsInternal(
           // Create type name: actionTypeId.subActionName (e.g., "inference.completion")
           const subActionType = `${connectorTypeName}.${subAction.name}`;
 
-          const paramsSchema = getSubActionParamsSchema(connectorType.actionTypeId, subAction.name);
+          const paramsSchema = subAction.inputSchema
+            ? convertJsonSchemaToZod(subAction.inputSchema as JSONSchema7)
+            : getSubActionParamsSchema(connectorType.actionTypeId, subAction.name);
           const outputSchema = getSubActionOutputSchema(connectorType.actionTypeId, subAction.name);
           const metadata = getSubActionMetadata(connectorType.actionTypeId, subAction.name);
 
@@ -385,10 +389,11 @@ export function addDynamicConnectorsToCache(
 ): void {
   inferenceConnectorInstancesCache = inferenceConnectorInstances;
   // Create a simple hash of the connector types to detect changes.
-  // Include the `enabled` flag to avoid keeping stale (now-disabled) connector contracts in cache.
+  // Include the `enabled` flag and sub-actions to avoid keeping stale connector contracts in cache
+  // (a now-disabled type, or a catalog type whose upgrade added actions).
   const currentHash = JSON.stringify(
     Object.entries(dynamicConnectorTypes)
-      .map(([key, value]) => [key, value.enabled !== false] as const)
+      .map(([key, value]) => [key, value.enabled !== false, value.subActions] as const)
       .sort(([a], [b]) => a.localeCompare(b))
   );
 

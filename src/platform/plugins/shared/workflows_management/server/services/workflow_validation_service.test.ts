@@ -61,6 +61,7 @@ const makeDeps = (
       } as any,
       getActionsClient: jest.fn().mockResolvedValue(actionsClient) as any,
       getActionsClientWithRequest: jest.fn().mockResolvedValue(actionsClientWithRequest) as any,
+      getConnectorSpec: jest.fn(),
       getCoreStart: () =>
         ({
           featureFlags: {

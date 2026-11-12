@@ -263,6 +263,7 @@ export class WorkflowsService {
       workflowsExtensions: this.workflowsExtensions,
       getActionsClient: this.getActionsClient,
       getActionsClientWithRequest: this.getActionsClientWithRequest,
+      getConnectorSpec: pluginsStart.actions.getConnectorSpec,
       getCoreStart: () => this.coreStart,
       licensing: pluginsStart.licensing,
       logger: this.logger,

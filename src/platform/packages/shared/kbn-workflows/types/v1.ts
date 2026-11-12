@@ -592,6 +592,8 @@ export interface WorkflowAggsDto {
 export interface ConnectorSubAction {
   name: string;
   displayName: string;
+  /** JSON Schema of the params, for connector types that are not bundled with Kibana. */
+  inputSchema?: Record<string, unknown>;
 }
 
 export interface ConnectorInstance {
