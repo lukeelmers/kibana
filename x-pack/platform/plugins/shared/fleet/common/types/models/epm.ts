@@ -79,6 +79,7 @@ export enum KibanaAssetType {
   // Not a saved object; reused so package paths and KibanaAssetReference share these enums.
   // Excluded from SO install via validKibanaAssetTypes in kibana/assets/install.ts.
   workflow = 'workflow',
+  customApp = 'custom_app',
 }
 
 /*
@@ -103,6 +104,7 @@ export enum KibanaSavedObjectType {
   alert = 'alert',
   // Not a saved object; see KibanaAssetType.workflow. Used only as an asset ref type.
   workflow = 'workflow',
+  customApp = 'custom_app',
 }
 
 export enum ElasticsearchAssetType {

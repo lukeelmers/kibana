@@ -28,3 +28,6 @@ export const ENABLE_SENTINEL_POLICY_VERSION_FLAG = 'fleet.enableSentinelPolicyVe
 
 /** Feature flag that gates the installation of `kibana/workflow` package assets as managed workflows. Fallback is false. */
 export const ENABLE_WORKFLOW_ASSETS_FLAG = 'fleet.enableWorkflowAssets';
+
+/** Feature flag that gates the installation of `kibana/custom_app` package assets as custom apps. Fallback is false. */
+export const ENABLE_CUSTOM_APP_ASSETS_FLAG = 'fleet.enableCustomAppAssets';

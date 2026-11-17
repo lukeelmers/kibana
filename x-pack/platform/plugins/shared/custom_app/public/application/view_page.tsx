@@ -10,7 +10,7 @@ import { useHistory, useParams } from 'react-router-dom';
 import isEqual from 'lodash/isEqual';
 import { EuiConfirmModal, EuiLoadingSpinner, EuiPageTemplate } from '@elastic/eui';
 import { i18n } from '@kbn/i18n';
-import { AppHeader, type AppHeaderMenu } from '@kbn/app-header';
+import { AppHeader, type AppHeaderBadge, type AppHeaderMenu } from '@kbn/app-header';
 import { KbnDangerCallout } from '@kbn/ui-callout';
 import {
   appDocumentSchema,
@@ -23,10 +23,14 @@ import { EmptyApp } from '../components/empty_app';
 import { LiveApp } from '../components/live_app';
 import { createDefaultDocument, createEmptyDocument } from '../default_document';
 import { useChatWithPage } from './use_chat_with_page';
+import { MANAGED_LABEL, ManagedBadge } from './managed_badge';
 import { useListBack, useListBreadcrumb } from './list_breadcrumb';
 import { useUnsavedChangesGuard } from './use_unsaved_changes_guard';
 import type { AppServices } from './app';
 import type { SavedApp } from './saved_apps_client';
+
+/** The width of an app that asks for the width of a page: the Nightshift page's, with the frame's padding. */
+const PAGE_WIDTH = '1032px';
 
 type ViewState =
   | { status: 'loading' }
@@ -186,6 +190,8 @@ export const ViewPage = ({
 
   const { app } = state;
   const hasDraft = draft !== undefined;
+  // A package's app is changed by its package, so it is cloned to be customized.
+  const canEdit = canSave && !app.managed;
 
   const saveDraft = async () => {
     if (state.status !== 'ready' || !draft) return;
@@ -233,8 +239,33 @@ export const ViewPage = ({
     });
   };
 
+  const clone = async () => {
+    if (state.status !== 'ready') return;
+    setIsSaving(true);
+    try {
+      const { id: cloneId } = await client.create({
+        ...state.document,
+        title: i18n.translate('xpack.customApp.standalone.cloneTitle', {
+          defaultMessage: '{title} (copy)',
+          values: { title: app.title },
+        }),
+        showInNav: false,
+      });
+      history.push(`/view/${encodeURIComponent(cloneId)}`);
+    } catch (error) {
+      notifications.toasts.addDanger({
+        title: i18n.translate('xpack.customApp.standalone.cloneError', {
+          defaultMessage: 'The app could not be cloned',
+        }),
+        text: toMessage(error),
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const canRefine =
-    canSave && describe && state.status === 'ready' && !isEmptyDocument(draft ?? state.document);
+    canEdit && describe && state.status === 'ready' && !isEmptyDocument(draft ?? state.document);
 
   const menu: AppHeaderMenu = {
     // What the page asks for next: to save what was changed, or else to change it.
@@ -304,6 +335,31 @@ export const ViewPage = ({
     ],
   };
 
+  const managedBadge: AppHeaderBadge = {
+    label: MANAGED_LABEL,
+    renderCustomBadge: () => (
+      <ManagedBadge
+        packageName={app.package?.name ?? ''}
+        onClone={canSave && state.status === 'ready' ? clone : undefined}
+        isCloning={isSaving}
+      />
+    ),
+  };
+
+  const badges: AppHeaderBadge[] = [
+    ...(app.managed ? [managedBadge] : []),
+    ...(hasDraft
+      ? [
+          {
+            label: i18n.translate('xpack.customApp.standalone.unsaved', {
+              defaultMessage: 'Unsaved',
+            }),
+            color: 'warning',
+          } as const,
+        ]
+      : []),
+  ];
+
   // The header does not ask to save a name that is empty or the same.
   const renameApp = async (name: string): Promise<string | void> => {
     // A draft stays as it is: only the name is saved.
@@ -323,7 +379,7 @@ export const ViewPage = ({
       <AppHeader
         back={listBack}
         title={
-          canSave && state.status === 'ready'
+          canEdit && state.status === 'ready'
             ? {
                 text: app.title,
                 onSave: renameApp,
@@ -334,21 +390,10 @@ export const ViewPage = ({
             : app.title
         }
         description={app.description}
-        badges={
-          hasDraft
-            ? [
-                {
-                  label: i18n.translate('xpack.customApp.standalone.unsaved', {
-                    defaultMessage: 'Unsaved',
-                  }),
-                  color: 'warning',
-                },
-              ]
-            : undefined
-        }
+        badges={badges.length > 0 ? badges : undefined}
         menu={menu}
       />
-      <EuiPageTemplate.Section>
+      <EuiPageTemplate.Section restrictWidth={shownDocument.width === 'page' ? PAGE_WIDTH : false}>
         {state.status === 'invalid' ? (
           <KbnDangerCallout
             size="s"
@@ -365,7 +410,7 @@ export const ViewPage = ({
           </KbnDangerCallout>
         ) : isEmptyDocument(draft ?? state.document) ? (
           <EmptyApp
-            canEdit={canSave}
+            canEdit={canEdit}
             onDescribe={
               describe
                 ? () =>

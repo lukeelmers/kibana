@@ -68,6 +68,7 @@ describe('the saved apps service', () => {
   });
 
   it('removes an app', async () => {
+    client.get.mockResolvedValue(object());
     client.delete.mockResolvedValue({});
 
     await service.remove('app-1');
@@ -93,7 +94,7 @@ describe('the saved apps service', () => {
           type: CUSTOM_APP_SAVED_OBJECT_TYPE,
           sortField: 'updated_at',
           sortOrder: 'desc',
-          fields: ['title', 'description', 'showInNav', 'icon'],
+          fields: ['title', 'description', 'showInNav', 'icon', 'package'],
         })
       );
       expect(result).toEqual({

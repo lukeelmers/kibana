@@ -5,7 +5,7 @@
  * 2.0.
  */
 
-import type { SavedObjectsClientContract } from '@kbn/core/server';
+import { SavedObjectsErrorHelpers, type SavedObjectsClientContract } from '@kbn/core/server';
 import { CUSTOM_APP_SAVED_OBJECT_TYPE } from '../../common/constants';
 import type { SavedAppInput } from '../../common/saved_app_schema';
 
@@ -14,6 +14,8 @@ type StoredApp = SavedAppInput & { package?: { name: string } };
 
 export type SavedApp = StoredApp & {
   id: string;
+  /** Installed by a package, which owns it: it is cloned to be changed. */
+  managed?: boolean;
   updatedAt?: string;
 };
 
@@ -23,6 +25,8 @@ export interface SavedAppListItem {
   description?: string;
   showInNav?: boolean;
   icon?: string;
+  managed?: boolean;
+  package?: { name: string };
   updatedAt?: string;
 }
 
@@ -31,12 +35,27 @@ const toStored = (input: SavedAppInput): StoredApp => input;
 const toSavedApp = (object: {
   id: string;
   attributes: StoredApp;
+  managed?: boolean;
   updated_at?: string;
 }): SavedApp => ({
   id: object.id,
   ...object.attributes,
+  ...(object.managed ? { managed: true } : {}),
   ...(object.updated_at ? { updatedAt: object.updated_at } : {}),
 });
+
+/** A package's app is changed by the package: a change made here would be lost on its upgrade. */
+const assertNotManaged = async (client: SavedObjectsClientContract, id: string) => {
+  const { managed, attributes } = await client.get<StoredApp>(CUSTOM_APP_SAVED_OBJECT_TYPE, id);
+  if (managed) {
+    const owner = attributes.package ? `the ${attributes.package.name} package` : 'a package';
+    throw SavedObjectsErrorHelpers.decorateBadRequestError(
+      new Error(
+        `This app is managed by ${owner} and cannot be changed or deleted. Clone it to customize.`
+      )
+    );
+  }
+};
 
 /** What the routes do, with the saved objects client of the request, which enforces privileges. */
 export const createSavedAppsService = (client: SavedObjectsClientContract) => ({
@@ -47,6 +66,7 @@ export const createSavedAppsService = (client: SavedObjectsClientContract) => ({
     toSavedApp(await client.get<StoredApp>(CUSTOM_APP_SAVED_OBJECT_TYPE, id)),
 
   update: async (id: string, input: SavedAppInput): Promise<SavedApp> => {
+    await assertNotManaged(client, id);
     const stored = toStored(input);
     await client.update<StoredApp>(CUSTOM_APP_SAVED_OBJECT_TYPE, id, stored);
     // Read back, so that the response is what is stored and not what was sent.
@@ -54,6 +74,7 @@ export const createSavedAppsService = (client: SavedObjectsClientContract) => ({
   },
 
   remove: async (id: string): Promise<void> => {
+    await assertNotManaged(client, id);
     await client.delete(CUSTOM_APP_SAVED_OBJECT_TYPE, id);
   },
 
@@ -73,17 +94,19 @@ export const createSavedAppsService = (client: SavedObjectsClientContract) => ({
       sortField: 'updated_at',
       sortOrder: 'desc',
       // Only what a list shows: the documents can be large.
-      fields: ['title', 'description', 'showInNav', 'icon'],
+      fields: ['title', 'description', 'showInNav', 'icon', 'package'],
       ...(search ? { search: `${search}*`, searchFields: ['title'] } : {}),
     });
 
     return {
-      apps: result.saved_objects.map(({ id, attributes, updated_at: updatedAt }) => ({
+      apps: result.saved_objects.map(({ id, attributes, managed, updated_at: updatedAt }) => ({
         id,
         title: attributes.title,
         ...(attributes.description === undefined ? {} : { description: attributes.description }),
         ...(attributes.showInNav === undefined ? {} : { showInNav: attributes.showInNav }),
         ...(attributes.icon === undefined ? {} : { icon: attributes.icon }),
+        ...(managed ? { managed: true } : {}),
+        ...(attributes.package === undefined ? {} : { package: attributes.package }),
         ...(updatedAt ? { updatedAt } : {}),
       })),
       total: result.total,

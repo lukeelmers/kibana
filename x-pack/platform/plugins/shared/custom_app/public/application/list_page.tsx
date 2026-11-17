@@ -188,6 +188,7 @@ export const ListPage = ({ client, chrome, notifications, canSave, agentBuilder 
                 icon: 'trash' as const,
                 type: 'icon' as const,
                 color: 'danger' as const,
+                available: (item: SavedAppListItem) => !item.managed,
                 onClick: (item: SavedAppListItem) => setToDelete(item),
                 'data-test-subj': 'customAppDelete',
               },

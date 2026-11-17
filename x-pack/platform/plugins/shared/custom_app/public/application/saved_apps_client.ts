@@ -14,6 +14,9 @@ export interface SavedApp {
   id: string;
   title: string;
   description?: string;
+  /** Installed by a package, which owns it: it is cloned to be changed. */
+  managed?: boolean;
+  package?: { name: string };
   updatedAt?: string;
   [attribute: string]: unknown;
 }
@@ -24,6 +27,8 @@ export interface SavedAppListItem {
   description?: string;
   showInNav?: boolean;
   icon?: string;
+  managed?: boolean;
+  package?: { name: string };
   updatedAt?: string;
 }
 
