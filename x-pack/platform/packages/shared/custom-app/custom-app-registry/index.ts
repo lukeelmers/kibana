@@ -53,6 +53,15 @@ export { checkCapability } from './check_capability';
 export { describeCapability } from './capability_guide';
 export { nodeIdSchema, stateKeySchema, visibleWhenSchema } from './node_envelope';
 export type { VisibleWhen } from './node_envelope';
+export { defineSurface } from './surface/define_surface';
+export type { SurfaceDefinition } from './surface/define_surface';
+export { getKibanaUiRenderer, KIBANA_UI_SURFACE, withKibanaUi } from './surface/with_kibana_ui';
+export type {
+  AppNodeProps,
+  KibanaUiEnv,
+  KibanaUiRenderer,
+  KibanaUiStateValue,
+} from './surface/env';
 export {
   MAX_CHILDREN_PER_NODE,
   MAX_NODE_ID_LENGTH,

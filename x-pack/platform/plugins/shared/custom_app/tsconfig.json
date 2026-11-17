@@ -35,7 +35,9 @@
     "@kbn/data-views-plugin",
     "@kbn/visualization-utils",
     "@kbn/field-types",
-    "@kbn/expressions-plugin"
+    "@kbn/expressions-plugin",
+    "@kbn/isomer",
+    "@kbn/isomer-components"
   ],
   "exclude": ["target/**/*"]
 }
