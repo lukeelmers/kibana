@@ -7,7 +7,7 @@
   "description": "Hosts an Isomer runtime with Kibana's primitive packs, for features and tools built on Isomer.",
   "plugin": {
     "id": "isomer",
-    "browser": false,
+    "browser": true,
     "server": true
   }
 }
