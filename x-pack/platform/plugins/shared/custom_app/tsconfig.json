@@ -40,7 +40,9 @@
     "@kbn/isomer",
     "@kbn/isomer-components",
     "@kbn/isomer-plugin",
-    "@kbn/isomer-theme"
+    "@kbn/isomer-theme",
+    "@kbn/core-chrome-browser",
+    "@kbn/deeplinks-shared"
   ],
   "exclude": ["target/**/*"]
 }

@@ -44,5 +44,6 @@
     "@kbn/navigation-plugin",
     "@kbn/profiling-plugin",
     "@kbn/entity-inventory-app-plugin",
+    "@kbn/custom-app-plugin"
   ]
 }

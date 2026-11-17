@@ -54,8 +54,9 @@ export class ServerlessObservabilityPlugin
       setupDeps.streams?.navigationStatus$ || of({ status: 'disabled' as const }),
       chatExperience$,
       core.featureFlags.getBooleanValue$(NIGHTSHIFT_ENABLED_FLAG, false),
+      setupDeps.customApp?.navItems$ || of([]),
     ]).pipe(
-      map(([{ status }, chatExperience, significantEventsAvailable]) => {
+      map(([{ status }, chatExperience, significantEventsAvailable, customAppNavItems]) => {
         return createNavigationTree({
           core,
           significantEventsAvailable,
@@ -65,6 +66,7 @@ export class ServerlessObservabilityPlugin
           isCasesAvailable: Boolean(setupDeps.cases),
           showAiAssistant: chatExperience !== AIChatExperience.Agent,
           entityInventoryNavGroup: setupDeps.entityInventoryApp?.navTreeGroup,
+          customAppNavItems,
         });
       })
     );

@@ -85,6 +85,7 @@ import type { CPSPluginStart } from '@kbn/cps/public/types';
 import type { ExpressionsStart } from '@kbn/expressions-plugin/public';
 import type { NightshiftInvestigationsPublicStart } from '@kbn/nightshift-investigations-plugin/public';
 import type { EntityInventoryAppPublicStart } from '@kbn/entity-inventory-app-plugin/public';
+import type { CustomAppPublicStart } from '@kbn/custom-app-plugin/public';
 import { isAlertingV2Enabled, shouldShowV1ObservabilityAlertsTable } from '@kbn/alerting-v2-utils';
 import { observabilityAppId, observabilityFeatureId } from '../common';
 import { getObservabilityAlertType } from './cases/attachments/alert';
@@ -198,6 +199,7 @@ export interface ObservabilityPublicPluginsStart {
   ingestHub?: IngestHubStart;
   nightshiftInvestigations?: NightshiftInvestigationsPublicStart;
   entityInventoryApp?: EntityInventoryAppPublicStart;
+  customApp?: CustomAppPublicStart;
 }
 export type ObservabilityPublicStart = ReturnType<Plugin['start']>;
 

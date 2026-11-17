@@ -9,6 +9,11 @@
 
 export const HOME_APP_ID = 'home';
 
-export type AppId = typeof HOME_APP_ID;
+export const CUSTOM_APP_ID = 'customApp';
 
-export type DeepLinkId = AppId;
+export type AppId = typeof HOME_APP_ID | typeof CUSTOM_APP_ID;
+
+/** An installed custom app, which the custom apps application publishes as a deep link. */
+export type CustomAppDeepLinkId = `${typeof CUSTOM_APP_ID}:${string}`;
+
+export type DeepLinkId = AppId | CustomAppDeepLinkId;

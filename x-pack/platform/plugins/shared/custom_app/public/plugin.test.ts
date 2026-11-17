@@ -28,7 +28,10 @@ const setup = () => {
   const core = coreMock.createSetup();
 
   plugin.setup(core as never, { embeddable, isomer: { registerPack: jest.fn() } } as never);
-  plugin.start({} as never, { data: { search: { search: jest.fn() } }, uiActions } as never);
+  plugin.start(coreMock.createStart(), {
+    data: { search: { search: jest.fn() } },
+    uiActions,
+  } as never);
 
   return { core, embeddable, uiActions };
 };

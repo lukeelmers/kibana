@@ -52,6 +52,7 @@ const toViewState = (app: SavedApp): ViewState => {
 
 export const ViewPage = ({
   client,
+  onAppsChanged,
   chrome,
   notifications,
   canSave,
@@ -128,6 +129,7 @@ export const ViewPage = ({
         const { title: _title, description: _description, ...rest } = document;
         const next: AppDocument = { ...rest, ...details };
         const saved = await client.update(id, next);
+        onAppsChanged();
         // Saving the document saves the draft; saving only the details leaves a draft as it is.
         setState({ status: 'ready', app: saved, document: next });
         return true;
@@ -143,7 +145,7 @@ export const ViewPage = ({
         setIsSaving(false);
       }
     },
-    [client, id, notifications]
+    [client, id, notifications, onAppsChanged]
   );
 
   if (state.status === 'loading') {
@@ -258,6 +260,7 @@ export const ViewPage = ({
         }),
         showInNav: false,
       });
+      onAppsChanged();
       history.push(`/view/${encodeURIComponent(cloneId)}`);
     } catch (error) {
       notifications.toasts.addDanger({

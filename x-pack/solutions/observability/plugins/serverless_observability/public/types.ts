@@ -7,6 +7,7 @@
 
 import type { DiscoverSetup } from '@kbn/discover-plugin/public';
 import type { EntityInventoryAppPublicStart } from '@kbn/entity-inventory-app-plugin/public';
+import type { CustomAppPublicStart } from '@kbn/custom-app-plugin/public';
 import type { ManagementSetup, ManagementStart } from '@kbn/management-plugin/public';
 import type { ObservabilityPublicSetup } from '@kbn/observability-plugin/public';
 import type {
@@ -45,4 +46,5 @@ export interface ServerlessObservabilityPublicStartDependencies {
   cases?: CasesPublicStart;
   workflowsManagement?: WorkflowsPublicPluginStart;
   entityInventoryApp?: EntityInventoryAppPublicStart;
+  customApp?: CustomAppPublicStart;
 }

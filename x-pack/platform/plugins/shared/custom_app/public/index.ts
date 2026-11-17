@@ -7,4 +7,6 @@
 
 import { CustomAppPlugin } from './plugin';
 
+export type { CustomAppPublicStart } from './plugin';
+
 export const plugin = () => new CustomAppPlugin();

@@ -17,7 +17,8 @@ registerBuiltinCapabilities();
 
 export const renderApp = (
   core: CoreStart,
-  { element, history, onAppLeave }: AppMountParameters
+  { element, history, onAppLeave }: AppMountParameters,
+  onAppsChanged: () => void
 ) => {
   const { agentBuilder, embeddable } = getServices();
   const root = createRoot(element);
@@ -26,6 +27,7 @@ export const renderApp = (
       <App
         history={history}
         client={createSavedAppsClient(core.http)}
+        onAppsChanged={onAppsChanged}
         chrome={core.chrome}
         notifications={core.notifications}
         onAppLeave={onAppLeave}

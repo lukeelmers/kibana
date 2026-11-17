@@ -62,6 +62,7 @@
       "significantEvents",
       "nightshiftInvestigations",
       "entityInventoryApp",
+      "customApp",
     ],
     "requiredBundles": [
       "aiops",
