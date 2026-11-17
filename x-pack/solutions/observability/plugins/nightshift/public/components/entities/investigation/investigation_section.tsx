@@ -29,8 +29,8 @@ import { getSeverityLabel } from '@kbn/significant-events-schema';
 import { KbnDangerCallout, KbnWarningCallout } from '@kbn/ui-callout';
 import { NIGHTSHIFT_EBT_ACTIONS, NIGHTSHIFT_EBT_ELEMENTS } from '../../../common/ebt_constants';
 import { RETRY_BUTTON_LABEL } from '../../../common/messages';
-import type { SeverityDotColor } from '../../../common/severity';
-import { SEVERITY_DOT_COLOR } from '../../../common/severity';
+import type { SeverityDotColor } from '../../../../common/severity';
+import { SEVERITY_DOT_COLOR } from '../../../../common/severity';
 import type {
   InvestigationSectionId,
   InvestigationSectionState,
@@ -55,6 +55,8 @@ export interface InvestigationSectionProps {
   onToggle?: (isOpen: boolean) => void;
   /** Briefly draws the section's border in its severity colour, after a jump lands on it. */
   isHighlighted?: boolean;
+  /** The trailing controls of each card, in place of open in chat and Copy link. */
+  renderActions?: (investigation: InvestigationSummary) => React.ReactNode;
 }
 
 /** Set on a section by the list, to the height of the sticky page header that would cover it. */
@@ -296,9 +298,10 @@ const SectionRows = ({
   investigations,
   selectedInvestigationId,
   onInvestigationClick,
+  renderActions = (investigation) => <InvestigationCardActions investigation={investigation} />,
 }: Pick<
   InvestigationSectionProps,
-  'investigations' | 'selectedInvestigationId' | 'onInvestigationClick'
+  'investigations' | 'selectedInvestigationId' | 'onInvestigationClick' | 'renderActions'
 >): React.ReactElement => {
   const { euiTheme } = useEuiTheme();
   const InvestigationCard = useKibana().services.agenticInvestigations?.InvestigationCard;
@@ -336,7 +339,7 @@ const SectionRows = ({
                 investigation={investigation}
                 isSelected={investigation.id === selectedInvestigationId}
                 onClick={onInvestigationClick}
-                actions={<InvestigationCardActions investigation={investigation} />}
+                actions={renderActions(investigation)}
               />
             )}
           </EuiFlexItem>
@@ -395,6 +398,7 @@ export const InvestigationSection = ({
   isOpen = true,
   onToggle,
   isHighlighted = false,
+  renderActions,
 }: InvestigationSectionProps): React.ReactElement | null => {
   const { euiTheme } = useEuiTheme();
   const presentation = getSectionPresentation(id);
@@ -430,6 +434,7 @@ export const InvestigationSection = ({
               investigations={investigations}
               selectedInvestigationId={selectedInvestigationId}
               onInvestigationClick={onInvestigationClick}
+              renderActions={renderActions}
             />
             {hasMore && (
               <SectionBlock>

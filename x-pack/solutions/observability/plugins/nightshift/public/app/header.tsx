@@ -18,6 +18,7 @@ import {
 import { getEbtProps } from '@kbn/ebt-click';
 import { i18n } from '@kbn/i18n';
 import { NightshiftMarkIcon } from '@kbn/observability-shared-plugin/public';
+import { getGreeting, getHeroTitle } from '../../common/hero';
 import { NIGHTSHIFT_EBT_ACTIONS, NIGHTSHIFT_EBT_ELEMENTS } from '../common/ebt_constants';
 
 export interface NightshiftHeaderProps {
@@ -29,50 +30,6 @@ export interface NightshiftHeaderProps {
   /** Puts the greeting in front of the title on one line ("Good morning! Meet Nightshift"). */
   isGreetingInline?: boolean;
 }
-
-const getGreeting = (): string => {
-  const hour = new Date().getHours();
-
-  if (hour < 12) {
-    return i18n.translate('xpack.nightshift.hero.morningGreetingDescription', {
-      defaultMessage: 'Good morning!',
-    });
-  }
-
-  if (hour < 18) {
-    return i18n.translate('xpack.nightshift.hero.afternoonGreetingDescription', {
-      defaultMessage: 'Good afternoon!',
-    });
-  }
-
-  return i18n.translate('xpack.nightshift.hero.eveningGreetingDescription', {
-    defaultMessage: 'Good evening!',
-  });
-};
-
-const getHeroTitle = ({
-  isLoading,
-  hasActiveInvestigations,
-}: {
-  isLoading: boolean;
-  hasActiveInvestigations: boolean;
-}): string => {
-  if (isLoading) {
-    return i18n.translate('xpack.nightshift.hero.checkingTitle', {
-      defaultMessage: 'Looking into your data...',
-    });
-  }
-
-  if (hasActiveInvestigations) {
-    return i18n.translate('xpack.nightshift.hero.investigationsRunningTitle', {
-      defaultMessage: 'Investigations are underway',
-    });
-  }
-
-  return i18n.translate('xpack.nightshift.hero.allClearTitle', {
-    defaultMessage: "You're all caught up",
-  });
-};
 
 export function NightshiftHeader({
   isLoading = false,

@@ -41,6 +41,8 @@ const openMenuLabel = i18n.translate('xpack.nightshift.investigations.cardOpenMe
 
 export interface InvestigationCardActionsProps {
   investigation: InvestigationSummary;
+  /** The overflow menu's items, in place of Copy link. Each closes the menu when clicked. */
+  menuItems?: Array<{ key: string; icon: string; label: string; onClick: () => void }>;
 }
 
 /**
@@ -50,6 +52,7 @@ export interface InvestigationCardActionsProps {
  */
 export const InvestigationCardActions = ({
   investigation,
+  menuItems: customMenuItems,
 }: InvestigationCardActionsProps): React.ReactElement => {
   const { euiTheme } = useEuiTheme();
   const { notifications } = useKibana().services;
@@ -84,22 +87,35 @@ export const InvestigationCardActions = ({
   }, [investigation.id, notifications.toasts]);
 
   const menuItems = useMemo(
-    () => [
-      <EuiContextMenuItem
-        key="copyLink"
-        icon="link"
-        aria-label={getFlyoutShareUrlAriaLabel()}
-        onClick={(event) => {
-          event.stopPropagation();
-          setIsMenuOpen(false);
-          handleCopyLink();
-        }}
-        data-test-subj="nightshiftInvestigationCardCopyLink"
-      >
-        {copyLinkLabel}
-      </EuiContextMenuItem>,
-    ],
-    [handleCopyLink]
+    () =>
+      customMenuItems?.map(({ key, icon, label, onClick }) => (
+        <EuiContextMenuItem
+          key={key}
+          icon={icon}
+          onClick={(event) => {
+            event.stopPropagation();
+            setIsMenuOpen(false);
+            onClick();
+          }}
+        >
+          {label}
+        </EuiContextMenuItem>
+      )) ?? [
+        <EuiContextMenuItem
+          key="copyLink"
+          icon="link"
+          aria-label={getFlyoutShareUrlAriaLabel()}
+          onClick={(event) => {
+            event.stopPropagation();
+            setIsMenuOpen(false);
+            handleCopyLink();
+          }}
+          data-test-subj="nightshiftInvestigationCardCopyLink"
+        >
+          {copyLinkLabel}
+        </EuiContextMenuItem>,
+      ],
+    [customMenuItems, handleCopyLink]
   );
 
   return (
