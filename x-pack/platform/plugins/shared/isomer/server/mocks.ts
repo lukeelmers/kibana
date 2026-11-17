@@ -7,7 +7,11 @@
 
 import { coreMock } from '@kbn/core/server/mocks';
 import { IsomerPlugin } from './plugin';
-import type { IsomerPluginStart } from './plugin';
+import type { IsomerPluginSetup, IsomerPluginStart } from './plugin';
+
+const createSetupContract = (): jest.Mocked<IsomerPluginSetup> => ({
+  registerPack: jest.fn(),
+});
 
 /** A start contract backed by the plugin's shared runtime. */
 const createStartContract = (): jest.Mocked<IsomerPluginStart> => {
@@ -15,4 +19,4 @@ const createStartContract = (): jest.Mocked<IsomerPluginStart> => {
   return { getRuntime: jest.fn(getRuntime) };
 };
 
-export const isomerPluginMock = { createStartContract };
+export const isomerPluginMock = { createSetupContract, createStartContract };
