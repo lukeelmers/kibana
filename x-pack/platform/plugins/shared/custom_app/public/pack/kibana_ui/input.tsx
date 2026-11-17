@@ -8,7 +8,7 @@
 import React from 'react';
 import { EuiFieldText, EuiFormRow } from '@elastic/eui';
 import { MAX_STATE_STRING_LENGTH } from '@kbn/custom-app-common';
-import type { AppNodeProps, KibanaUiRenderer } from '@kbn/custom-app-registry';
+import { toActionArray, type AppNodeProps, type KibanaUiRenderer } from '@kbn/custom-app-registry';
 import type { InputNode } from '../../../common/pack';
 
 type Node = InputNode & AppNodeProps;
@@ -24,8 +24,8 @@ export const renderInput: KibanaUiRenderer<Node> = (node, env) => (
       onChange={(event) =>
         env.dispatch(
           [
-            { type: 'setState', key: node.bind ?? '', value: { fromInput: true } },
-            ...(node.onChange ?? []),
+            { state: { [node.bind ?? '']: { fromInput: true } } },
+            ...toActionArray(node.onChange ?? []),
           ],
           { input: event.target.value }
         )

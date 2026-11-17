@@ -22,10 +22,8 @@ export interface ActionValidationContext {
   issue: (message: string) => void;
 }
 
-/** The action of a manifest: its settings, and the `type` that says which action it is. */
-export type ActionOfShape<Id extends string, Shape extends z.ZodRawShape> = z.output<
-  z.ZodObject<{ type: z.ZodLiteral<Id> } & Shape>
->;
+/** The action of a manifest: its settings, one of which is keyed by the id of the action. */
+export type ActionOfShape<Shape extends z.ZodRawShape> = z.output<z.ZodObject<Shape>>;
 
 export interface ActionManifest<
   Id extends string = string,
@@ -34,16 +32,16 @@ export interface ActionManifest<
   kind: 'action';
   id: Id;
   version: number;
-  /** The settings of the action, without `type`. */
+  /** The settings of the action: the one keyed by its id, and any that go with it. */
   props: z.ZodObject<Shape>;
   doc: CapabilityDoc;
   /** What is wrong with the action beyond what its settings say, with the whole document in view. */
-  validate?: (action: ActionOfShape<Id, Shape>, context: ActionValidationContext) => void;
+  validate?: (action: ActionOfShape<Shape>, context: ActionValidationContext) => void;
 }
 
 /** The action of a manifest. */
-export type ActionOf<Manifest> = Manifest extends ActionManifest<infer Id, infer Shape>
-  ? ActionOfShape<Id, Shape>
+export type ActionOf<Manifest> = Manifest extends ActionManifest<string, infer Shape>
+  ? ActionOfShape<Shape>
   : never;
 
 export const defineAction = <Id extends string, Shape extends z.ZodRawShape>(

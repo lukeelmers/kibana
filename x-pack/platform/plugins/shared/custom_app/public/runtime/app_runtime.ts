@@ -13,11 +13,17 @@ import {
   getNodeChildren,
   getStateDefaults,
   type Action,
+  type ActionList,
   type AppDocument,
   type StateDeclaration,
   type StateValue,
 } from '@kbn/custom-app-common';
-import { getActionHandler, getCapability } from '@kbn/custom-app-registry';
+import {
+  actionKind,
+  getActionHandler,
+  getCapability,
+  toActionArray,
+} from '@kbn/custom-app-registry';
 
 export type StateValues = Readonly<Record<string, StateValue>>;
 
@@ -65,7 +71,7 @@ export interface AppRuntime {
   /** The id of the flyout that is open, if any. */
   openFlyoutId$: BehaviorSubject<string | undefined>;
   /** Runs actions in order, each seeing the effect of the ones before it. */
-  run: (actions: readonly Action[], input?: ActionInput) => RunActionsResult;
+  run: (actions: ActionList, input?: ActionInput) => RunActionsResult;
   /** Follows the document when it changes, keeping the values that are still valid. */
   setDocument: (document: Pick<AppDocument, 'state' | 'root'>) => void;
   /**
@@ -131,7 +137,7 @@ export const createAppRuntime = (document: Pick<AppDocument, 'state' | 'root'>):
 
   const setState = (
     key: string,
-    value: Extract<Action, { type: 'setState' }>['value'],
+    value: Extract<Action, { state: unknown }>['state'][string],
     input: ActionInput,
     dropped: string[]
   ) => {
@@ -191,41 +197,42 @@ export const createAppRuntime = (document: Pick<AppDocument, 'state' | 'root'>):
       const dropped: string[] = [];
       const requests: ActionRequest[] = [];
 
-      actions.forEach((action) => {
-        switch (action.type) {
-          case 'setState':
-            setState(action.key, action.value, input, dropped);
+      toActionArray(actions).forEach((action) => {
+        const kind = actionKind(action);
+        switch (kind) {
+          case 'state':
+            Object.entries((action as Extract<Action, { state: unknown }>).state).forEach(
+              ([key, value]) => setState(key, value, input, dropped)
+            );
             break;
-          case 'openFlyout':
-            if (flyoutIds.has(action.flyout)) {
-              openFlyoutId$.next(action.flyout);
+          case 'flyout': {
+            const { flyout } = action as Extract<Action, { flyout: unknown }>;
+            if (flyoutIds.has(flyout)) {
+              openFlyoutId$.next(flyout);
             } else {
-              dropped.push(`"${action.flyout}" is not a flyout`);
+              dropped.push(`"${flyout}" is not a flyout`);
             }
             break;
-          case 'closeFlyout':
-            openFlyoutId$.next(undefined);
-            break;
+          }
           default: {
             // An action of another plugin, which carries itself out with what it is handed.
-            const { type } = action as { type: string };
-            const handler = getActionHandler(type);
-            if (!handler) {
-              dropped.push(`The action "${type}" is not available`);
+            const handler = kind === undefined ? undefined : getActionHandler(kind);
+            if (kind === undefined || !handler) {
+              dropped.push(`The action "${kind}" is not available`);
               break;
             }
             handler(action as never, {
               input,
               state: state$.getValue(),
               drop: (reason) => dropped.push(reason),
-              request: (payload) => requests.push({ action: type, payload }),
+              request: (payload) => requests.push({ action: kind, payload }),
             });
           }
         }
       });
 
       const workflows = requests
-        .filter(({ action }) => action === 'runWorkflow')
+        .filter(({ action }) => action === 'workflow')
         .map(({ payload }) => payload as WorkflowRunRequest);
 
       return { dropped, requests, workflows };

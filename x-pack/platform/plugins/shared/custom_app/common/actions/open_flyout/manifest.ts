@@ -10,13 +10,13 @@ import { defineAction, nodeIdSchema, type ActionOf } from '@kbn/custom-app-regis
 
 export const openFlyoutAction = defineAction({
   kind: 'action',
-  id: 'openFlyout',
+  id: 'flyout',
   version: 1,
   props: lazySchema(() => z.object({ flyout: nodeIdSchema.describe('The id of the flyout.') })),
   doc: {
     summary: 'Opens a flyout of the app.',
     whenToUse: 'To show details of what was clicked, next to the other actions of the event.',
-    example: { type: 'openFlyout', flyout: 'details' },
+    example: { flyout: 'details' },
   },
   validate: (action, { nodeId, overlayIds, issue }) => {
     if (!overlayIds.has(action.flyout)) {
@@ -27,6 +27,6 @@ export const openFlyoutAction = defineAction({
 
 declare module '@kbn/custom-app-registry' {
   interface ActionTypeMap {
-    openFlyout: ActionOf<typeof openFlyoutAction>;
+    flyout: ActionOf<typeof openFlyoutAction>;
   }
 }

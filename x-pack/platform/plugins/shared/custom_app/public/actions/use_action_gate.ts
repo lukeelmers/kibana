@@ -7,20 +7,26 @@
 
 import { useEffect, useMemo } from 'react';
 import { i18n } from '@kbn/i18n';
-import { listActionUiProviders, useActionUis } from '@kbn/custom-app-registry';
-import type { Action } from '@kbn/custom-app-common';
+import {
+  actionKind,
+  listActionUiProviders,
+  toActionArray,
+  useActionUis,
+} from '@kbn/custom-app-registry';
+import type { Action, ActionList } from '@kbn/custom-app-common';
 
 /**
  * Why what a component does cannot be done yet, when an action of it needs something that is not
  * there: the person may not be allowed, or what it runs has not been saved yet. Without a reason it
  * can be used. A component whose actions need nothing is never held back.
  */
-export const useActionGate = (actions: readonly Action[]): string | undefined => {
+export const useActionGate = (actions: ActionList): string | undefined => {
   const uis = useActionUis();
   const byType = useMemo(() => {
     const grouped = new Map<string, Action[]>();
-    actions.forEach((action) => {
-      grouped.set(action.type, [...(grouped.get(action.type) ?? []), action]);
+    toActionArray(actions).forEach((action) => {
+      const kind = actionKind(action) ?? '';
+      grouped.set(kind, [...(grouped.get(kind) ?? []), action]);
     });
     return Array.from(grouped.entries());
   }, [actions]);

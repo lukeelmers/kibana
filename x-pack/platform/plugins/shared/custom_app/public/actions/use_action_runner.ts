@@ -7,7 +7,7 @@
 
 import { useCallback } from 'react';
 import { useActionUis } from '@kbn/custom-app-registry';
-import type { Action } from '@kbn/custom-app-common';
+import type { ActionList } from '@kbn/custom-app-common';
 import type { ActionInput } from '../runtime/app_runtime';
 import { useAppRuntime } from '../runtime/app_runtime_context';
 
@@ -21,7 +21,7 @@ export const useActionRunner = (nodeId: string) => {
   const uis = useActionUis();
 
   return useCallback(
-    (actions: readonly Action[], input?: ActionInput): string[] => {
+    (actions: ActionList, input?: ActionInput): string[] => {
       const { dropped, requests } = runtime.run(actions, input);
       const byAction = new Map<string, unknown[]>();
       requests.forEach(({ action, payload }) =>

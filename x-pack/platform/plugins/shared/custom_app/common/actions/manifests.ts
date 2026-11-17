@@ -6,12 +6,11 @@
  */
 
 import { registerAction, type AnyAction } from '@kbn/custom-app-registry';
-import { closeFlyoutAction } from './close_flyout/manifest';
 import { openFlyoutAction } from './open_flyout/manifest';
 import { setStateAction } from './set_state/manifest';
 
 /** The actions that ship with custom apps. A new one is a folder of its own and a line here. */
-export const BUILTIN_ACTIONS = [setStateAction, openFlyoutAction, closeFlyoutAction] as const;
+export const BUILTIN_ACTIONS = [setStateAction, openFlyoutAction] as const;
 
 /** Registers the actions that ship with custom apps. It can be called more than once. */
 export const registerBuiltinActions = (): void => {

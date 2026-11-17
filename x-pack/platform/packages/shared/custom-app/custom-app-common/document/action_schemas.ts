@@ -6,7 +6,7 @@
  */
 
 import { z, lazySchema } from '@kbn/zod/v4';
-import { actionSchema, type Action } from '@kbn/custom-app-registry';
+import { actionSchema, type ActionList } from '@kbn/custom-app-registry';
 import { MAX_ACTIONS_PER_EVENT, MAX_LIST_ITEMS, MAX_STATE_STRING_LENGTH } from './constants';
 
 /** A text, a number or a boolean, as a value of the app. */
@@ -31,7 +31,7 @@ export const stateDeclarationSchema = lazySchema(() =>
 
 export { actionSchema };
 
-/** What an event can do: the actions that are registered, a few at most. */
-export const actionsSchema: z.ZodArray<z.ZodType<Action>> = lazySchema(() =>
-  z.array(actionSchema).max(MAX_ACTIONS_PER_EVENT)
+/** What an event can do: one of the actions that are registered, or a few in order. */
+export const actionsSchema: z.ZodType<ActionList> = lazySchema(() =>
+  z.union([actionSchema, z.array(actionSchema).max(MAX_ACTIONS_PER_EVENT)])
 );

@@ -32,13 +32,11 @@ const document = parse({
   },
 });
 
-const setState = (key: string, value: unknown): Action =>
-  ({ type: 'setState', key, value } as Action);
+const setState = (key: string, value: unknown): Action => ({ state: { [key]: value } } as Action);
 
 describe('running a workflow', () => {
   const run = (inputs: Record<string, unknown>, extra: Action[] = []) =>
     ({
-      type: 'runWorkflow',
       workflow: 'isolate-host',
       inputs,
     } as unknown as Action);
@@ -132,9 +130,9 @@ describe('running a workflow', () => {
     const runtime = createAppRuntime(document);
 
     const { workflows } = runtime.run([
-      { type: 'openFlyout', flyout: 'detail' },
-      { type: 'runWorkflow', workflow: 'first', inputs: {} } as unknown as Action,
-      { type: 'runWorkflow', workflow: 'second', inputs: {} } as unknown as Action,
+      { flyout: 'detail' },
+      { workflow: 'first', inputs: {} } as unknown as Action,
+      { workflow: 'second', inputs: {} } as unknown as Action,
     ]);
 
     expect(workflows.map(({ workflow }) => workflow)).toEqual(['first', 'second']);
@@ -154,7 +152,7 @@ describe('createAppRuntime', () => {
     expect(runtime.openFlyoutId$.getValue()).toBeUndefined();
   });
 
-  describe('setState', () => {
+  describe('state', () => {
     it('stores a literal of the declared type', () => {
       const runtime = createAppRuntime(document);
 
@@ -295,32 +293,26 @@ describe('createAppRuntime', () => {
   });
 
   describe('flyouts', () => {
-    it('opens a flyout wherever it is in the tree, and closes it', () => {
+    it('opens a flyout wherever it is in the tree', () => {
       const runtime = createAppRuntime(document);
 
-      runtime.run([{ type: 'openFlyout', flyout: 'nested' }]);
+      runtime.run([{ flyout: 'nested' }]);
       expect(runtime.openFlyoutId$.getValue()).toBe('nested');
-
-      runtime.run([{ type: 'closeFlyout' }]);
-      expect(runtime.openFlyoutId$.getValue()).toBeUndefined();
     });
 
     it('drops an attempt to open something that is not a flyout', () => {
       const runtime = createAppRuntime(document);
 
-      expect(runtime.run([{ type: 'openFlyout', flyout: 'root' }]).dropped).toEqual([
-        '"root" is not a flyout',
-      ]);
+      expect(runtime.run([{ flyout: 'root' }]).dropped).toEqual(['"root" is not a flyout']);
       expect(runtime.openFlyoutId$.getValue()).toBeUndefined();
     });
 
     it('lets a click set state and open a flyout in one go', () => {
       const runtime = createAppRuntime(document);
 
-      runtime.run(
-        [setState('service', { fromColumn: 'name' }), { type: 'openFlyout', flyout: 'detail' }],
-        { row: { name: 'cart' } }
-      );
+      runtime.run([setState('service', { fromColumn: 'name' }), { flyout: 'detail' }], {
+        row: { name: 'cart' },
+      });
 
       expect(runtime.state$.getValue().service).toBe('cart');
       expect(runtime.openFlyoutId$.getValue()).toBe('detail');
@@ -438,7 +430,6 @@ describe('createAppRuntime', () => {
 
       const { workflows } = runtime.run([
         {
-          type: 'runWorkflow',
           workflow: 'w',
           inputs: { users: { fromState: 'users' } },
         } as unknown as Action,
@@ -479,7 +470,7 @@ describe('createAppRuntime', () => {
     it('puts back to how it starts every value of the keys that the view does not hold', () => {
       const runtime = createAppRuntime(document);
       runtime.run([setState('service', 'cart'), setState('limit', 99)]);
-      runtime.run([{ type: 'openFlyout', flyout: 'detail' }]);
+      runtime.run([{ flyout: 'detail' }]);
 
       runtime.restoreView({ values: { limit: 5 } }, keys);
 
@@ -550,7 +541,7 @@ describe('createAppRuntime', () => {
 
     it('closes a flyout the new document no longer has, and keeps one it still has', () => {
       const runtime = createAppRuntime(document);
-      runtime.run([{ type: 'openFlyout', flyout: 'detail' }]);
+      runtime.run([{ flyout: 'detail' }]);
 
       runtime.setDocument(document);
       expect(runtime.openFlyoutId$.getValue()).toBe('detail');

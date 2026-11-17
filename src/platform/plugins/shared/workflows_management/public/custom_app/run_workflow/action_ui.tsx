@@ -107,8 +107,8 @@ export type WorkflowStatus = 'found' | 'missing' | 'unknown';
 /** The ids of the workflows that these actions run. */
 const getWorkflowIds = (actions: readonly Action[]): string[] =>
   actions.flatMap((action) => {
-    const { type, workflow } = action as { type: string; workflow?: string };
-    return type === 'runWorkflow' && typeof workflow === 'string' ? [workflow] : [];
+    const { workflow } = action as { workflow?: string };
+    return typeof workflow === 'string' ? [workflow] : [];
   });
 
 type Details =
@@ -514,7 +514,7 @@ export const RunWorkflowUi = ({
   );
 
   return (
-    <ActionUiBridge actionId="runWorkflow" api={api}>
+    <ActionUiBridge actionId="workflow" api={api}>
       {children}
       {pending && (
         <ConfirmRunModal

@@ -18,7 +18,7 @@ import {
 import { stateKeySchema, stateValueSchema } from '@kbn/custom-app-common';
 
 /**
- * Stands in, in tests, for the `runWorkflow` action that the Workflows plugin registers, which this
+ * Stands in, in tests, for the `workflow` action that the Workflows plugin registers, which this
  * plugin cannot import: it is another plugin, and it is not a dependency. It has the same settings,
  * the same rules about where it may run, and hands over what it resolves in the same way, so that
  * what the app does with a workflow can be tried here. The real one has its own tests. It also
@@ -26,7 +26,7 @@ import { stateKeySchema, stateValueSchema } from '@kbn/custom-app-common';
  */
 const standIn = defineAction({
   kind: 'action',
-  id: 'runWorkflow',
+  id: 'workflow',
   version: 1,
   props: lazySchema(() =>
     z.object({
@@ -40,10 +40,11 @@ const standIn = defineAction({
             z.object({ fromState: stateKeySchema }),
           ])
         )
+        .refine((inputs) => Object.keys(inputs).length <= 20)
         .default({}),
     })
   ),
-  doc: { summary: 'Runs a workflow.', whenToUse: 'In tests.', example: { type: 'runWorkflow' } },
+  doc: { summary: 'Runs a workflow.', whenToUse: 'In tests.', example: { workflow: 'w' } },
   validate: (action, { nodeId, event, allowed, state, issue }) => {
     if (!['onClick', 'onRowClick', 'onChartClick', 'onSubmit'].includes(event)) {
       issue(
@@ -127,7 +128,7 @@ const api: ActionUiApi = {
 };
 
 const StandInUi = ({ children }: { host: unknown; children: ReactNode }) => (
-  <ActionUiBridge actionId="runWorkflow" api={api}>
+  <ActionUiBridge actionId="workflow" api={api}>
     {children}
   </ActionUiBridge>
 );

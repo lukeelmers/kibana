@@ -111,7 +111,6 @@ describe('buttons and the workflows they run', () => {
     root: { type: 'button', id: 'go', label: 'Isolate host', onClick: actions },
   });
   const run = (inputs: Record<string, unknown> = {}) => ({
-    type: 'runWorkflow',
     workflow: 'isolate-host',
     inputs,
   });
@@ -147,9 +146,7 @@ describe('buttons and the workflows they run', () => {
   });
 
   it('hands nothing when it is given nothing', () => {
-    const parsed = appDocumentSchema.parse(
-      buttonDocument([{ type: 'runWorkflow', workflow: 'isolate-host' }])
-    );
+    const parsed = appDocumentSchema.parse(buttonDocument([{ workflow: 'isolate-host' }]));
 
     expect(
       (parsed.root as unknown as { onClick: Array<{ inputs: object }> }).onClick[0].inputs
@@ -182,13 +179,9 @@ describe('buttons and the workflows they run', () => {
   });
 
   it('names where the workflow of an action can be found, within a limit', () => {
+    expect(appDocumentSchema.safeParse(buttonDocument([{ workflow: '' }])).success).toBe(false);
     expect(
-      appDocumentSchema.safeParse(buttonDocument([{ type: 'runWorkflow', workflow: '' }])).success
-    ).toBe(false);
-    expect(
-      appDocumentSchema.safeParse(
-        buttonDocument([{ type: 'runWorkflow', workflow: 'x'.repeat(257) }])
-      ).success
+      appDocumentSchema.safeParse(buttonDocument([{ workflow: 'x'.repeat(257) }])).success
     ).toBe(false);
   });
 
@@ -328,7 +321,6 @@ describe('forms', () => {
       formDocument({
         onSubmit: [
           {
-            type: 'runWorkflow',
             workflow: 'escalate',
             inputs: { reason: { fromState: 'reason' } },
           },
@@ -343,9 +335,7 @@ describe('forms', () => {
     expect(
       issuesOf(
         formDocument({
-          onSubmit: [
-            { type: 'runWorkflow', workflow: 'escalate', inputs: { id: { fromColumn: 'id' } } },
-          ],
+          onSubmit: [{ workflow: 'escalate', inputs: { id: { fromColumn: 'id' } } }],
         })
       )
     ).toContain('takes a column');
@@ -364,10 +354,7 @@ describe('forms', () => {
             id: 'escalate',
             submitLabel: 'Send',
             fields: [reason],
-            onSubmit: [
-              { type: 'setState', key: 'sent', value: 'yes' },
-              { type: 'openFlyout', flyout: 'thanks' },
-            ],
+            onSubmit: [{ state: { sent: 'yes' } }, { flyout: 'thanks' }],
           },
           { type: 'flyout', id: 'thanks', title: 'Thanks', children: [] },
         ],
@@ -381,7 +368,7 @@ describe('forms', () => {
     expect(
       issuesOf(
         formDocument({
-          onSubmit: [{ type: 'setState', key: 'reason', value: { fromInput: true } }],
+          onSubmit: [{ state: { reason: { fromInput: true } } }],
         })
       )
     ).toContain('fromInput is only valid on input nodes');
@@ -621,7 +608,7 @@ describe('interpolation references', () => {
 });
 
 describe('table, flyout and key_value nodes', () => {
-  const tableDoc = (onRowClick: unknown[], extra: Record<string, unknown> = {}) => ({
+  const tableDoc = (onRowClick: unknown, extra: Record<string, unknown> = {}) => ({
     state: {
       service: { type: 'string', default: '' },
       limit: { type: 'number', default: 1 },
@@ -640,13 +627,14 @@ describe('table, flyout and key_value nodes', () => {
 
   it('parses a table with typed columns and a row click that fills state and opens a flyout', () => {
     const result = appDocumentSchema.parse(
-      tableDoc([
-        { type: 'setState', key: 'service', value: { fromColumn: 'service.name' } },
-        { type: 'openFlyout', flyout: 'detail' },
-      ])
+      tableDoc([{ state: { service: { fromColumn: 'service.name' } } }, { flyout: 'detail' }])
     );
     const [table] = getNodeChildren(result.root);
     expect(table).toMatchObject({ type: 'table', query: 'FROM orders | LIMIT 10' });
+  });
+
+  it('takes a single action without a list', () => {
+    expect(issuesOf(tableDoc({ flyout: 'detail' }))).toEqual([]);
   });
 
   it('defaults a table to no actions', () => {
@@ -657,7 +645,7 @@ describe('table, flyout and key_value nodes', () => {
   });
 
   it('finds a flyout nested inside another container', () => {
-    const doc = tableDoc([{ type: 'openFlyout', flyout: 'inner' }]);
+    const doc = tableDoc([{ flyout: 'inner' }]);
     (doc.root.children as unknown[]).push({
       type: 'section',
       title: 'App',
@@ -668,37 +656,40 @@ describe('table, flyout and key_value nodes', () => {
   });
 
   it('rejects opening a node that does not exist or is not a flyout', () => {
-    expect(issuesOf(tableDoc([{ type: 'openFlyout', flyout: 'nope' }]))).toEqual([
+    expect(issuesOf(tableDoc([{ flyout: 'nope' }]))).toEqual([
       'Node "orders-table" opens "nope", which is not a flyout',
     ]);
-    expect(issuesOf(tableDoc([{ type: 'openFlyout', flyout: 'orders-table' }]))).toEqual([
+    expect(issuesOf(tableDoc([{ flyout: 'orders-table' }]))).toEqual([
       'Node "orders-table" opens "orders-table", which is not a flyout',
     ]);
   });
 
   it('rejects setting an undeclared state key', () => {
-    expect(issuesOf(tableDoc([{ type: 'setState', key: 'ghost', value: 'x' }]))).toEqual([
+    expect(issuesOf(tableDoc([{ state: { ghost: 'x' } }]))).toEqual([
       'Node "orders-table" sets unknown state key "ghost"',
     ]);
   });
 
   it('rejects a literal that does not match the key type', () => {
-    expect(issuesOf(tableDoc([{ type: 'setState', key: 'limit', value: 'ten' }]))).toEqual([
+    expect(issuesOf(tableDoc([{ state: { limit: 'ten' } }]))).toEqual([
       'Node "orders-table" sets state key "limit" (number) to a string',
     ]);
-    expect(issuesOf(tableDoc([{ type: 'setState', key: 'limit', value: 5 }]))).toEqual([]);
+    expect(issuesOf(tableDoc([{ state: { limit: 5 } }]))).toEqual([]);
   });
 
   it('rejects fromInput on a table, where there is no input', () => {
-    expect(
-      issuesOf(tableDoc([{ type: 'setState', key: 'service', value: { fromInput: true } }]))
-    ).toEqual(['Node "orders-table": fromInput is only valid on input nodes']);
+    expect(issuesOf(tableDoc([{ state: { service: { fromInput: true } } }]))).toEqual([
+      'Node "orders-table": fromInput is only valid on input nodes',
+    ]);
   });
 
   it('rejects more than five actions on one event, and unknown action types', () => {
-    const close = { type: 'closeFlyout' };
-    expect(issuesOf(tableDoc(Array.from({ length: 6 }, () => close)))).not.toEqual([]);
+    const open = { flyout: 'detail' };
+    expect(issuesOf(tableDoc(Array.from({ length: 6 }, () => open)))).not.toEqual([]);
     expect(issuesOf(tableDoc([{ type: 'runScript', code: 'alert(1)' }]))).not.toEqual([]);
+    expect(issuesOf(tableDoc([{ flyout: 'detail', state: { limit: 5 } }]))).toEqual([
+      'An action has exactly one of the keys "state", "flyout", "workflow"',
+    ]);
   });
 
   it('validates flyout content like any other node', () => {

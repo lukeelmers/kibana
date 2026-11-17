@@ -15,15 +15,13 @@ import { getWorkflowAvailability, RunWorkflowUi, type WorkflowRunRequest } from 
 
 /** What the app does with the part of the action that is drawn, as a hook, for the tests. */
 const useWorkflowRunner = () => {
-  const api = useActionUis().runWorkflow;
+  const api = useActionUis().workflow;
   return {
     request: (requests: WorkflowRunRequest[], nodeId: string) => api.request(requests, nodeId),
     track: (ids: readonly string[]) =>
-      api.watch?.(ids.map((workflow) => ({ type: 'runWorkflow', workflow, inputs: {} }))),
+      api.watch?.(ids.map((workflow) => ({ workflow, inputs: {} }))),
     gate: (id: string) =>
-      api.gate?.([{ type: 'runWorkflow', workflow: id, inputs: {} }]) === undefined
-        ? 'saved'
-        : 'missing',
+      api.gate?.([{ workflow: id, inputs: {} }]) === undefined ? 'saved' : 'missing',
   };
 };
 

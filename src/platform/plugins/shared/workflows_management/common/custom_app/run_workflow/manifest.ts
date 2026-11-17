@@ -31,7 +31,7 @@ const WORKFLOW_EVENTS: readonly string[] = ['onClick', 'onRowClick', 'onChartCli
  */
 export const runWorkflowAction = defineAction({
   kind: 'action',
-  id: 'runWorkflow',
+  id: 'workflow',
   version: 1,
   props: lazySchema(() =>
     z.object({
@@ -64,7 +64,6 @@ export const runWorkflowAction = defineAction({
     whenToUse:
       'To do something that changes things: create a case, acknowledge an alert, send a message.',
     example: {
-      type: 'runWorkflow',
       workflow: 'notify-on-call',
       inputs: { service: { fromColumn: 'service' } },
     },
@@ -93,7 +92,7 @@ export const runWorkflowAction = defineAction({
 
 declare module '@kbn/custom-app-registry' {
   interface ActionTypeMap {
-    runWorkflow: ActionOf<typeof runWorkflowAction>;
+    workflow: ActionOf<typeof runWorkflowAction>;
   }
 }
 

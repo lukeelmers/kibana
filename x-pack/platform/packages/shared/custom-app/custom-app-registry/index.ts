@@ -39,7 +39,7 @@ export type {
 export type { ActionHandler, ActionHandlerContext } from './action_handler';
 export { ActionUiBridge, useActionUis } from './action_ui';
 export type { ActionUiApi, ActionUiHost, ActionUiProvider } from './action_ui';
-export { actionSchema, getActionSchemas } from './action_schema';
+export { actionKind, actionSchema, getActionSchemas, toActionArray } from './action_schema';
 export type {
   CapabilityQueryResult,
   CapabilitySourceState,
@@ -118,7 +118,6 @@ type RegisteredActionType = Exclude<keyof ActionTypeMap, '__none'>;
 
 /** What any action is, whatever its type, for code that registers none and so knows none. */
 export interface GenericAction {
-  type: string;
   [prop: string]: unknown;
 }
 
@@ -127,3 +126,5 @@ export type Action = [RegisteredActionType] extends [never]
   ? GenericAction
   : ActionTypeMap[RegisteredActionType];
 export type ActionType = RegisteredActionType;
+/** What an event runs: one action, or a few in order. */
+export type ActionList = Action | readonly Action[];

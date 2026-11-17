@@ -5,9 +5,15 @@
  * 2.0.
  */
 
-import { getCapability } from '@kbn/custom-app-registry';
+import { getCapability, toActionArray } from '@kbn/custom-app-registry';
 import { OPTIONS_SOURCE_SUFFIX } from './constants';
-import { isContainerNode, type Action, type AppNode, type DataSource } from './document_schema';
+import {
+  isContainerNode,
+  type Action,
+  type ActionList,
+  type AppNode,
+  type DataSource,
+} from './document_schema';
 
 /** Returns the direct children of a node, empty for leaf nodes. */
 export const getNodeChildren = (node: AppNode): readonly AppNode[] =>
@@ -109,7 +115,7 @@ export const getNodeActions = (
   if (events) {
     return Object.entries(events).map(([event, prop]) => ({
       event,
-      actions: (node as unknown as Record<string, readonly Action[]>)[prop],
+      actions: toActionArray((node as unknown as Record<string, ActionList>)[prop]),
     }));
   }
   return [];

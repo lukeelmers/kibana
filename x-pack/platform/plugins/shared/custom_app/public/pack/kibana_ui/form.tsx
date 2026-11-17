@@ -17,7 +17,12 @@ import {
 } from '@elastic/eui';
 import { i18n } from '@kbn/i18n';
 import { MAX_STATE_STRING_LENGTH } from '@kbn/custom-app-common';
-import type { AppNodeProps, KibanaUiEnv, KibanaUiRenderer } from '@kbn/custom-app-registry';
+import {
+  toActionArray,
+  type AppNodeProps,
+  type KibanaUiEnv,
+  type KibanaUiRenderer,
+} from '@kbn/custom-app-registry';
 import type { FormField, FormNode } from '../../../common/pack';
 import { useAppId } from '../../runtime/app_id_context';
 import { useActionGate } from '../../actions/use_action_gate';
@@ -116,12 +121,8 @@ const FormView = ({ node, env }: { node: FormNode & AppNodeProps; env: KibanaUiE
 
     setDropped(
       env.dispatch([
-        ...answers.map(({ field, answer }) => ({
-          type: 'setState' as const,
-          key: field.name,
-          value: answer,
-        })),
-        ...onSubmit,
+        { state: Object.fromEntries(answers.map(({ field, answer }) => [field.name, answer])) },
+        ...toActionArray(onSubmit),
       ])
     );
   };

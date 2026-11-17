@@ -47,7 +47,7 @@ export interface CapabilityViewProps<Node> {
    * be done is told to the person by the app, and a workflow is put to them first.
    */
   runActions: (
-    actions: ReadonlyArray<object>,
+    actions: object | ReadonlyArray<object>,
     input?: { row?: Readonly<Record<string, unknown>> }
   ) => void;
 }

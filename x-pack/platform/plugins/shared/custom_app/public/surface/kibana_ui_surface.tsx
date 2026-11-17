@@ -113,9 +113,7 @@ export const kibanaUiSurface = defineSurface<KibanaUiHost, ReactNode, KibanaUiSu
         state,
         row,
         setState: (key, value) =>
-          runtime.run([
-            { type: 'setState', key, value: typeof value === 'object' ? [...value] : value },
-          ]),
+          runtime.run({ state: { [key]: typeof value === 'object' ? [...value] : value } }),
         dispatch,
         renderChild: (child) => <KibanaUiNode key={child.id} node={child as AppNode} row={row} />,
       };

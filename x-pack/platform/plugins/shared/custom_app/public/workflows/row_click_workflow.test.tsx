@@ -33,7 +33,6 @@ const document = appDocumentSchema.parse({
     query: 'FROM hosts',
     onRowClick: [
       {
-        type: 'runWorkflow',
         workflow: 'isolate-host',
         inputs: {
           host: { fromColumn: 'host.name' },

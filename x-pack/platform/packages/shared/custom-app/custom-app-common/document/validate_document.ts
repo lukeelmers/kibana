@@ -7,6 +7,7 @@
 
 import type { z } from '@kbn/zod/v4';
 import {
+  actionKind,
   getAction,
   getCapability,
   type ActionValidationContext,
@@ -269,7 +270,7 @@ export const validateDocument = (document: DocumentToValidate, ctx: z.Refinement
 
       actions.forEach((action) => {
         (
-          getAction(action.type)?.validate as
+          getAction(actionKind(action) ?? '')?.validate as
             | ((action: unknown, context: ActionValidationContext) => void)
             | undefined
         )?.(action, {

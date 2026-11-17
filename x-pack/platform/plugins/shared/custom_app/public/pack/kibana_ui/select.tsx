@@ -9,7 +9,12 @@ import React, { useMemo } from 'react';
 import { EuiComboBox, EuiFormRow, EuiSelect } from '@elastic/eui';
 import { i18n } from '@kbn/i18n';
 import { MAX_QUERY_OPTIONS, getOptionsSourceId } from '@kbn/custom-app-common';
-import type { AppNodeProps, KibanaUiEnv, KibanaUiRenderer } from '@kbn/custom-app-registry';
+import {
+  toActionArray,
+  type AppNodeProps,
+  type KibanaUiEnv,
+  type KibanaUiRenderer,
+} from '@kbn/custom-app-registry';
 import type { SelectNode as Select } from '../../../common/pack';
 import type { SourceState } from '../../data/data_layer';
 import { useSource } from '../../data/use_source';
@@ -48,10 +53,7 @@ export const toQueryOptions = (state: SourceState, written: readonly Option[]): 
 /** Sets the value the select is bound to, then runs its handlers with the new value. */
 const change = (node: Node, env: KibanaUiEnv, next: string | string[]) =>
   env.dispatch(
-    [
-      { type: 'setState', key: node.bind ?? '', value: { fromInput: true } },
-      ...(node.onChange ?? []),
-    ],
+    [{ state: { [node.bind ?? '']: { fromInput: true } } }, ...toActionArray(node.onChange ?? [])],
     { input: next }
   );
 

@@ -93,6 +93,10 @@ describe('customAppUpdateSchema', () => {
       }
     );
 
+    it('shows the settings of each action', () => {
+      expect(text).toContain('"required":["flyout"]');
+    });
+
     it('says what the two fields are for', () => {
       expect(text).toContain('embeddable_id of the custom app');
       expect(text).toContain('complete app');

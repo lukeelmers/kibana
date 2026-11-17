@@ -6,7 +6,7 @@
  */
 
 import type { ReactNode } from 'react';
-import type { Action, GenericNode } from '..';
+import type { ActionList, GenericNode } from '..';
 
 export type KibanaUiStateValue = string | number | boolean | readonly string[];
 
@@ -18,7 +18,7 @@ export interface AppNodeProps {
   id: string;
   bind?: string;
   children?: GenericNode[];
-  [event: `on${string}`]: readonly Action[] | undefined;
+  [event: `on${string}`]: ActionList | undefined;
 }
 
 /** What a `kibana-ui` renderer is given beside its node. */
@@ -31,7 +31,7 @@ export interface KibanaUiEnv {
    * done, with the reason.
    */
   dispatch: (
-    handlers: readonly Action[],
+    handlers: ActionList,
     input?: { row?: Readonly<Record<string, unknown>>; input?: unknown }
   ) => string[];
   /** The row the node was opened with, as in a flyout. */

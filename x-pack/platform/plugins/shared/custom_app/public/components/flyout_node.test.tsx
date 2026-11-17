@@ -45,7 +45,7 @@ const setup = () => {
 
 const open = (runtime: { run: (actions: never[]) => unknown }) =>
   act(() => {
-    runtime.run([{ type: 'openFlyout', flyout: 'service-flyout' }] as never[]);
+    runtime.run([{ flyout: 'service-flyout' }] as never[]);
   });
 
 describe('FlyoutNode', () => {
@@ -93,7 +93,7 @@ describe('FlyoutNode', () => {
     open(runtime);
     await screen.findByText('payments-team');
     act(() => {
-      runtime.run([{ type: 'closeFlyout' }]);
+      runtime.openFlyoutId$.next(undefined);
     });
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     open(runtime);
@@ -109,7 +109,7 @@ describe('FlyoutNode', () => {
     await screen.findByRole('heading', { name: 'Service checkout' });
 
     act(() => {
-      runtime.run([{ type: 'setState', key: 'service', value: 'cart' }]);
+      runtime.run([{ state: { service: 'cart' } }]);
     });
 
     expect(await screen.findByRole('heading', { name: 'Service cart' })).toBeInTheDocument();

@@ -73,7 +73,7 @@ describe('the app in the conversation', () => {
         type: 'table',
         id: 'table',
         query: 'ROW value = 42',
-        onRowClick: [{ type: 'setState', key: 'value', value: { fromColumn: 'value' } }],
+        onRowClick: [{ state: { value: { fromColumn: 'value' } } }],
       },
     });
     const { rerender } = render(<LiveApp document={before} />);
@@ -115,13 +115,13 @@ describe('the app, as it is seen', () => {
           type: 'button',
           id: 'change',
           label: 'Change',
-          onClick: [{ type: 'setState', key: 'greeting', value: 'bye' }],
+          onClick: [{ state: { greeting: 'bye' } }],
         },
         {
           type: 'button',
           id: 'open',
           label: 'Open',
-          onClick: [{ type: 'openFlyout', flyout: 'more' }],
+          onClick: [{ flyout: 'more' }],
         },
         { type: 'flyout', id: 'more', title: 'More', children: [] },
       ],

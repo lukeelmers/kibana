@@ -124,7 +124,7 @@ describe('isEmptyDocument', () => {
 
 describe('getNodeActions of a button', () => {
   it('is what happens when it is pressed', () => {
-    const action = { type: 'runWorkflow' as const, workflow: 'isolate', inputs: {} };
+    const action = { workflow: 'isolate', inputs: {} };
     const parsed = appDocumentSchema.parse({
       root: { type: 'button', id: 'go', label: 'Go', onClick: [action] },
     });
@@ -144,7 +144,7 @@ describe('forms in the tree', () => {
         { name: 'a', kind: 'text', label: 'A' },
         { name: 'b', kind: 'text', label: 'B' },
       ],
-      onSubmit: [{ type: 'setState', key: 'a', value: 'x' }],
+      onSubmit: [{ state: { a: 'x' } }],
     },
   });
 
@@ -160,8 +160,6 @@ describe('forms in the tree', () => {
   });
 
   it('runs its actions when it is submitted', () => {
-    expect(getNodeActions(form)).toEqual([
-      { event: 'onSubmit', actions: [{ type: 'setState', key: 'a', value: 'x' }] },
-    ]);
+    expect(getNodeActions(form)).toEqual([{ event: 'onSubmit', actions: [{ state: { a: 'x' } }] }]);
   });
 });

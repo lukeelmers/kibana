@@ -62,6 +62,7 @@ export {
   stateDeclarationSchema,
   stateKeySchema,
   type Action,
+  type ActionList,
   type AppDocument,
   type AppNode,
   type AppNodeOfType,

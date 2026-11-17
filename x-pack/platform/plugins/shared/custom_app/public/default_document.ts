@@ -121,8 +121,8 @@ export const createDefaultDocument = (): AppDocument => ({
             id: 'services-table',
             query: SERVICES_QUERY,
             onRowClick: [
-              { type: 'setState', key: 'service', value: { fromColumn: 'service' } },
-              { type: 'openFlyout', flyout: 'service-flyout' },
+              { state: { service: { fromColumn: 'service' } } },
+              { flyout: 'service-flyout' },
             ],
           },
           {

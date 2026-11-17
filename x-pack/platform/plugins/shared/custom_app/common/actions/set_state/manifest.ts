@@ -16,58 +16,61 @@ import {
 
 export const setStateAction = defineAction({
   kind: 'action',
-  id: 'setState',
+  id: 'state',
   version: 1,
   props: lazySchema(() =>
     z.object({
-      key: stateKeySchema.describe('The value of the app to set.'),
-      value: z
-        .union([
-          stateValueSchema,
-          listValueSchema,
-          z.object({ fromColumn: z.string().min(1).max(MAX_HEADING_LENGTH) }),
-          z.object({ fromInput: z.literal(true) }),
-        ])
+      state: z
+        .record(
+          stateKeySchema,
+          z.union([
+            stateValueSchema,
+            listValueSchema,
+            z.object({ fromColumn: z.string().min(1).max(MAX_HEADING_LENGTH) }),
+            z.object({ fromInput: z.literal(true) }),
+          ])
+        )
         .describe(
-          'What to set it to: a fixed value, a column of the row that was clicked, or the new value of the input.'
+          'The values of the app to set, each to a fixed value, a column of the row that was clicked, or the new value of the input.'
         ),
     })
   ),
   doc: {
-    summary: 'Sets a value of the app, which the components that read it follow.',
+    summary: 'Sets values of the app, which the components that read them follow.',
     whenToUse:
       'To remember a choice: a clicked row, a selected option. A column of the row works on a row click, and the value of the input on a change.',
-    example: { type: 'setState', key: 'service', value: { fromColumn: 'service' } },
+    example: { state: { service: { fromColumn: 'service' } } },
   },
   validate: (action, { nodeId, event, allowed, state, issue }) => {
-    const declaration = state[action.key];
-    if (!declaration) {
-      issue(`Node "${nodeId}" sets unknown state key "${action.key}"`);
-      return;
-    }
+    Object.entries(action.state).forEach(([key, value]) => {
+      const declaration = state[key];
+      if (!declaration) {
+        issue(`Node "${nodeId}" sets unknown state key "${key}"`);
+        return;
+      }
 
-    const { value } = action;
-    if (Array.isArray(value)) {
-      if (declaration.type !== 'list') {
-        issue(`Node "${nodeId}" sets state key "${action.key}" (${declaration.type}) to a list`);
+      if (Array.isArray(value)) {
+        if (declaration.type !== 'list') {
+          issue(`Node "${nodeId}" sets state key "${key}" (${declaration.type}) to a list`);
+        }
+      } else if (typeof value === 'object') {
+        if ('fromColumn' in value && !allowed.fromColumn) {
+          issue(`Node "${nodeId}": fromColumn is not valid in ${event}`);
+        }
+        if ('fromInput' in value && !allowed.fromInput) {
+          issue(`Node "${nodeId}": fromInput is only valid on input nodes`);
+        }
+      } else if (typeof value !== declaration.type) {
+        issue(
+          `Node "${nodeId}" sets state key "${key}" (${declaration.type}) to a ${typeof value}`
+        );
       }
-    } else if (typeof value === 'object') {
-      if ('fromColumn' in value && !allowed.fromColumn) {
-        issue(`Node "${nodeId}": fromColumn is not valid in ${event}`);
-      }
-      if ('fromInput' in value && !allowed.fromInput) {
-        issue(`Node "${nodeId}": fromInput is only valid on input nodes`);
-      }
-    } else if (typeof value !== declaration.type) {
-      issue(
-        `Node "${nodeId}" sets state key "${action.key}" (${declaration.type}) to a ${typeof value}`
-      );
-    }
+    });
   },
 });
 
 declare module '@kbn/custom-app-registry' {
   interface ActionTypeMap {
-    setState: ActionOf<typeof setStateAction>;
+    state: ActionOf<typeof setStateAction>;
   }
 }

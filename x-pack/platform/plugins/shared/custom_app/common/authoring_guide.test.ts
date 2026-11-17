@@ -54,7 +54,7 @@ describe('the authoring guide', () => {
   });
 
   it('teaches how a workflow is run, and that it is run by whoever presses the button', () => {
-    expect(CUSTOM_APP_AUTHORING_GUIDE).toContain('runWorkflow');
+    expect(CUSTOM_APP_AUTHORING_GUIDE).toContain('"workflow"');
     expect(CUSTOM_APP_AUTHORING_GUIDE).toContain('as the person who presses the button');
     expect(CUSTOM_APP_AUTHORING_GUIDE).toContain('fromState');
     expect(CUSTOM_APP_AUTHORING_GUIDE).toContain('found with the workflow tools');

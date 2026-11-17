@@ -8,7 +8,12 @@
 import React, { useState } from 'react';
 import { EuiInMemoryTable, EuiLink, EuiPanel, type EuiBasicTableColumn } from '@elastic/eui';
 import type { TableNode } from '@kbn/isomer-components';
-import type { AppNodeProps, KibanaUiEnv, KibanaUiRenderer } from '@kbn/custom-app-registry';
+import {
+  toActionArray,
+  type AppNodeProps,
+  type KibanaUiEnv,
+  type KibanaUiRenderer,
+} from '@kbn/custom-app-registry';
 import { DroppedActions } from '../../components/dropped_actions';
 
 type Node = TableNode & AppNodeProps;
@@ -27,7 +32,7 @@ const PAGE_SIZE_OPTIONS = [10, 25, 50];
 const TableView = ({ node, env }: { node: Node; env: KibanaUiEnv }) => {
   const [dropped, setDropped] = useState<string[]>([]);
   const onRowClick = node.onRowClick ?? [];
-  const isClickable = onRowClick.length > 0;
+  const isClickable = toActionArray(onRowClick).length > 0;
   const handleRowClick = (row: Row) => setDropped(env.dispatch(onRowClick, { row }));
 
   const items: Item[] = node.rows.map((cells, index) => ({
