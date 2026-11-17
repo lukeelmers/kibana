@@ -1,0 +1,90 @@
+{
+  "title": "Nightshift investigations",
+  "description": "Investigations by severity, each a click away from its detail, a Create case action and its conversation.",
+  "showInNav": true,
+  "icon": "inspect",
+  "width": "page",
+  "state": {
+    "q": "",
+    "selected_id": ""
+  },
+  "body": [
+    {
+      "type": "page_header",
+      "show_all_events": true,
+      "query": "FROM nightshift-app-investigations | WHERE in_progress == true | STATS in_progress = COUNT(*)"
+    },
+    { "type": "investigation_search", "bind": "q" },
+    {
+      "type": "row",
+      "children": [
+        {
+          "type": "severity_tile",
+          "severity": "critical",
+          "query": "FROM nightshift-app-investigations | WHERE severity == \"critical\" AND (?q == \"\" OR TO_LOWER(title) LIKE CONCAT(\"*\", TO_LOWER(?q), \"*\") OR TO_LOWER(summary) LIKE CONCAT(\"*\", TO_LOWER(?q), \"*\")) | STATS investigations = COUNT(*)"
+        },
+        {
+          "type": "severity_tile",
+          "severity": "high",
+          "query": "FROM nightshift-app-investigations | WHERE severity == \"high\" AND (?q == \"\" OR TO_LOWER(title) LIKE CONCAT(\"*\", TO_LOWER(?q), \"*\") OR TO_LOWER(summary) LIKE CONCAT(\"*\", TO_LOWER(?q), \"*\")) | STATS investigations = COUNT(*)"
+        },
+        {
+          "type": "severity_tile",
+          "severity": "medium",
+          "query": "FROM nightshift-app-investigations | WHERE severity == \"medium\" AND (?q == \"\" OR TO_LOWER(title) LIKE CONCAT(\"*\", TO_LOWER(?q), \"*\") OR TO_LOWER(summary) LIKE CONCAT(\"*\", TO_LOWER(?q), \"*\")) | STATS investigations = COUNT(*)"
+        },
+        {
+          "type": "severity_tile",
+          "severity": "low",
+          "query": "FROM nightshift-app-investigations | WHERE severity == \"low\" AND (?q == \"\" OR TO_LOWER(title) LIKE CONCAT(\"*\", TO_LOWER(?q), \"*\") OR TO_LOWER(summary) LIKE CONCAT(\"*\", TO_LOWER(?q), \"*\")) | STATS investigations = COUNT(*)"
+        }
+      ]
+    },
+    {
+      "type": "investigation_list",
+      "query": "FROM nightshift-app-investigations | WHERE (?q == \"\" OR TO_LOWER(title) LIKE CONCAT(\"*\", TO_LOWER(?q), \"*\") OR TO_LOWER(summary) LIKE CONCAT(\"*\", TO_LOWER(?q), \"*\")) | SORT created_at DESC | LIMIT 100 | KEEP id, title, summary, created_at, in_progress, severity, entities, status, agent_id",
+      "onRowClick": [{ "state": { "selected_id": "{{row.id}}" } }, { "flyout": "investigation" }]
+    },
+    {
+      "type": "flyout",
+      "id": "investigation",
+      "title": "{{row.title}}",
+      "children": [
+        { "type": "markdown", "text": "{{row.summary}}" },
+        {
+          "type": "fields",
+          "query": "FROM nightshift-app-investigations | WHERE id == ?selected_id | KEEP severity, status, verdict, entities, created_at"
+        },
+        {
+          "type": "row",
+          "children": [
+            {
+              "type": "button",
+              "label": "Create case",
+              "onClick": {
+                "workflow": "nightshift-app-create-case",
+                "inputs": {
+                  "investigation_id": "{{row.id}}",
+                  "title": "{{row.title}}",
+                  "severity": "{{row.severity}}",
+                  "summary": "{{row.summary}}"
+                }
+              }
+            },
+            {
+              "type": "button",
+              "label": "Check source IP",
+              "onClick": { "workflow": "nightshift-app-check-ip" }
+            },
+            {
+              "type": "link",
+              "label": "Open in chat",
+              "app": "agent_builder",
+              "path": "/conversations/{{row.id}}"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

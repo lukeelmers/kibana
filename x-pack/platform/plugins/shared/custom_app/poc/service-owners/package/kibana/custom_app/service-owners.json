@@ -1,0 +1,134 @@
+{
+  "title": "Service owners",
+  "description": "Who owns each service, edited in place and joined to open investigations with ES|QL LOOKUP JOIN.",
+  "showInNav": true,
+  "icon": "users",
+  "state": {
+    "service_name": "",
+    "team": "",
+    "slack_channel": "",
+    "tier": "standard",
+    "runbook_url": ""
+  },
+  "body": [
+    { "type": "header", "text": "Service owners" },
+    {
+      "type": "markdown",
+      "text": "The owner of record for each service, kept in the `service_owners` lookup index. Click a service to change its owner."
+    },
+    { "type": "button", "label": "Add service", "onClick": { "flyout": "add" } },
+    {
+      "type": "row",
+      "children": [
+        {
+          "type": "stat",
+          "title": "Services with an owner",
+          "query": "FROM service_owners | STATS services = COUNT(*)"
+        },
+        {
+          "type": "stat",
+          "title": "Critical tier",
+          "query": "FROM service_owners | WHERE tier == \"critical\" | STATS critical = COUNT(*)"
+        },
+        {
+          "type": "stat",
+          "title": "Services in open investigations with no owner",
+          "query": "FROM nightshift-app-investigations | WHERE status == \"open\" | GROK title \"(?<service.name>[a-z]+-(service|gateway|frontend|processors|processing|manager))\" | EVAL service.name = CASE(entities == \"\", service.name, SPLIT(REPLACE(entities, \", \", \",\"), \",\")) | MV_EXPAND service.name | WHERE service.name IS NOT NULL | STATS open_investigations = COUNT(*) BY service.name | LOOKUP JOIN service_owners ON service.name | STATS unowned = COUNT(*) WHERE team IS NULL"
+        }
+      ]
+    },
+    {
+      "type": "section",
+      "title": "Owners",
+      "children": [
+        {
+          "type": "table",
+          "query": "FROM service_owners | EVAL team = COALESCE(team, \"\"), slack_channel = COALESCE(slack_channel, \"\"), tier = COALESCE(tier, \"\"), runbook_url = COALESCE(runbook_url, \"\") | KEEP service.name, team, tier, slack_channel, runbook_url, updated_at | SORT service.name | LIMIT 200",
+          "onRowClick": { "flyout": "edit" }
+        }
+      ]
+    },
+    {
+      "type": "section",
+      "title": "Open investigations by owner",
+      "children": [
+        {
+          "type": "table",
+          "query": "FROM nightshift-app-investigations | WHERE status == \"open\" | GROK title \"(?<service.name>[a-z]+-(service|gateway|frontend|processors|processing|manager))\" | EVAL service.name = CASE(entities == \"\", service.name, SPLIT(REPLACE(entities, \", \", \",\"), \",\")) | MV_EXPAND service.name | WHERE service.name IS NOT NULL | STATS open_investigations = COUNT(*), critical = COUNT(*) WHERE severity == \"critical\" BY service.name | LOOKUP JOIN service_owners ON service.name | EVAL owner = COALESCE(team, \"No owner\"), tier = COALESCE(tier, \"unknown\"), slack_channel = COALESCE(slack_channel, \"\") | KEEP service.name, owner, tier, slack_channel, open_investigations, critical | SORT critical DESC, open_investigations DESC, service.name"
+        }
+      ]
+    },
+    {
+      "type": "flyout",
+      "id": "edit",
+      "title": "{{row.service.name}}",
+      "children": [
+        {
+          "type": "form",
+          "submitLabel": "Save",
+          "fields": [
+            { "name": "team", "label": "Team", "required": true, "value": "{{row.team}}" },
+            { "name": "slack_channel", "label": "Slack channel", "value": "{{row.slack_channel}}" },
+            {
+              "name": "tier",
+              "label": "Tier",
+              "kind": "select",
+              "required": true,
+              "value": "{{row.tier}}",
+              "options": [
+                { "value": "critical", "label": "Critical" },
+                { "value": "standard", "label": "Standard" },
+                { "value": "internal", "label": "Internal" }
+              ]
+            },
+            { "name": "runbook_url", "label": "Runbook URL", "value": "{{row.runbook_url}}" }
+          ],
+          "onSubmit": {
+            "workflow": "service-owners-app-save",
+            "inputs": {
+              "service_name": "{{row.service.name}}",
+              "team": "{{state.team}}",
+              "slack_channel": "{{state.slack_channel}}",
+              "tier": "{{state.tier}}",
+              "runbook_url": "{{state.runbook_url}}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "type": "flyout",
+      "id": "add",
+      "title": "Add service",
+      "children": [
+        {
+          "type": "markdown",
+          "text": "Give a service an owner. Use the name the service reports as `service.name`, such as `order-processing`."
+        },
+        {
+          "type": "form",
+          "submitLabel": "Add service",
+          "fields": [
+            { "name": "service_name", "label": "Service name", "required": true, "value": "" },
+            { "name": "team", "label": "Team", "required": true, "value": "" },
+            { "name": "slack_channel", "label": "Slack channel", "value": "" },
+            {
+              "name": "tier",
+              "label": "Tier",
+              "kind": "select",
+              "required": true,
+              "value": "standard",
+              "options": [
+                { "value": "critical", "label": "Critical" },
+                { "value": "standard", "label": "Standard" },
+                { "value": "internal", "label": "Internal" }
+              ]
+            },
+            { "name": "runbook_url", "label": "Runbook URL", "value": "" }
+          ],
+          "onSubmit": { "workflow": "service-owners-app-save" }
+        }
+      ]
+    }
+  ]
+}

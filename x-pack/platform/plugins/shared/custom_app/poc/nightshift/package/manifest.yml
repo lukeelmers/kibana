@@ -1,0 +1,18 @@
+format_version: 3.0.0
+name: nightshift_app
+title: Nightshift investigations
+description: The Nightshift investigations page as a custom app, with the workflows it uses.
+version: 0.1.0
+type: integration
+icons:
+  - src: /img/icon.svg
+    title: Package icon
+    size: 32x32
+    type: image/svg+xml
+categories: []
+conditions:
+  kibana:
+    version: '^9.7.0'
+owner:
+  github: elastic/kibana-dashboards
+  type: elastic

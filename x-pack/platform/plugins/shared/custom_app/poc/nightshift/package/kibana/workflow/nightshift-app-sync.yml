@@ -1,0 +1,54 @@
+version: "1"
+# Materializes the investigations list into a plain index the app can query with ES|QL.
+# Investigations are Agent Builder conversations whose severity, status, summary and verdict
+# live in a `flattened` metadata field, joined with 3 side indexes. ES|QL reads none of that,
+# so this workflow stands in for the server code Nightshift uses to build its landing page.
+name: Nightshift app sync
+description: Copy the investigations list into the nightshift-app-investigations index
+tags:
+  - nightshift-app
+enabled: true
+settings:
+  concurrency:
+    key: "nightshift-app-sync-{{ workflow.spaceId }}"
+    strategy: drop
+    max: 1
+triggers:
+  - type: manual
+  - type: scheduled
+    with:
+      every: "1m"
+steps:
+  - name: list_investigations
+    type: kibana.request
+    with:
+      method: GET
+      path: "/internal/investigations/investigations?per_page=100&sort_field=created_at&sort_order=desc"
+      headers:
+        elastic-api-version: "1"
+        x-elastic-internal-origin: "kibana"
+
+  - name: index_each
+    type: foreach
+    foreach: "{{ steps.list_investigations.output.results }}"
+    steps:
+      - name: index_investigation
+        type: elasticsearch.index
+        with:
+          index: nightshift-app-investigations
+          id: "{{ foreach.item.id }}"
+          document:
+            id: "{{ foreach.item.id }}"
+            title: "{{ foreach.item.title }}"
+            severity: "${{ foreach.item.metadata.severity | default: nil }}"
+            status: "{{ foreach.item.metadata.status }}"
+            summary: "{{ foreach.item.metadata.summary }}"
+            verdict: "{{ foreach.item.metadata.verdict }}"
+            in_progress: "${{ foreach.item.in_progress }}"
+            created_at: "{{ foreach.item.created_at }}"
+            updated_at: "{{ foreach.item.updated_at }}"
+            agent_id: "{{ foreach.item.agent_id }}"
+            subject_type: "{{ foreach.item.subjects[0].type }}"
+            entities: "{{ foreach.item.impact.entities | map: 'name' | join: ', ' }}"
+            pending_proposals: "${{ foreach.item.pending_proposal_count | default: 0 }}"
+            synced_at: "${{ now }}"

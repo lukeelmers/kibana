@@ -1,0 +1,18 @@
+format_version: 3.0.0
+name: oob_connectors
+title: Out-of-band connectors
+description: Connector types defined in YAML, added and fixed between Kibana releases.
+version: 0.1.1
+type: integration
+icons:
+  - src: /img/icon.svg
+    title: Package icon
+    size: 32x32
+    type: image/svg+xml
+categories: []
+conditions:
+  kibana:
+    version: '^9.7.0'
+owner:
+  github: elastic/response-ops
+  type: elastic

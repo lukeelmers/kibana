@@ -1,0 +1,29 @@
+version: "1"
+# Calls the AbuseIPDB connector type that the oob_connectors package installs. The connector
+# itself is created by a user, so the step names it by the `connector_id` input, an id or a name.
+# checkBlock needs spec 1.1 (oob_connectors 0.1.1) and a connector on that version.
+name: Nightshift app check IP
+description: Check an address and its network against AbuseIPDB
+tags:
+  - nightshift-app
+enabled: true
+triggers:
+  - type: manual
+    inputs:
+      - name: ip
+        type: string
+        default: "10.0.0.1"
+      - name: connector_id
+        type: string
+        default: AbuseIPDB demo
+steps:
+  - name: check_ip
+    type: abuseipdb_oob.checkIp
+    connector-id: "{{ inputs.connector_id }}"
+    with:
+      ipAddress: "{{ inputs.ip }}"
+  - name: check_block
+    type: abuseipdb_oob.checkBlock
+    connector-id: "{{ inputs.connector_id }}"
+    with:
+      network: "{{ inputs.ip }}/24"
