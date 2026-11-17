@@ -98,6 +98,12 @@ export {
   type IdentifiedNode,
 } from './document/node_tree';
 export { DATA_PROPS, fillDataProps } from './document/data_props';
+export {
+  toComposition,
+  type AppComposition,
+  type CompositionInputs,
+  type CompositionNode,
+} from './document/to_composition';
 export { getStateDefaults, getStateType, type StateType } from './document/state_defaults';
 export { getDocumentIssues, type DocumentIssue } from './document/document_issues';
 

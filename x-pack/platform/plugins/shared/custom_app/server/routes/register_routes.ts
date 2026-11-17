@@ -15,12 +15,12 @@ import {
 } from '../../common/saved_app_schema';
 import { createSavedAppsService, type SavedAppsService } from './saved_apps_service';
 
-const API_PATH = '/internal/custom_app/apps';
-const API_VERSION = '1';
+export const API_PATH = '/internal/custom_app/apps';
+export const API_VERSION = '1';
 
 // Authorization is the saved objects client's: it acts for the user, and the privileges for the
 // type come from the feature that this plugin registers.
-const AUTHZ_OPT_OUT = {
+export const AUTHZ_OPT_OUT = {
   authz: {
     enabled: false,
     reason:
@@ -32,7 +32,7 @@ const getService = async (context: RequestHandlerContext): Promise<SavedAppsServ
   createSavedAppsService((await context.core).savedObjects.client);
 
 /** The status of a failure of the saved objects client: 404, 403, 409 and so on. */
-const toErrorResponse = (error: unknown, response: KibanaResponseFactory) => {
+export const toErrorResponse = (error: unknown, response: KibanaResponseFactory) => {
   if (SavedObjectsErrorHelpers.isNotFoundError(error as Error)) {
     return response.notFound();
   }

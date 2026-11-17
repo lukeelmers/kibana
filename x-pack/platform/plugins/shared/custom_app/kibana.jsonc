@@ -10,6 +10,6 @@
     "browser": true,
     "server": true,
     "requiredPlugins": ["embeddable", "data", "dataViews", "features", "isomer", "uiActions"],
-    "optionalPlugins": ["agentBuilder", "share"]
+    "optionalPlugins": ["agentBuilder", "share", "workflowsExtensions"]
   }
 }

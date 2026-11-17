@@ -42,7 +42,9 @@
     "@kbn/isomer-plugin",
     "@kbn/isomer-theme",
     "@kbn/core-chrome-browser",
-    "@kbn/deeplinks-shared"
+    "@kbn/deeplinks-shared",
+    "@kbn/workflows-extensions",
+    "@kbn/core-spaces-common"
   ],
   "exclude": ["target/**/*"]
 }

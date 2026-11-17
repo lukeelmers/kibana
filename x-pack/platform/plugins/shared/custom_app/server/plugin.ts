@@ -16,6 +16,7 @@ import type { AgentBuilderPluginSetup } from '@kbn/agent-builder-server';
 import type { EmbeddableSetup } from '@kbn/embeddable-plugin/server';
 import type { FeaturesPluginSetup } from '@kbn/features-plugin/server';
 import type { IsomerPluginSetup, IsomerPluginStart } from '@kbn/isomer-plugin/server';
+import type { WorkflowsExtensionsServerPluginSetup } from '@kbn/workflows-extensions/server';
 import { CUSTOM_APP_EMBEDDABLE_TYPE } from '@kbn/custom-app-common';
 import { createCustomAppContextAttachmentType } from './attachment_types/custom_app_context';
 import {
@@ -24,18 +25,21 @@ import {
 } from '../common/capabilities/manifests';
 import { customAppFeature } from './feature';
 import { registerSavedAppRoutes } from './routes/register_routes';
+import { registerRenderAppRoute } from './routes/render_app';
 import { customAppSavedObjectType } from './saved_objects';
 import { customAppEmbeddableSchema } from './embeddable/schemas';
 import { getTransforms } from './embeddable/transforms/get_transforms';
 import { customAppCreationSkill } from './skills/custom_app_creation_skill';
 import { createCreateCustomAppTool } from './tools/create_custom_app_tool';
 import { createUpdateCustomAppTool } from './tools/update_custom_app_tool';
+import { renderAppStepDefinition } from './workflow_steps/render_app_step';
 
 interface SetupDeps {
   embeddable: EmbeddableSetup;
   features: FeaturesPluginSetup;
   isomer: IsomerPluginSetup;
   agentBuilder?: AgentBuilderPluginSetup;
+  workflowsExtensions?: WorkflowsExtensionsServerPluginSetup;
 }
 
 interface StartDeps {
@@ -49,13 +53,25 @@ export class CustomAppPlugin implements Plugin<void, void, SetupDeps, StartDeps>
     this.logger = initializerContext.logger.get();
   }
 
-  setup(core: CoreSetup, { embeddable, features, isomer, agentBuilder }: SetupDeps) {
+  setup(
+    core: CoreSetup<StartDeps>,
+    { embeddable, features, isomer, agentBuilder, workflowsExtensions }: SetupDeps
+  ) {
+    const getCoreStart = async () => (await core.getStartServices())[0];
+    const getRuntime = async () => (await core.getStartServices())[1].isomer.getRuntime();
+
     // Registered unconditionally: the saved objects check can only vouch for what it can see.
     core.savedObjects.registerType(customAppSavedObjectType);
     features.registerKibanaFeature(customAppFeature);
     registerBuiltinCapabilities();
     isomer.registerPack(() => import('../common/pack').then(({ appPack }) => appPack));
-    registerSavedAppRoutes(core.http.createRouter());
+    const router = core.http.createRouter();
+    registerSavedAppRoutes(router);
+    registerRenderAppRoute(router, {
+      getRuntime,
+      basePath: core.http.basePath,
+      logger: this.logger,
+    });
 
     embeddable.registerEmbeddableServerDefinition(CUSTOM_APP_EMBEDDABLE_TYPE, {
       title: 'Custom app',
@@ -79,6 +95,10 @@ export class CustomAppPlugin implements Plugin<void, void, SetupDeps, StartDeps>
       );
       agentBuilder.skills.register(customAppCreationSkill);
     }
+
+    workflowsExtensions?.registerStepDefinition(
+      renderAppStepDefinition({ getCoreStart, getRuntime })
+    );
   }
 
   start(_core: CoreStart, { isomer }: StartDeps) {
