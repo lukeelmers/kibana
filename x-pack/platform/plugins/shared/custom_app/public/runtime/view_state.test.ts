@@ -35,7 +35,7 @@ const document = appDocumentSchema.parse({
         type: 'form',
         id: 'ask',
         submitLabel: 'Send',
-        fields: [{ bind: 'reason', kind: 'text', label: 'Reason' }],
+        fields: [{ name: 'reason', kind: 'text', label: 'Reason' }],
       },
       { type: 'flyout', id: 'detail', title: 'Detail', children: [] },
     ],

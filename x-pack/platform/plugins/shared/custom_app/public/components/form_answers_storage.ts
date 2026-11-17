@@ -5,7 +5,7 @@
  * 2.0.
  */
 
-import { MAX_STATE_STRING_LENGTH, type FormField } from '@kbn/custom-app-common';
+import { MAX_STATE_STRING_LENGTH } from '@kbn/custom-app-common';
 
 /** What a form has been typed into, by the value each field sets. */
 export type FormAnswers = Readonly<Record<string, string>>;
@@ -26,18 +26,21 @@ const getStorage = (): Storage | undefined => {
  * What was typed and not sent, from this tab's session. It is read as untrusted, since the storage
  * can hold anything: only text for a field the form has, and no longer than a value can be.
  */
-export const readFormAnswers = (key: string, fields: readonly FormField[]): FormAnswers => {
+export const readFormAnswers = (
+  key: string,
+  fields: ReadonlyArray<{ name: string }>
+): FormAnswers => {
   try {
     const stored: unknown = JSON.parse(getStorage()?.getItem(key) ?? 'null');
     if (typeof stored !== 'object' || stored === null || Array.isArray(stored)) return {};
     const answers = stored as Record<string, unknown>;
     return Object.fromEntries(
-      fields.flatMap(({ bind }) => {
-        const answer = Object.prototype.hasOwnProperty.call(answers, bind)
-          ? answers[bind]
+      fields.flatMap(({ name }) => {
+        const answer = Object.prototype.hasOwnProperty.call(answers, name)
+          ? answers[name]
           : undefined;
         return typeof answer === 'string' && answer.length <= MAX_STATE_STRING_LENGTH
-          ? [[bind, answer]]
+          ? [[name, answer]]
           : [];
       })
     );

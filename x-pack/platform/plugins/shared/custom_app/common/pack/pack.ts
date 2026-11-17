@@ -6,13 +6,16 @@
  */
 
 import { definePrimitivePack } from '@elastic/isomer-sdk';
+import { button } from './button';
+import { flyout } from './flyout';
+import { form } from './form';
+import { input } from './input';
 import { row } from './row';
+import { select } from './select';
 import { stat } from './stat';
-
-export const appPrimitives = [stat, row] as const;
 
 /** The primitives custom apps add to Kibana's. */
 export const appPack = definePrimitivePack({
   id: 'custom_app',
-  primitives: appPrimitives,
+  primitives: [stat, row, form, input, select, button, flyout],
 });

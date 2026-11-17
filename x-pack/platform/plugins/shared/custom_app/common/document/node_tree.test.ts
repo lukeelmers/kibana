@@ -141,8 +141,8 @@ describe('forms in the tree', () => {
       id: 'ask',
       submitLabel: 'Send',
       fields: [
-        { bind: 'a', kind: 'text', label: 'A' },
-        { bind: 'b', kind: 'text', label: 'B' },
+        { name: 'a', kind: 'text', label: 'A' },
+        { name: 'b', kind: 'text', label: 'B' },
       ],
       onSubmit: [{ type: 'setState', key: 'a', value: 'x' }],
     },

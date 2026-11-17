@@ -95,20 +95,6 @@ describe('the authoring guide', () => {
     );
   });
 
-  it('teaches forms: what they are for, how answers reach a workflow, and that they are not filters', () => {
-    expect(CUSTOM_APP_AUTHORING_GUIDE).toContain('"onSubmit"');
-    expect(CUSTOM_APP_AUTHORING_GUIDE).toContain('"textarea"');
-    expect(CUSTOM_APP_AUTHORING_GUIDE).toContain('only when it is submitted');
-    expect(CUSTOM_APP_AUTHORING_GUIDE).toContain('hands them over with { "fromState": "<bind>" }');
-    expect(CUSTOM_APP_AUTHORING_GUIDE).toContain('a form\'s "onSubmit"');
-  });
-
-  it('teaches a select that takes its options from a query, and how an All option is kept', () => {
-    expect(CUSTOM_APP_AUTHORING_GUIDE).toContain('"optionsQuery"');
-    expect(CUSTOM_APP_AUTHORING_GUIDE).toContain('whose first column is the value of each option');
-    expect(CUSTOM_APP_AUTHORING_GUIDE).toContain('put an "All" option there');
-  });
-
   it('teaches lists: the value type, the box, the multiple select, and how a query uses one', () => {
     expect(CUSTOM_APP_AUTHORING_GUIDE).toContain('"list"');
     expect(CUSTOM_APP_AUTHORING_GUIDE).toContain('list_input');

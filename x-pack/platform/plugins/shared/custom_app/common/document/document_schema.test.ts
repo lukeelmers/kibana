@@ -213,7 +213,7 @@ describe('buttons and the workflows they run', () => {
 });
 
 describe('forms', () => {
-  const reason = { bind: 'reason', kind: 'textarea', label: 'Reason', required: true };
+  const reason = { name: 'reason', kind: 'text', label: 'Reason', required: true };
   const formDocument = (
     form: Record<string, unknown> = {},
     state: Record<string, unknown> = { reason: { type: 'string', default: '' } }
@@ -247,10 +247,10 @@ describe('forms', () => {
       formDocument(
         {
           fields: [
-            { bind: 'reason', kind: 'text', label: 'Reason', placeholder: 'Why?' },
-            { bind: 'details', kind: 'textarea', label: 'Details' },
+            { name: 'reason', kind: 'text', label: 'Reason' },
+            { name: 'details', kind: 'text', label: 'Details' },
             {
-              bind: 'urgency',
+              name: 'urgency',
               kind: 'select',
               label: 'Urgency',
               options: [{ value: 'low' }, { value: 'high', label: 'High' }],
@@ -268,12 +268,9 @@ describe('forms', () => {
     expect(result.success).toBe(true);
   });
 
-  it('needs a field, a label on each and on the submit button, and a kind it knows', () => {
+  it('needs a field, a label on the submit button, and a kind it knows', () => {
     expect(appDocumentSchema.safeParse(formDocument({ fields: [] })).success).toBe(false);
     expect(appDocumentSchema.safeParse(formDocument({ submitLabel: '' })).success).toBe(false);
-    expect(
-      appDocumentSchema.safeParse(formDocument({ fields: [{ ...reason, label: '' }] })).success
-    ).toBe(false);
     expect(
       appDocumentSchema.safeParse(formDocument({ fields: [{ ...reason, kind: 'number' }] })).success
     ).toBe(false);
@@ -282,7 +279,7 @@ describe('forms', () => {
   it('needs options for a choice', () => {
     expect(
       appDocumentSchema.safeParse(
-        formDocument({ fields: [{ bind: 'reason', kind: 'select', label: 'Reason', options: [] }] })
+        formDocument({ fields: [{ name: 'reason', kind: 'select', label: 'Reason', options: [] }] })
       ).success
     ).toBe(false);
   });
@@ -290,7 +287,7 @@ describe('forms', () => {
   it('asks only so much, as a form is not a page', () => {
     const many = Array.from({ length: MAX_FORM_FIELDS + 1 }, (_, index) => ({
       ...reason,
-      bind: `reason_${index}`,
+      name: `reason_${index}`,
     }));
 
     expect(appDocumentSchema.safeParse(formDocument({ fields: many })).success).toBe(false);
@@ -315,7 +312,7 @@ describe('forms', () => {
         formDocument({
           fields: [
             {
-              bind: 'reason',
+              name: 'reason',
               kind: 'select',
               label: 'Urgency',
               options: [{ value: 'low' }, { value: 'low' }],

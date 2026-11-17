@@ -8,8 +8,10 @@
 import type { KibanaUiRenderer } from '@kbn/custom-app-registry';
 import type { AppNode } from '@kbn/custom-app-common';
 import { renderSection } from './section';
+import { renderTable } from './table';
 
 /** `kibana-ui` renderers for primitives of Kibana's components pack, by type. */
 export const KIBANA_UI_RENDERERS: Readonly<Record<string, KibanaUiRenderer<AppNode>>> = {
   section: renderSection,
+  table: renderTable as unknown as KibanaUiRenderer<AppNode>,
 };

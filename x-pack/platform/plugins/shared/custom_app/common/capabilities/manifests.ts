@@ -12,7 +12,13 @@ import {
   type AnyCapability,
   type CapabilityManifest,
 } from '@kbn/custom-app-registry';
-import { actionsSchema, DATA_PROPS, querySchema } from '@kbn/custom-app-common';
+import {
+  actionsSchema,
+  DATA_PROPS,
+  OPTIONS_SOURCE_SUFFIX,
+  querySchema,
+  stateKeySchema,
+} from '@kbn/custom-app-common';
 import {
   actions,
   code,
@@ -27,11 +33,17 @@ import {
   table,
 } from '@kbn/isomer-components';
 import { registerBuiltinActions } from '../actions/manifests';
-import { row, stat } from '../pack';
-import { buttonCapability } from './button/manifest';
-import { flyoutCapability } from './flyout/manifest';
-import { formCapability } from './form/manifest';
-import { selectCapability } from './select/manifest';
+import {
+  button,
+  flyout,
+  form,
+  input,
+  row,
+  select,
+  stat,
+  type FormNode,
+  type SelectNode,
+} from '../pack';
 
 type AppProps = Omit<CapabilityManifest, 'kind' | 'id' | 'version' | 'props' | 'doc'> & {
   /** Props of the primitive the app fills: from a query, or from `children`. */
@@ -75,6 +87,39 @@ const fromPrimitive = (
   } as unknown as AnyCapability;
 };
 
+/** Reports what the primitive's own refinements, which `props` leaves out, say of the node. */
+const refinements =
+  (primitive: AnyPrimitiveDefinition) =>
+  (
+    node: Record<string, unknown> & { id: string },
+    { issue }: { issue: (message: string) => void }
+  ) => {
+    const { id, visibleWhen, ...props } = node;
+    const result = primitive.schema.safeParse(props);
+    if (!result.success) issue(`Node "${id}": ${result.error.issues[0]?.message}`);
+  };
+
+const handlers = (event: string, when: string) => ({
+  [event]: actionsSchema.default([]).describe(`The actions to run ${when}.`),
+});
+
+const bind = () => ({
+  bind: stateKeySchema.describe('The value of the app it sets. It must be declared as a string.'),
+});
+
+/** Reports an option given twice. */
+const checkOptions = (
+  options: ReadonlyArray<{ value: string }>,
+  issue: (message: string) => void,
+  where: string
+) => {
+  const seen = new Set<string>();
+  options.forEach(({ value }) => {
+    if (seen.has(value)) issue(`${where} has the option "${value}" more than once`);
+    seen.add(value);
+  });
+};
+
 const query = (shows: string) => ({ query: querySchema.describe(`An ES|QL query. ${shows}`) });
 
 /** The capabilities that ship with custom apps, as Isomer primitives. */
@@ -99,7 +144,8 @@ export const BUILTIN_CAPABILITIES = [
     },
   }),
   fromPrimitive(link, {
-    interpolated: ['label'],
+    interpolated: ['label', 'path'],
+    validate: refinements(link),
     example: { type: 'link', id: 'discover', label: 'Open in Discover', app: 'discover' },
   }),
   fromPrimitive(stat, {
@@ -131,9 +177,77 @@ export const BUILTIN_CAPABILITIES = [
       query: 'FROM logs-* | STATS errors = COUNT(*) BY service',
     },
   }),
-  buttonCapability,
-  formCapability,
-  selectCapability,
+  fromPrimitive(input, {
+    props: { ...bind(), ...handlers('onChange', 'after it sets its value, with the value') },
+    events: { onChange: 'onChange' },
+    bindings: (node) => [String(node.bind)],
+    private: true,
+    example: { type: 'input', id: 'name', label: 'Service', bind: 'name_filter' },
+  }),
+  fromPrimitive(select, {
+    props: {
+      ...bind(),
+      ...handlers('onChange', 'after it sets its value, with the value'),
+      optionsQuery: querySchema
+        .optional()
+        .describe('An ES|QL query whose first column is the value of each option, after options.'),
+    },
+    events: { onChange: 'onChange' },
+    bindings: (node) => [String(node.bind)],
+    bindingType: (node) => (node.multiple === true ? 'list' : 'string'),
+    sources: (node) =>
+      node.optionsQuery === undefined
+        ? []
+        : [{ suffix: OPTIONS_SOURCE_SUFFIX, query: String(node.optionsQuery) }],
+    validate: (node, { issue }) => {
+      const { id, options, optionsQuery } = node as unknown as SelectNode & {
+        id: string;
+        optionsQuery?: string;
+      };
+      if (options.length === 0 && optionsQuery === undefined) {
+        issue(`Node "${id}" has no options; give it some, or a query that returns them`);
+      }
+      checkOptions(options, issue, `Node "${id}"`);
+    },
+    example: {
+      type: 'select',
+      id: 'region',
+      label: 'Region',
+      bind: 'region',
+      options: [{ value: '', label: 'All regions' }, { value: 'eu' }],
+    },
+  }),
+  fromPrimitive(button, {
+    props: handlers('onClick', 'when it is pressed'),
+    events: { onClick: 'onClick' },
+    compact: true,
+    example: { type: 'button', id: 'go', label: 'Escalate', onClick: [] },
+  }),
+  fromPrimitive(form, {
+    props: handlers('onSubmit', 'once the answers are in their values'),
+    events: { onSubmit: 'onSubmit' },
+    private: true,
+    bindings: (node) => (node as unknown as FormNode).fields.map(({ name }) => name),
+    validate: (node, { issue }) => {
+      const { id, fields: questions } = node as unknown as FormNode & { id: string };
+      const seen = new Set<string>();
+      questions.forEach(({ name, kind, options = [] }) => {
+        if (seen.has(name)) issue(`Node "${id}" has two fields that set "${name}"`);
+        seen.add(name);
+        if (kind === 'select' && options.length === 0) {
+          issue(`Node "${id}" has a select field "${name}" with no options`);
+        }
+        checkOptions(options, issue, `Node "${id}"`);
+      });
+    },
+    example: {
+      type: 'form',
+      id: 'report',
+      fields: [{ name: 'reason', label: 'Reason' }],
+      submitLabel: 'Send',
+      onSubmit: [],
+    },
+  }),
 ] as const;
 
 /** The capabilities that hold other components, in `children`. */
@@ -149,7 +263,13 @@ export const BUILTIN_CONTAINERS = [
     container: true,
     example: { type: 'row', id: 'kpis', children: [] },
   }),
-  flyoutCapability,
+  fromPrimitive(flyout, {
+    fills: ['body'],
+    container: true,
+    overlay: true,
+    interpolated: ['title'],
+    example: { type: 'flyout', id: 'detail', title: 'Detail', children: [] },
+  }),
 ] as const;
 
 /** Registers the capabilities that ship with custom apps. It can be called more than once. */

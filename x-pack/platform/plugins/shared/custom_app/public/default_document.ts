@@ -92,16 +92,29 @@ export const createDefaultDocument = (): AppDocument => ({
         title: t('servicesTitle', 'Services'),
         children: [
           {
-            type: 'select',
-            id: 'min-errors',
-            label: t('minErrorsLabel', 'Errors'),
-            bind: 'minErrors',
-            options: [
-              { value: '0', label: t('minErrorsAny', 'Any') },
-              { value: '10', label: t('minErrors10', '10 or more') },
-              { value: '20', label: t('minErrors20', '20 or more') },
+            type: 'row',
+            id: 'filters',
+            children: [
+              {
+                type: 'input',
+                id: 'name-filter',
+                label: t('nameFilterLabel', 'Service name'),
+                placeholder: t('nameFilterPlaceholder', 'Search services'),
+                bind: 'nameFilter',
+              },
+              {
+                type: 'select',
+                id: 'min-errors',
+                label: t('minErrorsLabel', 'Errors'),
+                bind: 'minErrors',
+                options: [
+                  { value: '0', label: t('minErrorsAny', 'Any') },
+                  { value: '10', label: t('minErrors10', '10 or more') },
+                  { value: '20', label: t('minErrors20', '20 or more') },
+                ],
+                onChange: [],
+              },
             ],
-            onChange: [],
           },
           {
             type: 'table',
