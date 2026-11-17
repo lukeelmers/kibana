@@ -77,8 +77,7 @@ describe('the save as custom app action', () => {
     const [, { body }] = post.mock.calls[0];
     const input = JSON.parse(body);
     expect(input.title).toBe('Custom content');
-    expect(JSON.stringify(input.document)).toContain('<p>hi</p>');
-    expect(JSON.stringify(input.document)).toContain('FROM logs | LIMIT 3');
+    expect(JSON.stringify(input.body)).toContain('<p>hi</p>');
     expect(addSuccess).toHaveBeenCalledWith(
       expect.objectContaining({ title: 'Saved as the custom app "Custom content"' })
     );

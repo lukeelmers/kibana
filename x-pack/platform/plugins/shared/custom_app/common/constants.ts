@@ -13,11 +13,11 @@ export const OPEN_CUSTOM_APP_ACTION_ID = 'OPEN_CUSTOM_APP';
 export const CUSTOM_APP_SAVED_OBJECT_TYPE = 'custom_app';
 /** The id of the Kibana feature whose privileges govern saved apps. */
 export const CUSTOM_APP_FEATURE_ID = 'customApp';
-export const MAX_APP_TITLE_LENGTH = 256;
-export const MAX_APP_DESCRIPTION_LENGTH = 2_000;
 
 export {
   CUSTOM_APP_APPLICATION_ID,
+  MAX_APP_DESCRIPTION_LENGTH,
+  MAX_APP_TITLE_LENGTH,
   SAVED_APPS_API_PATH,
   SAVED_APPS_API_VERSION,
 } from '@kbn/custom-app-common';

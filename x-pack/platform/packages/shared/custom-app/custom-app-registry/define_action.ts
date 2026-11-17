@@ -7,15 +7,19 @@
 
 import type { z } from '@kbn/zod/v4';
 import type { CapabilityDoc } from './define_capability';
+import type { KibanaUiStateValue } from './surface/env';
 
 export interface ActionValidationContext {
-  /** The node that has the action, and the event that runs it. */
+  /** The node that has the action, by its id or its type, and the event that runs it. */
   nodeId: string;
   event: string;
-  /** Whether a value taken from a clicked row or from an input makes sense for this event. */
-  allowed: { fromColumn: boolean; fromInput: boolean };
-  /** The values the app declares. */
-  state: Readonly<Record<string, { type: string; default: unknown }>>;
+  /** The values the app declares, as they start: the type of each is that of its value. */
+  state: Readonly<Record<string, KibanaUiStateValue>>;
+  /**
+   * What is wrong with the `{{state.key}}` and `{{row.key}}` references of a text, in words: an
+   * unknown key, or a row where the action has none.
+   */
+  checkText: (text: string) => string[];
   /** The ids of the components that are opened by an action, such as flyouts. */
   overlayIds: ReadonlySet<string>;
   /** Reports a problem with the node that has the action. */

@@ -26,22 +26,25 @@ const runQuery = jest.fn<ReturnType<RunQuery>, Parameters<RunQuery>>(async () =>
 }));
 
 const document = appDocumentSchema.parse({
-  state: { reason: { type: 'string', default: 'Suspicious' } },
-  root: {
-    type: 'table',
-    id: 'hosts',
-    query: 'FROM hosts',
-    onRowClick: [
-      {
-        workflow: 'isolate-host',
-        inputs: {
-          host: { fromColumn: 'host.name' },
-          errors: { fromColumn: 'errors' },
-          reason: { fromState: 'reason' },
+  title: 'App',
+  state: { reason: 'Suspicious' },
+  body: [
+    {
+      type: 'table',
+      id: 'hosts',
+      query: 'FROM hosts',
+      onRowClick: [
+        {
+          workflow: 'isolate-host',
+          inputs: {
+            host: '{{row.host.name}}',
+            errors: '{{row.errors}}',
+            reason: '{{state.reason}}',
+          },
         },
-      },
-    ],
-  },
+      ],
+    },
+  ],
 });
 
 describe('a row click that runs a workflow', () => {

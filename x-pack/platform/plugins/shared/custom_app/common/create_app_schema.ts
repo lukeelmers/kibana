@@ -10,11 +10,6 @@ import { appDocumentShapeSchema } from '@kbn/custom-app-common';
 
 export const customAppCreateSchema = lazySchema(() =>
   z.object({
-    title: z
-      .string()
-      .max(256)
-      .optional()
-      .describe('A short title for the app, used when it is saved to a dashboard.'),
     document: appDocumentShapeSchema.describe('The complete app to create.'),
   })
 );

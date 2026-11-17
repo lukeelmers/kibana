@@ -19,27 +19,16 @@ import {
 const DEFAULT_TIME = { from: 'now-24h', to: 'now' };
 
 const document = appDocumentSchema.parse({
-  state: {
-    severity: { type: 'string', default: 'all' },
-    limit: { type: 'number', default: 10 },
-    compact: { type: 'boolean', default: false },
-    reason: { type: 'string', default: '' },
-    users: { type: 'list', default: [] },
-  },
-  root: {
-    type: 'section',
-    title: 'App',
-    id: 'root',
-    children: [
-      {
-        type: 'form',
-        id: 'ask',
-        submitLabel: 'Send',
-        fields: [{ name: 'reason', kind: 'text', label: 'Reason' }],
-      },
-      { type: 'flyout', id: 'detail', title: 'Detail', children: [] },
-    ],
-  },
+  title: 'App',
+  state: { severity: 'all', limit: 10, compact: false, reason: '', users: [] },
+  body: [
+    {
+      type: 'form',
+      submitLabel: 'Send',
+      fields: [{ name: 'reason', kind: 'text', label: 'Reason' }],
+    },
+    { type: 'flyout', id: 'detail', title: 'Detail', children: [] },
+  ],
 });
 
 describe('the view of an app', () => {

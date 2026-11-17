@@ -23,11 +23,11 @@ const panel = (
 });
 
 const documentOf = (children: unknown[], state: Record<string, unknown> = {}) =>
-  ({ state, root: { type: 'stack', id: 'root', children } } as ResolvableDocument);
+  ({ state, body: children } as ResolvableDocument);
 
 const childrenOf = (result: Awaited<ReturnType<typeof resolveCustomContent>>) => {
   if ('error' in result) throw new Error(result.error);
-  return (result.document.root as { children: unknown[] }).children;
+  return result.document.body;
 };
 
 describe('resolveCustomContent', () => {
@@ -76,7 +76,7 @@ describe('resolveCustomContent', () => {
     const result = await resolveCustomContent(document, resolver);
 
     expect(resolver).not.toHaveBeenCalled();
-    expect(childrenOf(result)).toEqual((document.root as { children: unknown[] }).children);
+    expect(childrenOf(result)).toEqual(document.body);
   });
 
   it('finds panels inside others, such as a flyout or the tab of a page', async () => {
@@ -100,8 +100,8 @@ describe('resolveCustomContent', () => {
     const result = await resolveCustomContent(document, resolver);
 
     if ('error' in result) throw new Error(result.error);
-    expect(JSON.stringify(result.document.root)).toContain('<p>written</p>');
-    expect(JSON.stringify(result.document.root)).not.toContain('"prompt"');
+    expect(JSON.stringify(result.document.body)).toContain('<p>written</p>');
+    expect(JSON.stringify(result.document.body)).not.toContain('"prompt"');
   });
 
   it('tries a query that has parameters with the defaults of the values it uses', async () => {
@@ -112,7 +112,7 @@ describe('resolveCustomContent', () => {
           prompt: 'Board',
         }),
       ],
-      { service: { type: 'string', default: 'cart' } }
+      { service: 'cart' }
     );
 
     await resolveCustomContent(document, resolver);
@@ -132,7 +132,7 @@ describe('resolveCustomContent', () => {
             prompt: 'Board',
           }),
         ],
-        { users: { type: 'list', default: users } }
+        { users }
       );
 
     await resolveCustomContent(withList(['alice', 'bob']), resolver);

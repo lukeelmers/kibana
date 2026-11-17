@@ -14,8 +14,9 @@ export const openFlyoutAction = defineAction({
   version: 1,
   props: lazySchema(() => z.object({ flyout: nodeIdSchema.describe('The id of the flyout.') })),
   doc: {
-    summary: 'Opens a flyout of the app.',
-    whenToUse: 'To show details of what was clicked, next to the other actions of the event.',
+    summary:
+      'Opens a flyout of the app. Run by a row click, it gives the flyout that row, as {{row.<column>}}.',
+    whenToUse: 'To show details of what was clicked, or a form to change it.',
     example: { flyout: 'details' },
   },
   validate: (action, { nodeId, overlayIds, issue }) => {

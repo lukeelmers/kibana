@@ -11,25 +11,17 @@ import { createAppRuntime } from './app_runtime';
 const parse = (input: unknown): AppDocument => appDocumentSchema.parse(input);
 
 const document = parse({
-  state: {
-    service: { type: 'string', default: 'all' },
-    limit: { type: 'number', default: 10 },
-    compact: { type: 'boolean', default: false },
-  },
-  root: {
-    type: 'section',
-    title: 'App',
-    id: 'root',
-    children: [
-      { type: 'flyout', id: 'detail', title: 'Detail', children: [] },
-      {
-        type: 'section',
-        title: 'App',
-        id: 'wrap',
-        children: [{ type: 'flyout', id: 'nested', title: 'N', children: [] }],
-      },
-    ],
-  },
+  title: 'App',
+  state: { service: 'all', limit: 10, compact: false },
+  body: [
+    { type: 'flyout', id: 'detail', title: 'Detail', children: [] },
+    {
+      type: 'section',
+      title: 'App',
+      id: 'wrap',
+      children: [{ type: 'flyout', id: 'nested', title: 'N', children: [] }],
+    },
+  ],
 });
 
 const setState = (key: string, value: unknown): Action => ({ state: { [key]: value } } as Action);
@@ -58,9 +50,9 @@ describe('running a workflow', () => {
     const { workflows } = runtime.run(
       [
         run({
-          host: { fromColumn: 'host.name' },
-          service: { fromState: 'service' },
-          limit: { fromState: 'limit' },
+          host: '{{row.host.name}}',
+          service: '{{state.service}}',
+          limit: '{{state.limit}}',
         }),
       ],
       { row: { 'host.name': 'web-1' } }
@@ -76,7 +68,7 @@ describe('running a workflow', () => {
 
     const { workflows } = runtime.run([
       setState('service', 'checkout'),
-      run({ service: { fromState: 'service' } }),
+      run({ service: '{{state.service}}' }),
     ]);
 
     expect(workflows[0].inputs).toEqual({ service: 'checkout' });
@@ -86,7 +78,7 @@ describe('running a workflow', () => {
     const runtime = createAppRuntime(document);
 
     const { workflows } = runtime.run([
-      run({ service: { fromState: 'service' } }),
+      run({ service: '{{state.service}}' }),
       setState('service', 'checkout'),
     ]);
 
@@ -96,12 +88,12 @@ describe('running a workflow', () => {
   it('hands over several values of a column, and nothing of a kind a workflow cannot take', () => {
     const runtime = createAppRuntime(document);
 
-    const several = runtime.run([run({ tags: { fromColumn: 'tags' } })], {
+    const several = runtime.run([run({ tags: '{{row.tags}}' })], {
       row: { tags: ['a', 'b'] },
     });
     expect(several.workflows[0].inputs).toEqual({ tags: ['a', 'b'] });
 
-    const object = runtime.run([run({ nested: { fromColumn: 'nested' } })], {
+    const object = runtime.run([run({ nested: '{{row.nested}}' })], {
       row: { nested: { a: 1 } },
     });
     expect(object.workflows).toEqual([]);
@@ -111,10 +103,9 @@ describe('running a workflow', () => {
   it('does not run it at all, and says why, when a column is not in the row', () => {
     const runtime = createAppRuntime(document);
 
-    const { workflows, dropped } = runtime.run(
-      [run({ reason: 'x', host: { fromColumn: 'host.name' } })],
-      { row: { other: 1 } }
-    );
+    const { workflows, dropped } = runtime.run([run({ reason: 'x', host: '{{row.host.name}}' })], {
+      row: { other: 1 },
+    });
 
     expect(workflows).toEqual([]);
     expect(dropped).toEqual(['Column "host.name" is not in the row']);
@@ -123,7 +114,7 @@ describe('running a workflow', () => {
   it('does not run it for a button pressed with no row, when it needs a column', () => {
     const runtime = createAppRuntime(document);
 
-    expect(runtime.run([run({ host: { fromColumn: 'host.name' } })]).workflows).toEqual([]);
+    expect(runtime.run([run({ host: '{{row.host.name}}' })]).workflows).toEqual([]);
   });
 
   it('asks for each workflow, in order, and does the other actions as well', () => {
@@ -145,7 +136,7 @@ describe('running a workflow', () => {
 });
 
 describe('createAppRuntime', () => {
-  it('starts from the declared defaults with no flyout open', () => {
+  it('starts from the defaults with no flyout open', () => {
     const runtime = createAppRuntime(document);
 
     expect(runtime.state$.getValue()).toEqual({ service: 'all', limit: 10, compact: false });
@@ -165,7 +156,7 @@ describe('createAppRuntime', () => {
     it('copies a column of the clicked row', () => {
       const runtime = createAppRuntime(document);
 
-      runtime.run([setState('service', { fromColumn: 'service.name' })], {
+      runtime.run([setState('service', '{{row.service.name}}')], {
         row: { 'service.name': 'cart', other: 1 },
       });
 
@@ -183,17 +174,17 @@ describe('createAppRuntime', () => {
     it('takes a number or a true/false from a column as text for a text value', () => {
       const runtime = createAppRuntime(document);
 
-      runtime.run([setState('service', { fromColumn: 'id' })], { row: { id: 42 } });
+      runtime.run([setState('service', '{{row.id}}')], { row: { id: 42 } });
       expect(runtime.state$.getValue().service).toBe('42');
 
-      runtime.run([setState('service', { fromColumn: 'ok' })], { row: { ok: true } });
+      runtime.run([setState('service', '{{row.ok}}')], { row: { ok: true } });
       expect(runtime.state$.getValue().service).toBe('true');
     });
 
     it('does not turn text into a number or a boolean', () => {
       const runtime = createAppRuntime(document);
 
-      const { dropped } = runtime.run([setState('compact', { fromColumn: 'c' })], {
+      const { dropped } = runtime.run([setState('compact', '{{row.c}}')], {
         row: { c: 'yes' },
       });
 
@@ -204,7 +195,7 @@ describe('createAppRuntime', () => {
     it('drops a value of the wrong type and says why, leaving the state alone', () => {
       const runtime = createAppRuntime(document);
 
-      const { dropped } = runtime.run([setState('limit', { fromColumn: 'count' })], {
+      const { dropped } = runtime.run([setState('limit', '{{row.count}}')], {
         row: { count: 'many' },
       });
 
@@ -219,7 +210,7 @@ describe('createAppRuntime', () => {
     ])('drops %p from a row, which is not a string', (value, described) => {
       const runtime = createAppRuntime(document);
 
-      const { dropped } = runtime.run([setState('service', { fromColumn: 'c' })], {
+      const { dropped } = runtime.run([setState('service', '{{row.c}}')], {
         row: { c: value },
       });
 
@@ -229,12 +220,11 @@ describe('createAppRuntime', () => {
     it('drops a number that is not finite and a string over the length limit', () => {
       const runtime = createAppRuntime(document);
 
+      expect(runtime.run([setState('limit', '{{row.c}}')], { row: { c: NaN } }).dropped).toEqual([
+        '"limit" expects a finite number',
+      ]);
       expect(
-        runtime.run([setState('limit', { fromColumn: 'c' })], { row: { c: NaN } }).dropped
-      ).toEqual(['"limit" expects a finite number']);
-      expect(
-        runtime.run([setState('service', { fromColumn: 'c' })], { row: { c: 'x'.repeat(1001) } })
-          .dropped
+        runtime.run([setState('service', '{{row.c}}')], { row: { c: 'x'.repeat(1001) } }).dropped
       ).toEqual(['"service" expects at most 1000 characters']);
       expect(runtime.state$.getValue()).toEqual({ service: 'all', limit: 10, compact: false });
     });
@@ -242,10 +232,10 @@ describe('createAppRuntime', () => {
     it('drops a column the row does not have, and a row-less interaction', () => {
       const runtime = createAppRuntime(document);
 
-      expect(
-        runtime.run([setState('service', { fromColumn: 'nope' })], { row: { a: 1 } }).dropped
-      ).toEqual(['Column "nope" is not in the row']);
-      expect(runtime.run([setState('service', { fromColumn: 'a' })]).dropped).toEqual([
+      expect(runtime.run([setState('service', '{{row.nope}}')], { row: { a: 1 } }).dropped).toEqual(
+        ['Column "nope" is not in the row']
+      );
+      expect(runtime.run([setState('service', '{{row.a}}')]).dropped).toEqual([
         'Column "a" is not in the row',
       ]);
     });
@@ -303,14 +293,14 @@ describe('createAppRuntime', () => {
     it('drops an attempt to open something that is not a flyout', () => {
       const runtime = createAppRuntime(document);
 
-      expect(runtime.run([{ flyout: 'root' }]).dropped).toEqual(['"root" is not a flyout']);
+      expect(runtime.run([{ flyout: 'wrap' }]).dropped).toEqual(['"wrap" is not a flyout']);
       expect(runtime.openFlyoutId$.getValue()).toBeUndefined();
     });
 
     it('lets a click set state and open a flyout in one go', () => {
       const runtime = createAppRuntime(document);
 
-      runtime.run([setState('service', { fromColumn: 'name' }), { flyout: 'detail' }], {
+      runtime.run([setState('service', '{{row.name}}'), { flyout: 'detail' }], {
         row: { name: 'cart' },
       });
 
@@ -321,11 +311,9 @@ describe('createAppRuntime', () => {
 
   describe('a list', () => {
     const listDocument = parse({
-      state: {
-        users: { type: 'list', default: [] },
-        service: { type: 'string', default: 'all' },
-      },
-      root: { type: 'markdown', id: 't', text: 'x' },
+      title: 'App',
+      state: { users: [], service: 'all' },
+      body: [{ type: 'markdown', text: 'x' }],
     });
 
     it('starts as declared', () => {
@@ -341,19 +329,19 @@ describe('createAppRuntime', () => {
       runtime.run([setState('users', { fromInput: true })], { input: ['bob', 'carol'] });
       expect(runtime.state$.getValue().users).toEqual(['bob', 'carol']);
 
-      runtime.run([setState('users', { fromColumn: 'names' })], { row: { names: ['dave'] } });
+      runtime.run([setState('users', '{{row.names}}')], { row: { names: ['dave'] } });
       expect(runtime.state$.getValue().users).toEqual(['dave']);
     });
 
     it('is set to a list of one by a column that holds one value, as a click on a bar gives', () => {
       const runtime = createAppRuntime(listDocument);
 
-      runtime.run([setState('users', { fromColumn: 'user.name' })], {
+      runtime.run([setState('users', '{{row.user.name}}')], {
         row: { 'user.name': 'alice' },
       });
       expect(runtime.state$.getValue().users).toEqual(['alice']);
 
-      runtime.run([setState('users', { fromColumn: 'count' })], { row: { count: 42 } });
+      runtime.run([setState('users', '{{row.count}}')], { row: { count: 42 } });
       expect(runtime.state$.getValue().users).toEqual(['42']);
     });
 
@@ -361,7 +349,7 @@ describe('createAppRuntime', () => {
       const runtime = createAppRuntime(listDocument);
       runtime.run([setState('users', ['alice'])]);
 
-      runtime.run([setState('users', { fromColumn: 'user.name' })], { row: { 'user.name': '' } });
+      runtime.run([setState('users', '{{row.user.name}}')], { row: { 'user.name': '' } });
 
       expect(runtime.state$.getValue().users).toEqual([]);
     });
@@ -369,7 +357,7 @@ describe('createAppRuntime', () => {
     it('does not take a null, which is not a value, and says so', () => {
       const runtime = createAppRuntime(listDocument);
 
-      const { dropped } = runtime.run([setState('users', { fromColumn: 'user.name' })], {
+      const { dropped } = runtime.run([setState('users', '{{row.user.name}}')], {
         row: { 'user.name': null },
       });
 
@@ -431,7 +419,7 @@ describe('createAppRuntime', () => {
       const { workflows } = runtime.run([
         {
           workflow: 'w',
-          inputs: { users: { fromState: 'users' } },
+          inputs: { users: '{{state.users}}' },
         } as unknown as Action,
       ]);
 
@@ -447,8 +435,9 @@ describe('createAppRuntime', () => {
 
       runtime.setDocument(
         parse({
-          state: { users: { type: 'string', default: 'none' } },
-          root: { type: 'markdown', id: 't', text: 'x' },
+          title: 'App',
+          state: { users: 'none' },
+          body: [{ type: 'markdown', text: 'x' }],
         })
       );
       expect(runtime.state$.getValue().users).toBe('none');
@@ -514,8 +503,9 @@ describe('createAppRuntime', () => {
 
       runtime.setDocument(
         parse({
-          state: { service: { type: 'string', default: 'all' } },
-          root: { type: 'markdown', id: 'a', text: 'x' },
+          title: 'App',
+          state: { service: 'all' },
+          body: [{ type: 'markdown', text: 'x' }],
         })
       );
 
@@ -528,11 +518,9 @@ describe('createAppRuntime', () => {
 
       runtime.setDocument(
         parse({
-          state: {
-            limit: { type: 'string', default: 'none' },
-            fresh: { type: 'number', default: 1 },
-          },
-          root: { type: 'markdown', id: 'a', text: 'x' },
+          title: 'App',
+          state: { limit: 'none', fresh: 1 },
+          body: [{ type: 'markdown', text: 'x' }],
         })
       );
 
@@ -546,7 +534,7 @@ describe('createAppRuntime', () => {
       runtime.setDocument(document);
       expect(runtime.openFlyoutId$.getValue()).toBe('detail');
 
-      runtime.setDocument(parse({ root: { type: 'markdown', id: 'a', text: 'x' } }));
+      runtime.setDocument(parse({ title: 'App', body: [{ type: 'markdown', text: 'x' }] }));
       expect(runtime.openFlyoutId$.getValue()).toBeUndefined();
     });
 

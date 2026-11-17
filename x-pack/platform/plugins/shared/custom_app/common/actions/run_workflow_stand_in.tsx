@@ -15,7 +15,7 @@ import {
   type ActionHandler,
   type ActionUiApi,
 } from '@kbn/custom-app-registry';
-import { stateKeySchema, stateValueSchema } from '@kbn/custom-app-common';
+import { findReferences, resolveText } from '@kbn/custom-app-common';
 
 /**
  * Stands in, in tests, for the `workflow` action that the Workflows plugin registers, which this
@@ -30,72 +30,56 @@ const standIn = defineAction({
   version: 1,
   props: lazySchema(() =>
     z.object({
-      workflow: z.string().min(1).max(200),
+      workflow: z.union([z.string().min(1).max(200), z.object({ id: z.string().min(1) }).strict()]),
       inputs: z
-        .record(
-          z.string().min(1).max(100),
-          z.union([
-            stateValueSchema,
-            z.object({ fromColumn: z.string().min(1).max(200) }),
-            z.object({ fromState: stateKeySchema }),
-          ])
-        )
+        .record(z.string().min(1).max(100), z.string().max(1000))
         .refine((inputs) => Object.keys(inputs).length <= 20)
-        .default({}),
+        .optional(),
     })
   ),
   doc: { summary: 'Runs a workflow.', whenToUse: 'In tests.', example: { workflow: 'w' } },
-  validate: (action, { nodeId, event, allowed, state, issue }) => {
+  validate: (action, { nodeId, event, checkText, issue }) => {
     if (!['onClick', 'onRowClick', 'onChartClick', 'onSubmit'].includes(event)) {
       issue(
         `Node "${nodeId}" runs a workflow on ${event}; a workflow can only be run by a button, a row click, a click on a chart or a form that is submitted`
       );
     }
-    Object.entries(action.inputs).forEach(([name, value]) => {
-      if (typeof value !== 'object') return;
-      if ('fromColumn' in value && !allowed.fromColumn) {
-        issue(
-          `Node "${nodeId}": the input "${name}" of the workflow takes a column, which only a row click has`
-        );
-      }
-      if ('fromState' in value && !(value.fromState in state)) {
-        issue(
-          `Node "${nodeId}": the input "${name}" of the workflow takes the unknown state key "${value.fromState}"`
-        );
-      }
+    Object.entries(action.inputs ?? {}).forEach(([name, text]) => {
+      checkText(text).forEach((problem) =>
+        issue(`Node "${nodeId}": the input "${name}" of the workflow ${problem}`)
+      );
     });
   },
 });
 
-const handler: ActionHandler<{ workflow: string; inputs: Record<string, unknown> }> = (
-  action,
-  { input, state, drop, request }
-) => {
+const workflowId = ({ workflow }: { workflow: string | { id: string } }): string =>
+  typeof workflow === 'string' ? workflow : workflow.id;
+
+const handler: ActionHandler<{
+  workflow: string | { id: string };
+  inputs?: Record<string, string>;
+}> = (action, { input, state, drop, request }) => {
+  const workflow = workflowId(action);
   const inputs: Record<string, unknown> = {};
-  const missing = Object.entries(action.inputs).find(([name, source]) => {
-    let resolved: unknown;
-    if (typeof source !== 'object' || source === null) {
-      resolved = source;
-    } else if ('fromColumn' in source) {
-      const column = (source as { fromColumn: string }).fromColumn;
-      if (!input.row || !(column in input.row)) {
-        drop(`Column "${column}" is not in the row`);
-        return true;
-      }
-      resolved = input.row[column];
-    } else {
-      resolved = state[(source as { fromState: string }).fromState];
+  const missing = Object.entries(action.inputs ?? {}).find(([name, text]) => {
+    const column = findReferences(text).find(
+      ({ scope, key }) => scope === 'row' && !(input.row && key in input.row)
+    );
+    if (column) {
+      drop(`Column "${column.key}" is not in the row`);
+      return true;
     }
+    const resolved = resolveText(text, { state, row: input.row });
     const isPlain = (value: unknown) =>
       value === null || ['string', 'boolean', 'number'].includes(typeof value);
     if (!isPlain(resolved) && !(Array.isArray(resolved) && resolved.every(isPlain))) {
-      drop(`The input "${name}" of "${action.workflow}" is not a plain value`);
+      drop(`The input "${name}" of "${workflow}" is not a plain value`);
       return true;
     }
     inputs[name] = resolved;
     return false;
   });
-  if (!missing) request({ workflow: action.workflow, inputs });
+  if (!missing) request({ workflow, inputs });
 };
 
 /** What the tests set, and read, in place of the real dialog and the Workflows API. */
@@ -108,12 +92,13 @@ export const mockWorkflowRunner: {
 
 const ids = (actions: readonly Action[]): string[] =>
   actions.flatMap((action) => {
-    const { workflow } = action as { workflow?: string };
-    return typeof workflow === 'string' ? [workflow] : [];
+    const { workflow } = action as { workflow?: string | { id: string } };
+    return workflow === undefined ? [] : [workflowId({ workflow })];
   });
 
 const api: ActionUiApi = {
-  request: (payloads, nodeId) => mockWorkflowRunner.request(payloads, nodeId),
+  request: (payloads, nodeId) =>
+    Promise.resolve(mockWorkflowRunner.request(payloads, nodeId) !== false),
   watch: (actions) => {
     if (mockWorkflowRunner.availability.canRun) mockWorkflowRunner.track(ids(actions));
   },

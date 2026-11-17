@@ -15,14 +15,20 @@ import {
   type AppNodeType,
   type ContainerNode,
 } from '@kbn/custom-app-registry';
-import { CUSTOM_APP_STATE_VERSION } from './constants';
-import { bindable, stateKeySchema, themeAccentSchema, themeShapeSchema } from './bindings';
-import { actionSchema, stateDeclarationSchema } from './action_schemas';
+import {
+  CUSTOM_APP_STATE_VERSION,
+  MAX_APP_DESCRIPTION_LENGTH,
+  MAX_APP_TITLE_LENGTH,
+  MAX_CHILDREN_PER_NODE,
+} from './constants';
+import { stateKeySchema } from './bindings';
+import { actionSchema, stateDefaultSchema } from './action_schemas';
 import type { casesSourceSchema } from './data_fields';
 import type { formFieldSchema } from './input_schemas';
+import type { StateValue } from './interpolation';
 import { validateDocument } from './validate_document';
 
-export { stateKeySchema, actionSchema, stateDeclarationSchema, nodeSchema, getNodeSchemas };
+export { stateKeySchema, actionSchema, nodeSchema, getNodeSchemas };
 export type { AppNode, AppNodeOfType, AppNodeType, ContainerNode };
 export type { Action, ActionList } from '@kbn/custom-app-registry';
 export type FormField = z.output<typeof formFieldSchema>;
@@ -31,35 +37,50 @@ export type CasesSource = z.output<typeof casesSourceSchema>;
 export type DataSource = { type: 'esql'; query: string } | CasesSource;
 
 /**
- * How a page looks, as a choice from a short list and not as colours and sizes to set. It changes
- * every component at once: the accent is the colour of what can be pressed and followed, and the
- * shape is how round the corners are. A page with none looks as Kibana does.
- */
-export const themeSchema = lazySchema(() =>
-  z.object({
-    accent: bindable(themeAccentSchema),
-    shape: bindable(themeShapeSchema),
-  })
-);
-
-export type StateDeclaration = z.output<typeof stateDeclarationSchema>;
-export type AppTheme = z.output<typeof themeSchema>;
-
-/**
  * An app. It is written out, and not worked out from the schema, so that the nodes stay the ones
  * that are registered where the type is used: a package that registers none cannot know them.
  */
 export interface AppDocument {
-  state: Record<string, StateDeclaration>;
-  root: AppNode;
-  theme?: AppTheme;
+  title: string;
+  description?: string;
+  /** Whether the app is offered in the navigation of Kibana. */
+  showInNav?: boolean;
+  /** The EUI icon of the app, such as `users`. */
+  icon?: string;
+  /** On its own page, `page` centers the app at the width of a page rather than the whole width. */
+  width?: 'page';
+  /** The values of the app, each by its default, whose type is the type of the value. */
+  state: Record<string, StateValue>;
+  /** What the app shows, in order. */
+  body: AppNode[];
 }
 
 export const appDocumentShapeSchema: z.ZodType<AppDocument, unknown> = lazySchema(() =>
   z.object({
-    state: z.record(stateKeySchema, stateDeclarationSchema).default({}),
-    root: nodeSchema,
-    theme: themeSchema.optional(),
+    title: z.string().min(1).max(MAX_APP_TITLE_LENGTH).describe('The name of the app.'),
+    description: z
+      .string()
+      .max(MAX_APP_DESCRIPTION_LENGTH)
+      .optional()
+      .describe('What the app is for.'),
+    showInNav: z.boolean().optional().describe('Whether Kibana lists the app in its navigation.'),
+    icon: z.string().min(1).max(64).optional().describe('An EUI icon, such as "users".'),
+    width: z
+      .literal('page')
+      .optional()
+      .describe(
+        '"page" centers the app on its page at the width of a page. Left out, it is as wide as the page.'
+      ),
+    state: z
+      .record(stateKeySchema, stateDefaultSchema)
+      .default({})
+      .describe(
+        'The values of the app by name, each given as its default: a text, a number, a boolean or a list of texts.'
+      ),
+    body: z
+      .array(nodeSchema)
+      .max(MAX_CHILDREN_PER_NODE)
+      .describe('The components of the app, in order.'),
   })
 );
 

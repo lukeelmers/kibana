@@ -80,7 +80,7 @@ export const getSaveAsAppAction = (): ActionDefinition<EmbeddableApiContext> => 
       const state = customContentStateSchema.parse(embeddable.serializeState());
       const { id } = await core.http.post<{ id: string }>(SAVED_APPS_API_PATH, {
         version: SAVED_APPS_API_VERSION,
-        body: JSON.stringify({ title, document: customContentToDocument(state) }),
+        body: JSON.stringify(customContentToDocument(state, title)),
       });
 
       toasts.addSuccess({

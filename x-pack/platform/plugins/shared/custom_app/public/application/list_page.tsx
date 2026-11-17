@@ -102,7 +102,7 @@ export const ListPage = ({ client, chrome, notifications, canSave, agentBuilder 
         })
       ).slice(0, MAX_APP_TITLE_LENGTH);
       try {
-        const { id } = await client.create({ title: name, document });
+        const { id } = await client.create({ ...document, title: name });
         notifications.toasts.addSuccess(
           i18n.translate('xpack.customApp.standalone.madeInChat', {
             defaultMessage: 'The app "{title}" was created',

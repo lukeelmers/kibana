@@ -6,7 +6,7 @@
  */
 
 import type { SavedObjectsModelVersionMap } from '@kbn/core-saved-objects-server';
-import { customAppAttributesSchemaV1 } from './schemas';
+import { customAppAttributesSchemaV1, customAppAttributesSchemaV2 } from './schemas';
 
 export const customAppModelVersions: SavedObjectsModelVersionMap = {
   '1': {
@@ -14,6 +14,15 @@ export const customAppModelVersions: SavedObjectsModelVersionMap = {
     schemas: {
       forwardCompatibility: customAppAttributesSchemaV1.extends({}, { unknowns: 'ignore' }),
       create: customAppAttributesSchemaV1,
+    },
+  },
+  // The app is stored as it is written. Apps of version 1 are read as they are, without a
+  // migration: they were demo data, which is installed again.
+  '2': {
+    changes: [],
+    schemas: {
+      forwardCompatibility: customAppAttributesSchemaV2.extends({}, { unknowns: 'ignore' }),
+      create: customAppAttributesSchemaV2,
     },
   },
 };

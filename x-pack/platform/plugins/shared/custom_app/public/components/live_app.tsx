@@ -68,7 +68,7 @@ export const LiveApp = ({ document, appId, view, onViewChange }: LiveAppProps) =
       runCases: createRunCases({ http: core.http }),
       getParameterNames: (query) => getESQLQueryVariables(query),
     });
-    layer.setSources(collectSources(document.root));
+    layer.setSources(collectSources(document.body));
     const appRuntime = createAppRuntime(document);
     if (viewRef.current) appRuntime.restoreView(viewRef.current, getViewKeys(document));
     // Emits the defaults straight away, then every change made in the card.
@@ -123,8 +123,8 @@ export const LiveApp = ({ document, appId, view, onViewChange }: LiveAppProps) =
           <TimeRangeControlContext.Provider value={timeRangeControl}>
             <DataLayerContext.Provider value={dataLayer}>
               <ActionUiProviders appId={appId}>
-                <AppFrame theme={document.theme}>
-                  <AppBody root={document.root} />
+                <AppFrame>
+                  <AppBody body={document.body} />
                 </AppFrame>
               </ActionUiProviders>
             </DataLayerContext.Provider>

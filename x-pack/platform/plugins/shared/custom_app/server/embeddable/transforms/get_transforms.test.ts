@@ -9,7 +9,11 @@ import { CUSTOM_APP_STATE_VERSION } from '@kbn/custom-app-common';
 import type { CustomAppEmbeddableState } from '../schemas';
 import { CUSTOM_APP_SAVED_OBJECT_REF_NAME, getTransforms } from './get_transforms';
 
-const document = { state: {}, root: { type: 'header' as const, id: 'title', text: 'Hi' } };
+const document = {
+  title: 'App',
+  state: {},
+  body: [{ type: 'header' as const, id: 'title', text: 'Hi' }],
+};
 const byValue = { version: CUSTOM_APP_STATE_VERSION, document } as CustomAppEmbeddableState;
 
 describe('the custom app transforms', () => {

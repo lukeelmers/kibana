@@ -83,9 +83,9 @@ export const AppCard = ({ document, canSave, title, registerActionButtons }: App
       setIsSavingApp(true);
       try {
         const saved = await createSavedAppsClient(core.http).create({
+          ...document,
           title: appTitle,
           description,
-          document,
         });
         setSavedApp({ id: saved.id, title: saved.title });
         setIsNamingApp(false);

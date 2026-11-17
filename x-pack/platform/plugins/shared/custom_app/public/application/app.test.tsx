@@ -72,9 +72,15 @@ jest.mock('@kbn/presentation-util-plugin/public', () => ({
   ),
 }));
 jest.mock('../components/live_app', () => ({
-  LiveApp: ({ document, appId }: { document: { root: { id: string } }; appId?: string }) => (
+  LiveApp: ({
+    document,
+    appId,
+  }: {
+    document: { body: Array<{ id?: string }> };
+    appId?: string;
+  }) => (
     <div data-test-subj="liveApp" data-app-id={appId}>
-      {document.root.id}
+      {document.body[0]?.id}
     </div>
   ),
 }));
@@ -82,8 +88,8 @@ const savedApp = (overrides: Partial<SavedApp> = {}): SavedApp => ({
   id: 'app-1',
   title: 'Service explorer',
   description: 'Filters and a table',
-  version: 1,
-  document: { state: {}, root: { type: 'header', id: 'title', text: 'Hi' } },
+  state: {},
+  body: [{ type: 'header', id: 'title', text: 'Hi' }],
   updatedAt: '2026-10-16T10:00:00.000Z',
   ...overrides,
 });
@@ -128,9 +134,13 @@ const makeAgentBuilder = () => {
 };
 
 const madeByTheAgent = {
+  title: 'Made',
   state: {},
-  root: { type: 'markdown', id: 'agent-made', text: 'From the agent' },
+  body: [{ type: 'markdown', id: 'agent-made', text: 'From the agent' }],
 };
+
+/** The app a saved app is, without what the library adds. */
+const documentOf = ({ id, updatedAt, ...document }: SavedApp) => document;
 
 const makeClient = () =>
   ({
@@ -166,8 +176,9 @@ const applyAgentDraft = async () => {
   const { attachments } = lastAgent!.openChat.mock.calls.at(-1)![0];
   await act(async () =>
     lastAgent!.answer(attachments[0].id, {
+      title: 'Edited',
       state: {},
-      root: { type: 'markdown', id: 'edited', text: 'x' },
+      body: [{ type: 'markdown', id: 'edited', text: 'x' }],
     })
   );
   // What was pressed to ask may have left the menu open.
@@ -335,7 +346,7 @@ describe('the custom apps page', () => {
         const attachment = attachedTo(agent);
         expect(attachment.type).toBe('platform.custom_app.app_context');
         expect(attachment.data).toMatchObject({
-          document: { root: { type: 'section', title: 'New app', children: [] } },
+          document: { title: 'New app', body: [] },
         });
         // A page has no panel: it is told apart by the id of its attachment.
         expect(attachment.data).not.toHaveProperty('embeddable_id');
@@ -370,9 +381,7 @@ describe('the custom apps page', () => {
         await waitFor(() => expect(history.location.pathname).toBe('/view/new-1'));
         expect(client.create).toHaveBeenCalledWith(
           expect.objectContaining({
-            document: expect.objectContaining({
-              root: expect.objectContaining({ id: 'agent-made' }),
-            }),
+            body: [expect.objectContaining({ id: 'agent-made' })],
           })
         );
       });
@@ -394,7 +403,11 @@ describe('the custom apps page', () => {
         await userEvent.click(await screen.findByTestId('customAppEmptyDescribe'));
 
         await act(async () =>
-          agent.answer(attachedTo(agent).id, { state: {}, root: { type: 'carousel', id: 'x' } })
+          agent.answer(attachedTo(agent).id, {
+            title: 'x',
+            state: {},
+            body: [{ type: 'carousel' }],
+          })
         );
 
         expect(screen.getByText('Build your app')).toBeInTheDocument();
@@ -411,7 +424,7 @@ describe('the custom apps page', () => {
           expect.objectContaining({ initialMessage: 'Change this app so that ' })
         );
         expect(
-          agent.openChat.mock.calls.at(-1)![0].attachments[0].data.document.root
+          agent.openChat.mock.calls.at(-1)![0].attachments[0].data.document.body[0]
         ).toMatchObject({
           id: 'edited',
         });
@@ -457,7 +470,7 @@ describe('the custom apps page', () => {
       expect(client.create).toHaveBeenCalledWith(
         expect.objectContaining({
           title: 'Fresh',
-          document: expect.objectContaining({ root: expect.objectContaining({ id: 'edited' }) }),
+          body: [expect.objectContaining({ id: 'edited' })],
         })
       );
       // Replaced, so that going back does not return to a new app.
@@ -581,7 +594,7 @@ describe('the custom apps page', () => {
           initialMessage: 'Change this app so that ',
         })
       );
-      expect(attachedTo(agent).data.document.root).toMatchObject({ id: 'title' });
+      expect(attachedTo(agent).data.document.body[0]).toMatchObject({ id: 'title' });
     });
 
     it('shows what the agent makes as a change that is not saved, which Save then saves', async () => {
@@ -601,9 +614,7 @@ describe('the custom apps page', () => {
         expect(client.update).toHaveBeenCalledWith(
           'app-1',
           expect.objectContaining({
-            document: expect.objectContaining({
-              root: expect.objectContaining({ id: 'agent-made' }),
-            }),
+            body: [expect.objectContaining({ id: 'agent-made' })],
           })
         )
       );
@@ -615,7 +626,7 @@ describe('the custom apps page', () => {
       await screen.findByTestId('liveApp');
       await userEvent.click(await findMenuItem('customAppRefineWithAi'));
 
-      await act(async () => agent.answer(attachedTo(agent).id, savedApp().document));
+      await act(async () => agent.answer(attachedTo(agent).id, documentOf(savedApp())));
 
       expect(screen.queryByText('Unsaved')).not.toBeInTheDocument();
     });
@@ -625,15 +636,7 @@ describe('the custom apps page', () => {
       setup({
         path: '/view/app-1',
         agentBuilder: agent,
-        prepare: (client) =>
-          client.get.mockResolvedValue(
-            savedApp({
-              document: {
-                state: {},
-                root: { type: 'section', title: 'App', id: 'root', children: [] },
-              },
-            })
-          ),
+        prepare: (client) => client.get.mockResolvedValue(savedApp({ body: [] })),
       });
       await userEvent.click(await screen.findByTestId('customAppEmptyDescribe'));
 
@@ -706,15 +709,7 @@ describe('the custom apps page', () => {
     it('is not offered for an app that is empty, which would add a blank panel', async () => {
       setup({
         path: '/view/app-1',
-        prepare: (client) =>
-          client.get.mockResolvedValue(
-            savedApp({
-              document: {
-                state: {},
-                root: { type: 'section', title: 'App', id: 'root', children: [] },
-              },
-            })
-          ),
+        prepare: (client) => client.get.mockResolvedValue(savedApp({ body: [] })),
       });
       await screen.findByText('Build your app');
 
@@ -806,7 +801,7 @@ describe('the custom apps page', () => {
           'app-1',
           expect.objectContaining({
             title: 'Service explorer',
-            document: expect.objectContaining({ root: expect.objectContaining({ id: 'edited' }) }),
+            body: [expect.objectContaining({ id: 'edited' })],
           })
         )
       );
@@ -881,7 +876,7 @@ describe('the custom apps page', () => {
             'app-1',
             expect.objectContaining({
               title: 'Renamed',
-              document: expect.objectContaining({ root: expect.objectContaining({ id: 'title' }) }),
+              body: [expect.objectContaining({ id: 'title' })],
             })
           )
         );
@@ -897,8 +892,8 @@ describe('the custom apps page', () => {
 
         await waitFor(() => expect(client.update).toHaveBeenCalledTimes(1));
         // The draft is not what is saved, and it is still there to be saved.
-        expect(client.update.mock.calls[0][1].document).toEqual(
-          (await client.get.mock.results[0].value).document
+        expect(client.update.mock.calls[0][1].body).toEqual(
+          (await client.get.mock.results[0].value).body
         );
         expect(screen.getByTestId('customAppSave')).toBeInTheDocument();
       });
@@ -951,9 +946,7 @@ describe('the custom apps page', () => {
       setup({
         path: '/view/app-1',
         prepare: (client) =>
-          client.get.mockResolvedValue(
-            savedApp({ document: { state: {}, root: { type: 'carousel', id: 'x' } } })
-          ),
+          client.get.mockResolvedValue(savedApp({ body: [{ type: 'carousel' }] })),
       });
 
       expect(await screen.findByText('This app cannot be shown')).toBeInTheDocument();
@@ -961,12 +954,7 @@ describe('the custom apps page', () => {
     });
 
     describe('that is empty', () => {
-      const empty = savedApp({
-        document: {
-          state: {},
-          root: { type: 'section', title: 'App', id: 'root', children: [] },
-        },
-      });
+      const empty = savedApp({ body: [] });
 
       it('shows the empty state, with ways to begin, to those who may edit', async () => {
         setup({ path: '/view/app-1', prepare: (client) => client.get.mockResolvedValue(empty) });

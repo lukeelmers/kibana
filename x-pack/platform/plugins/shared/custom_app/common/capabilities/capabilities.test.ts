@@ -19,8 +19,9 @@ import {
 } from '@kbn/custom-app-registry';
 
 const documentWith = (node: Record<string, unknown>) => ({
+  title: 'App',
   state: {},
-  root: { type: 'section', id: 'root', title: 'App', children: [node] },
+  body: [node],
 });
 
 describe('capabilities', () => {
@@ -69,7 +70,7 @@ describe('capabilities', () => {
       query: 'FROM logs-* | STATS n = COUNT(*)',
     };
     const parsed = appDocumentSchema.parse(documentWith(stat));
-    expect(collectSources(parsed.root)).toEqual({
+    expect(collectSources(parsed.body)).toEqual({
       errors: { type: 'esql', query: 'FROM logs-* | STATS n = COUNT(*)' },
     });
     expect(appDocumentSchema.safeParse(documentWith({ ...stat, query: undefined })).success).toBe(
@@ -94,7 +95,6 @@ describe('capabilities', () => {
     await jest.isolateModulesAsync(async () => {
       const { z: zod } = await import('@kbn/zod/v4');
       const registry = await import('@kbn/custom-app-registry');
-      (await import('./manifests')).registerBuiltinCapabilities();
       registry.registerCapability(
         registry.defineCapability({
           kind: 'component',

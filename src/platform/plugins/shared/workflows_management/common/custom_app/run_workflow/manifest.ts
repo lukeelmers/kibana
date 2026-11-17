@@ -8,27 +8,16 @@
  */
 
 import {
-  MAX_HEADING_LENGTH,
+  MAX_STATE_STRING_LENGTH,
   MAX_WORKFLOW_ID_LENGTH,
   MAX_WORKFLOW_INPUT_NAME_LENGTH,
   MAX_WORKFLOW_INPUTS,
-  stateKeySchema,
-  stateValueSchema,
 } from '@kbn/custom-app-common';
 import { type ActionOf, defineAction } from '@kbn/custom-app-registry';
 import { lazySchema, z } from '@kbn/zod/v4';
 
-/**
- * Where an action may run a workflow: when something is pressed or a row is clicked, never when an
- * input changes, which is every key that is typed and would start a workflow for each.
- */
 const WORKFLOW_EVENTS: readonly string[] = ['onClick', 'onRowClick', 'onChartClick', 'onSubmit'];
 
-/**
- * Runs a Workflow, as the person who triggered it, so it needs no more privilege than they have.
- * What it hands over is a closed set: a fixed value, a column of the row that was clicked, or a
- * value of the app. They travel as typed values and are never put together into text.
- */
 export const runWorkflowAction = defineAction({
   kind: 'action',
   id: 'workflow',
@@ -36,25 +25,24 @@ export const runWorkflowAction = defineAction({
   props: lazySchema(() =>
     z.object({
       workflow: z
-        .string()
-        .min(1)
-        .max(MAX_WORKFLOW_ID_LENGTH)
-        .describe('The id of the workflow, as the Workflows application knows it.'),
+        .union([
+          z.string().min(1).max(MAX_WORKFLOW_ID_LENGTH),
+          z.object({ id: z.string().min(1).max(MAX_WORKFLOW_ID_LENGTH) }).strict(),
+        ])
+        .describe(
+          'The workflow: "<name>" for one of the package of the app, "<package>:<name>" for one of another package, or { "id": "<id>" } for one the Workflows application has.'
+        ),
       inputs: z
         .record(
           z.string().min(1).max(MAX_WORKFLOW_INPUT_NAME_LENGTH),
-          z.union([
-            stateValueSchema,
-            z.object({ fromColumn: z.string().min(1).max(MAX_HEADING_LENGTH) }),
-            z.object({ fromState: stateKeySchema }),
-          ])
+          z.string().max(MAX_STATE_STRING_LENGTH)
         )
         .refine((inputs) => Object.keys(inputs).length <= MAX_WORKFLOW_INPUTS, {
           message: `An action may hand at most ${MAX_WORKFLOW_INPUTS} inputs to a workflow`,
         })
-        .default({})
+        .optional()
         .describe(
-          'What to hand to the workflow, by the name of each input: a fixed value, a column of the row that was clicked, or a value of the app.'
+          'What to hand to the workflow, by the name of each input: a text that may use {{row.<column>}} and {{state.<key>}}. A text that is one reference hands that value as it is. Left out on a form, the answers of the form, by name.'
         ),
     })
   ),
@@ -64,31 +52,27 @@ export const runWorkflowAction = defineAction({
     whenToUse:
       'To do something that changes things: create a case, acknowledge an alert, send a message.',
     example: {
-      workflow: 'notify-on-call',
-      inputs: { service: { fromColumn: 'service' } },
+      workflow: { id: 'notify-on-call' },
+      inputs: { service: '{{row.service}}' },
     },
   },
-  validate: (action, { nodeId, event, allowed, state, issue }) => {
+  validate: (action, { nodeId, event, checkText, issue }) => {
     if (!WORKFLOW_EVENTS.includes(event)) {
       issue(
         `Node "${nodeId}" runs a workflow on ${event}; a workflow can only be run by a button, a row click, a click on a chart or a form that is submitted`
       );
     }
-    Object.entries(action.inputs).forEach(([name, value]) => {
-      if (typeof value !== 'object') return;
-      if ('fromColumn' in value && !allowed.fromColumn) {
-        issue(
-          `Node "${nodeId}": the input "${name}" of the workflow takes a column, which only a row click has`
-        );
-      }
-      if ('fromState' in value && !(value.fromState in state)) {
-        issue(
-          `Node "${nodeId}": the input "${name}" of the workflow takes the unknown state key "${value.fromState}"`
-        );
-      }
+    Object.entries(action.inputs ?? {}).forEach(([name, text]) => {
+      checkText(text).forEach((problem) =>
+        issue(`Node "${nodeId}": the input "${name}" of the workflow ${problem}`)
+      );
     });
   },
 });
+
+/** The id a reference to a workflow names. A name is taken as the id until names are resolved. */
+export const getWorkflowId = ({ workflow }: { workflow: string | { id: string } }): string =>
+  typeof workflow === 'string' ? workflow : workflow.id;
 
 declare module '@kbn/custom-app-registry' {
   interface ActionTypeMap {

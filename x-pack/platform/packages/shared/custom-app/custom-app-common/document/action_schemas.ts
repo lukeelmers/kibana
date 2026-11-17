@@ -19,15 +19,11 @@ export const listValueSchema = lazySchema(() =>
   z.array(z.string().max(MAX_STATE_STRING_LENGTH)).max(MAX_LIST_ITEMS)
 );
 
-/** Every state key needs a default so a query that uses it always has a value. */
-export const stateDeclarationSchema = lazySchema(() =>
-  z.discriminatedUnion('type', [
-    z.object({ type: z.literal('string'), default: z.string().max(MAX_STATE_STRING_LENGTH) }),
-    z.object({ type: z.literal('number'), default: z.number().finite() }),
-    z.object({ type: z.literal('boolean'), default: z.boolean() }),
-    z.object({ type: z.literal('list'), default: listValueSchema }),
-  ])
-);
+/**
+ * A value of the app, declared by its default, so that a query that uses it always has a value. Its
+ * type is that of the default: a text, a number, a boolean, or a list of texts.
+ */
+export const stateDefaultSchema = lazySchema(() => z.union([stateValueSchema, listValueSchema]));
 
 export { actionSchema };
 

@@ -112,10 +112,7 @@ describe('by-value panel type registry', () => {
 });
 
 describe('custom app panels', () => {
-  const document = {
-    state: {},
-    root: { type: 'heading', id: 'title', text: 'Hello' },
-  };
+  const document = { title: 'Hello', state: {}, body: [] };
   const content = { source: 'config' as const, type: 'custom_app' as const, config: { document } };
 
   it('accepts an app by value, to create a panel or to replace the app of one', () => {
@@ -128,8 +125,9 @@ describe('custom app panels', () => {
 
   it('refuses an app that is not valid, such as one whose custom content has no template yet', () => {
     const unwritten = {
+      title: 'Board',
       state: {},
-      root: { type: 'custom_content', id: 'board', prompt: 'A status board' },
+      body: [{ type: 'custom_content', id: 'board', prompt: 'A status board' }],
     };
 
     expect(

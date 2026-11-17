@@ -6,4 +6,4 @@
  */
 
 export { customAppSavedObjectType } from './custom_app';
-export { customAppAttributesSchemaV1 } from './schemas';
+export { customAppAttributesSchemaV1, customAppAttributesSchemaV2 } from './schemas';

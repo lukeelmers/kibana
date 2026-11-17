@@ -16,7 +16,8 @@ jest.mock('../services', () => ({ getServices: () => ({ core: { name: 'core' } }
 jest.mock('@kbn/presentation-util', () => ({ openLazyFlyout: jest.fn() }));
 
 const document: AppDocument = appDocumentSchema.parse({
-  root: { type: 'header', id: 'title', text: 'Service health' },
+  title: 'Service health',
+  body: [{ type: 'header', text: 'Service health' }],
 });
 
 const panel = (extra: Record<string, unknown> = {}) => ({
@@ -90,7 +91,7 @@ describe('the View source panel action', () => {
       render(element);
 
       expect(screen.getByText(/"text": "Service health"/)).toBeInTheDocument();
-      expect(screen.getByText(/"id": "title"/)).toBeInTheDocument();
+      expect(screen.getByText(/"type": "header"/)).toBeInTheDocument();
     });
 
     it('says whose it is, and that it cannot be edited', async () => {
@@ -116,7 +117,8 @@ describe('the View source panel action', () => {
       const action = getViewSourceAction();
       await action.execute({ embeddable: live } as never);
       current = appDocumentSchema.parse({
-        root: { type: 'header', id: 'title', text: 'Edited since' },
+        title: 'Service health',
+        body: [{ type: 'header', text: 'Edited since' }],
       });
 
       const { loadContent } = (openLazyFlyout as jest.Mock).mock.calls[0][0];

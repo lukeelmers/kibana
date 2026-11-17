@@ -11,6 +11,8 @@ export {
   CUSTOM_APP_STATE_VERSION,
   SAVED_APPS_API_PATH,
   SAVED_APPS_API_VERSION,
+  MAX_APP_DESCRIPTION_LENGTH,
+  MAX_APP_TITLE_LENGTH,
   CASES_FILTERS,
   CASES_SEVERITIES,
   CASES_SORT_FIELDS,
@@ -48,7 +50,6 @@ export {
   resolveBoundValue,
   stateRef,
   stateRefSchema,
-  THEME_BOUND_PROPS,
   type StateRef,
   type VisibleWhen,
 } from './document/bindings';
@@ -59,7 +60,6 @@ export {
   customAppStateSchema,
   isContainerNode,
   nodeSchema,
-  stateDeclarationSchema,
   stateKeySchema,
   type Action,
   type ActionList,
@@ -70,15 +70,15 @@ export {
   type ContainerNode,
   type DataSource,
   type AppNodeType,
-  type AppTheme,
   type FormField,
-  type StateDeclaration,
   type CustomAppState,
 } from './document/document_schema';
 export {
-  findStateReferences,
+  findReferences,
   hasMalformedReference,
   interpolate,
+  resolveText,
+  type InterpolationScopes,
   type StateValue,
 } from './document/interpolation';
 export {
@@ -94,9 +94,11 @@ export {
   getNodeChildren,
   getNodeQuery,
   isEmptyDocument,
+  withNodeIds,
+  type IdentifiedNode,
 } from './document/node_tree';
 export { DATA_PROPS, fillDataProps } from './document/data_props';
-export { getStateDefaults } from './document/state_defaults';
+export { getStateDefaults, getStateType, type StateType } from './document/state_defaults';
 export { getDocumentIssues, type DocumentIssue } from './document/document_issues';
 
 export { actionsSchema, listValueSchema, stateValueSchema } from './document/action_schemas';

@@ -5,11 +5,7 @@
  * 2.0.
  */
 
-import {
-  appDocumentSchema,
-  appDocumentShapeSchema,
-  customAppStateSchema,
-} from '@kbn/custom-app-common';
+import { appDocumentSchema, customAppStateSchema } from '@kbn/custom-app-common';
 import { collectQueries, getNodeChildren } from '@kbn/custom-app-common';
 import {
   MAX_FORM_FIELDS,
@@ -25,20 +21,30 @@ const stackOf = (id: string, children: unknown[] = []) => ({
   children,
 });
 
+/** An app, with what it shows and its values. */
+const app = (body: unknown[], state: Record<string, unknown> = {}) => ({
+  title: 'App',
+  state,
+  body,
+});
+
 const nestedStack = (depth: number): unknown =>
   depth === 1 ? stackOf('n1') : stackOf(`n${depth}`, [nestedStack(depth - 1)]);
 
 describe('appDocumentSchema', () => {
   it('parses a nested document and applies defaults', () => {
     const result = appDocumentSchema.parse({
-      root: stackOf('root', [
-        { type: 'header', id: 'title', text: 'Hello' },
-        { type: 'markdown', id: 'note', text: 'Heads up' },
-      ]),
+      title: 'App',
+      body: [
+        stackOf('root', [
+          { type: 'header', id: 'title', text: 'Hello' },
+          { type: 'markdown', id: 'note', text: 'Heads up' },
+        ]),
+      ],
     });
 
     expect(result.state).toEqual({});
-    expect(result.root).toEqual({
+    expect(result.body[0]).toEqual({
       type: 'section',
       title: 'App',
       id: 'root',
@@ -50,24 +56,24 @@ describe('appDocumentSchema', () => {
   });
 
   it('rejects an unknown node type', () => {
-    const result = appDocumentSchema.safeParse({ root: { type: 'sparkles', id: 'a' } });
+    const result = appDocumentSchema.safeParse(app([{ type: 'sparkles', id: 'a' }]));
     expect(result.success).toBe(false);
   });
 
   it('rejects an unknown node type nested in a stack', () => {
-    const result = appDocumentSchema.safeParse({
-      root: stackOf('root', [{ type: 'sparkles', id: 'a' }]),
-    });
+    const result = appDocumentSchema.safeParse(
+      app([stackOf('root', [{ type: 'sparkles', id: 'a' }])])
+    );
     expect(result.success).toBe(false);
   });
 
   it('rejects duplicate node ids', () => {
-    const result = appDocumentSchema.safeParse({
-      root: stackOf('root', [
+    const result = appDocumentSchema.safeParse(
+      app([
         { type: 'markdown', id: 'same', text: 'a' },
         { type: 'markdown', id: 'same', text: 'b' },
-      ]),
-    });
+      ])
+    );
     expect(result.success ? [] : result.error.issues.map(({ message }) => message)).toContain(
       'Duplicate node id "same"'
     );
@@ -75,16 +81,13 @@ describe('appDocumentSchema', () => {
 
   it('rejects ids with unsupported characters', () => {
     expect(
-      appDocumentSchema.safeParse({ root: { type: 'markdown', id: 'has space', text: 'a' } })
-        .success
+      appDocumentSchema.safeParse(app([{ type: 'markdown', id: 'has space', text: 'a' }])).success
     ).toBe(false);
   });
 
   it('accepts nesting at the depth limit and rejects one level beyond it', () => {
-    expect(appDocumentSchema.safeParse({ root: nestedStack(MAX_NODE_DEPTH) }).success).toBe(true);
-    expect(appDocumentSchema.safeParse({ root: nestedStack(MAX_NODE_DEPTH + 1) }).success).toBe(
-      false
-    );
+    expect(appDocumentSchema.safeParse(app([nestedStack(MAX_NODE_DEPTH)])).success).toBe(true);
+    expect(appDocumentSchema.safeParse(app([nestedStack(MAX_NODE_DEPTH + 1)])).success).toBe(false);
   });
 
   it('rejects a document over the node limit', () => {
@@ -98,7 +101,7 @@ describe('appDocumentSchema', () => {
       stackOf(`s${index}`, children.slice(index * 40, index * 40 + 40))
     );
 
-    const result = appDocumentSchema.safeParse({ root: stackOf('root', chunks) });
+    const result = appDocumentSchema.safeParse(app(chunks));
     expect(result.success ? [] : result.error.issues.map(({ message }) => message)).toEqual([
       `A document may hold at most ${MAX_NODE_COUNT} nodes`,
     ]);
@@ -106,10 +109,8 @@ describe('appDocumentSchema', () => {
 });
 
 describe('buttons and the workflows they run', () => {
-  const buttonDocument = (actions: unknown[], state: Record<string, unknown> = {}) => ({
-    state,
-    root: { type: 'button', id: 'go', label: 'Isolate host', onClick: actions },
-  });
+  const buttonDocument = (actions: unknown[], state: Record<string, unknown> = {}) =>
+    app([{ type: 'button', id: 'go', label: 'Isolate host', onClick: actions }], state);
   const run = (inputs: Record<string, unknown> = {}) => ({
     workflow: 'isolate-host',
     inputs,
@@ -118,28 +119,21 @@ describe('buttons and the workflows they run', () => {
     JSON.stringify(appDocumentSchema.safeParse(document).error?.issues ?? []);
 
   it('is a label and what happens when it is pressed, which is nothing until it is told', () => {
-    const result = appDocumentSchema.parse({
-      root: { type: 'button', id: 'go', label: 'Go' },
-    });
+    const result = appDocumentSchema.parse(app([{ type: 'button', id: 'go', label: 'Go' }]));
 
-    expect(result.root).toEqual({ type: 'button', id: 'go', label: 'Go', onClick: [] });
+    expect(result.body[0]).toEqual({ type: 'button', id: 'go', label: 'Go', onClick: [] });
   });
 
   it('needs something written on it', () => {
     expect(
-      appDocumentSchema.safeParse({ root: { type: 'button', id: 'go', label: '' } }).success
+      appDocumentSchema.safeParse(app([{ type: 'button', id: 'go', label: '' }])).success
     ).toBe(false);
-    expect(appDocumentSchema.safeParse({ root: { type: 'button', id: 'go' } }).success).toBe(false);
+    expect(appDocumentSchema.safeParse(app([{ type: 'button', id: 'go' }])).success).toBe(false);
   });
 
   it('runs a workflow by its id, handing it fixed values and values of the app', () => {
     const result = appDocumentSchema.safeParse(
-      buttonDocument(
-        [run({ reason: 'Suspicious', severity: 3, force: true, host: { fromState: 'host' } })],
-        {
-          host: { type: 'string', default: 'web-1' },
-        }
-      )
+      buttonDocument([run({ reason: 'Suspicious', host: '{{state.host}}' })], { host: 'web-1' })
     );
 
     expect(result.success).toBe(true);
@@ -149,31 +143,33 @@ describe('buttons and the workflows they run', () => {
     const parsed = appDocumentSchema.parse(buttonDocument([{ workflow: 'isolate-host' }]));
 
     expect(
-      (parsed.root as unknown as { onClick: Array<{ inputs: object }> }).onClick[0].inputs
-    ).toEqual({});
+      (parsed.body[0] as unknown as { onClick: Array<{ inputs?: object }> }).onClick[0].inputs
+    ).toBeUndefined();
   });
 
   it('can be run by a row click, with a column of the row that was clicked', () => {
-    const result = appDocumentSchema.safeParse({
-      root: {
-        type: 'table',
-        id: 'hosts',
-        query: 'FROM hosts',
-        onRowClick: [run({ host: { fromColumn: 'host.name' } })],
-      },
-    });
+    const result = appDocumentSchema.safeParse(
+      app([
+        {
+          type: 'table',
+          id: 'hosts',
+          query: 'FROM hosts',
+          onRowClick: [run({ host: '{{row.host.name}}' })],
+        },
+      ])
+    );
 
     expect(result.success).toBe(true);
   });
 
   it('is refused with a column when a button runs it, as no row was clicked', () => {
-    const text = issuesOf(buttonDocument([run({ host: { fromColumn: 'host.name' } })]));
+    const text = issuesOf(buttonDocument([run({ host: '{{row.host.name}}' })]));
 
-    expect(text).toContain('takes a column, which only a row click has');
+    expect(text).toContain('where there is no row');
   });
 
   it('is refused with a value of the app that does not exist, naming it', () => {
-    const text = issuesOf(buttonDocument([run({ host: { fromState: 'nope' } })]));
+    const text = issuesOf(buttonDocument([run({ host: '{{state.nope}}' })]));
 
     expect(text).toContain('unknown state key \\"nope\\"');
   });
@@ -201,7 +197,7 @@ describe('buttons and the workflows they run', () => {
   it('is not a query, so it has nothing to run when the app loads', () => {
     const parsed = appDocumentSchema.parse(buttonDocument([run()]));
 
-    expect(collectQueries(parsed.root)).toEqual({});
+    expect(collectQueries(parsed.body)).toEqual({});
   });
 });
 
@@ -209,24 +205,19 @@ describe('forms', () => {
   const reason = { name: 'reason', kind: 'text', label: 'Reason', required: true };
   const formDocument = (
     form: Record<string, unknown> = {},
-    state: Record<string, unknown> = { reason: { type: 'string', default: '' } }
-  ) => ({
-    state,
-    root: {
-      type: 'form',
-      id: 'escalate',
-      submitLabel: 'Escalate',
-      fields: [reason],
-      ...form,
-    },
-  });
+    state: Record<string, unknown> = { reason: '' }
+  ) =>
+    app(
+      [{ type: 'form', id: 'escalate', submitLabel: 'Escalate', fields: [reason], ...form }],
+      state
+    );
   const issuesOf = (document: unknown) =>
     JSON.stringify(appDocumentSchema.safeParse(document).error?.issues ?? []);
 
   it('is some fields and a label for submitting them, which does nothing until it is told', () => {
     const result = appDocumentSchema.parse(formDocument());
 
-    expect(result.root).toEqual({
+    expect(result.body[0]).toEqual({
       type: 'form',
       id: 'escalate',
       submitLabel: 'Escalate',
@@ -250,11 +241,7 @@ describe('forms', () => {
             },
           ],
         },
-        {
-          reason: { type: 'string', default: '' },
-          details: { type: 'string', default: '' },
-          urgency: { type: 'string', default: 'low' },
-        }
+        { reason: '', details: '', urgency: 'low' }
       )
     );
 
@@ -288,9 +275,7 @@ describe('forms', () => {
 
   it('puts each answer in a value of the app that exists and is text', () => {
     expect(issuesOf(formDocument({}, {}))).toContain('binds unknown state key \\"reason\\"');
-    expect(issuesOf(formDocument({}, { reason: { type: 'number', default: 1 } }))).toContain(
-      'an input needs a string key'
-    );
+    expect(issuesOf(formDocument({}, { reason: 1 }))).toContain('an input needs a string key');
   });
 
   it('does not put two answers in one value', () => {
@@ -322,7 +307,7 @@ describe('forms', () => {
         onSubmit: [
           {
             workflow: 'escalate',
-            inputs: { reason: { fromState: 'reason' } },
+            inputs: { reason: '{{state.reason}}' },
           },
         ],
       })
@@ -335,20 +320,16 @@ describe('forms', () => {
     expect(
       issuesOf(
         formDocument({
-          onSubmit: [{ workflow: 'escalate', inputs: { id: { fromColumn: 'id' } } }],
+          onSubmit: [{ workflow: 'escalate', inputs: { id: '{{row.id}}' } }],
         })
       )
-    ).toContain('takes a column');
+    ).toContain('where there is no row');
   });
 
   it('can set a value or open a flyout when it is submitted', () => {
-    const result = appDocumentSchema.safeParse({
-      state: { reason: { type: 'string', default: '' }, sent: { type: 'string', default: '' } },
-      root: {
-        type: 'section',
-        title: 'App',
-        id: 'root',
-        children: [
+    const result = appDocumentSchema.safeParse(
+      app(
+        [
           {
             type: 'form',
             id: 'escalate',
@@ -358,8 +339,9 @@ describe('forms', () => {
           },
           { type: 'flyout', id: 'thanks', title: 'Thanks', children: [] },
         ],
-      },
-    });
+        { reason: '', sent: '' }
+      )
+    );
 
     expect(result.success).toBe(true);
   });
@@ -375,104 +357,21 @@ describe('forms', () => {
   });
 });
 
-describe('the theme of a page', () => {
-  const themed = (theme: unknown) => ({
-    theme,
-    root: { type: 'markdown', id: 't', text: 'x' },
-  });
-
-  it('is optional, and a page without one has none', () => {
-    const result = appDocumentSchema.parse({ root: { type: 'markdown', id: 't', text: 'x' } });
-
-    expect(result.theme).toBeUndefined();
-  });
-
-  it('is an accent, a shape, both or neither, from the lists', () => {
-    expect(appDocumentSchema.parse(themed({ accent: 'purple' })).theme).toEqual({
-      accent: 'purple',
-    });
-    expect(appDocumentSchema.parse(themed({ shape: 'soft' })).theme).toEqual({ shape: 'soft' });
-    expect(appDocumentSchema.parse(themed({ accent: 'teal', shape: 'sharp' })).theme).toEqual({
-      accent: 'teal',
-      shape: 'sharp',
-    });
-    expect(appDocumentSchema.parse(themed({})).theme).toEqual({});
-  });
-
-  it.each([
-    ['a colour of its own', { accent: '#ff0000' }],
-    ['a colour name that is not offered', { accent: 'magenta' }],
-    ['a shape that is not offered', { shape: 'round' }],
-    ['a setting that does not exist', { font: 'serif' }],
-  ])('is not %s', (_what, theme) => {
-    const result = appDocumentSchema.safeParse(themed(theme));
-
-    // An unknown setting is ignored by the schema; the others are refused.
-    if ('font' in theme) {
-      expect((result.success && result.data.theme) || {}).toEqual({});
-    } else {
-      expect(result.success).toBe(false);
-    }
-  });
-
-  it('is kept by the shape of a document that an agent tool takes', () => {
-    expect(appDocumentShapeSchema.parse(themed({ accent: 'pink', shape: 'soft' })).theme).toEqual({
-      accent: 'pink',
-      shape: 'soft',
-    });
-  });
-});
-
-describe('a theme whose accent follows a value of the app', () => {
-  const followed = (state: Record<string, unknown>, theme: Record<string, unknown> = {}) => ({
-    state,
-    theme: { accent: { $state: 'look' }, ...theme },
-    root: { type: 'markdown', id: 't', text: 'x' },
-  });
-  const messagesOf = (document: unknown) => {
-    const result = appDocumentSchema.safeParse(document);
-    return result.success ? [] : result.error.issues.map(({ message }) => message);
-  };
-
-  it('is accepted when the key is a string whose default is an accent', () => {
-    expect(
-      appDocumentSchema.parse(followed({ look: { type: 'string', default: 'teal' } })).theme
-    ).toEqual({ accent: { $state: 'look' } });
-  });
-
-  it('is refused when the key does not exist', () => {
-    expect(messagesOf(followed({}))).toEqual([
-      'The theme reads "accent" from unknown state key "look"',
-    ]);
-  });
-
-  it('is refused when the key is not a string', () => {
-    expect(messagesOf(followed({ look: { type: 'number', default: 1 } }))[0]).toContain(
-      'it needs a string key'
-    );
-  });
-
-  it('is refused when the default is not an accent, so that the page never starts with none', () => {
-    expect(messagesOf(followed({ look: { type: 'string', default: 'magenta' } }))[0]).toContain(
-      'is not a value "accent" can have'
-    );
-  });
-});
-
 describe('queries and stat nodes', () => {
-  const statDocument = (overrides: Record<string, unknown> = {}) => ({
-    root: {
-      type: 'stat',
-      id: 'active',
-      title: 'Active users',
-      query: 'ROW active = 1284',
-      ...overrides,
-    },
-  });
+  const statDocument = (overrides: Record<string, unknown> = {}) =>
+    app([
+      {
+        type: 'stat',
+        id: 'active',
+        title: 'Active users',
+        query: 'ROW active = 1284',
+        ...overrides,
+      },
+    ]);
 
   it('parses a stat with its own query', () => {
     const result = appDocumentSchema.parse(statDocument());
-    expect(result.root).toEqual({
+    expect(result.body[0]).toEqual({
       type: 'stat',
       id: 'active',
       title: 'Active users',
@@ -491,25 +390,27 @@ describe('queries and stat nodes', () => {
   });
 
   it('gives every data component its own query, in a stack too', () => {
-    const result = appDocumentSchema.safeParse({
-      root: stackOf('root', [
-        { type: 'stat', id: 's', title: 't', query: 'ROW a = 1' },
-        { type: 'table', id: 'table', query: 'ROW b = 2' },
-        { type: 'fields', id: 'facts', query: 'ROW c = 3' },
-      ]),
-    });
+    const result = appDocumentSchema.safeParse(
+      app([
+        stackOf('root', [
+          { type: 'stat', id: 's', title: 't', query: 'ROW a = 1' },
+          { type: 'table', id: 'table', query: 'ROW b = 2' },
+          { type: 'fields', id: 'facts', query: 'ROW c = 3' },
+        ]),
+      ])
+    );
     expect(result.success).toBe(true);
   });
 
   it('reports structural issues first, then reference issues in document order', () => {
     expect(
-      issuesOf({
-        root: stackOf('root', [
+      issuesOf(
+        app([
           { type: 'markdown', id: 'dup', text: 'a' },
           { type: 'select', id: 'find', label: 'Find', bind: 'nope', options: [{ value: 'a' }] },
           { type: 'markdown', id: 'dup', text: 'b' },
-        ]),
-      })
+        ])
+      )
     ).toEqual(['Duplicate node id "dup"', 'Node "find" binds unknown state key "nope"']);
   });
 });
@@ -519,57 +420,44 @@ const issuesOf = (input: unknown): string[] => {
   return result.success ? [] : result.error.issues.map(({ message }) => message);
 };
 
-describe('state declarations', () => {
-  const withState = (state: unknown) => ({
-    state,
-    root: { type: 'markdown', id: 'a', text: 'hi' },
-  });
+describe('state', () => {
+  const withState = (state: Record<string, unknown>) =>
+    app([{ type: 'markdown', id: 'a', text: 'hi' }], state);
 
-  it('parses typed state with defaults', () => {
+  it('parses values by their defaults', () => {
     const result = appDocumentSchema.parse(
-      withState({
-        service: { type: 'string', default: 'checkout' },
-        limit: { type: 'number', default: 10 },
-        compact: { type: 'boolean', default: false },
-      })
+      withState({ service: 'checkout', limit: 10, compact: false, users: [] })
     );
-    expect(result.state.limit).toEqual({ type: 'number', default: 10 });
+    expect(result.state.limit).toEqual(10);
   });
 
-  it('requires a default that matches the declared type', () => {
-    expect(issuesOf(withState({ a: { type: 'number', default: 'ten' } }))).not.toEqual([]);
+  it('requires a default that is a value', () => {
     expect(issuesOf(withState({ a: { type: 'string' } }))).not.toEqual([]);
-    expect(issuesOf(withState({ a: { type: 'number', default: Infinity } }))).not.toEqual([]);
+    expect(issuesOf(withState({ a: Infinity }))).not.toEqual([]);
   });
 
   it.each(['1abc', 'has space', 'a-b', 'a.b', '', 'x'.repeat(65)])(
     'rejects %p as a state key, since it cannot be an ES|QL parameter name',
     (key) => {
-      expect(issuesOf(withState({ [key]: { type: 'string', default: '' } }))).not.toEqual([]);
+      expect(issuesOf(withState({ [key]: '' }))).not.toEqual([]);
     }
   );
 
   it.each(['_tstart', '_tend', '_TSTART'])('rejects the reserved key %s', (key) => {
-    expect(issuesOf(withState({ [key]: { type: 'string', default: '' } }))).not.toEqual([]);
+    expect(issuesOf(withState({ [key]: '' }))).not.toEqual([]);
   });
 
   it('rejects an over-long default string and too many keys', () => {
-    expect(issuesOf(withState({ a: { type: 'string', default: 'x'.repeat(1001) } }))).not.toEqual(
-      []
-    );
+    expect(issuesOf(withState({ a: 'x'.repeat(1001) }))).not.toEqual([]);
 
-    const tooMany = Object.fromEntries(
-      Array.from({ length: 21 }, (_, index) => [`k${index}`, { type: 'string', default: '' }])
-    );
+    const tooMany = Object.fromEntries(Array.from({ length: 21 }, (_, index) => [`k${index}`, '']));
     expect(issuesOf(withState(tooMany))).toContain('A document may hold at most 20 state keys');
   });
 });
 
 describe('interpolation references', () => {
-  const doc = (text: string) => ({
-    state: { service: { type: 'string', default: 'checkout' } },
-    root: { type: 'header', id: 'title', text },
-  });
+  const doc = (text: string) =>
+    app([{ type: 'header', id: 'title', text }], { service: 'checkout' });
 
   it('accepts references to declared keys', () => {
     expect(issuesOf(doc('Service {{state.service}}'))).toEqual([]);
@@ -577,59 +465,46 @@ describe('interpolation references', () => {
 
   it('rejects a reference to an undeclared key', () => {
     expect(issuesOf(doc('Service {{state.sevrice}}'))).toEqual([
-      'Node "title" refers to unknown state key "sevrice"',
+      'Node "title" refers to unknown state key "sevrice", in "text"',
     ]);
   });
 
   it('rejects anything that looks like a reference but is not one', () => {
     expect(issuesOf(doc('{{state.service.name}}'))).toEqual([
-      'Node "title" has a malformed reference in "text"; use {{state.<key>}}',
+      'Node "title" has a malformed reference; use {{state.<key>}} or {{row.<column>}}, in "text"',
     ]);
   });
 
   it('checks every interpolated prop, such as a callout body and a flyout title', () => {
     expect(
-      issuesOf({
-        root: {
-          type: 'section',
-          title: 'App',
-          id: 'root',
-          children: [
-            { type: 'markdown', id: 'c', text: '{{state.nope}}' },
-            { type: 'flyout', id: 'f', title: '{{state.nada}}', children: [] },
-          ],
-        },
-      })
+      issuesOf(
+        app([
+          { type: 'markdown', id: 'c', text: '{{state.nope}}' },
+          { type: 'flyout', id: 'f', title: '{{state.nada}}', children: [] },
+        ])
+      )
     ).toEqual([
-      'Node "c" refers to unknown state key "nope"',
-      'Node "f" refers to unknown state key "nada"',
+      'Node "c" refers to unknown state key "nope", in "text"',
+      'Node "f" refers to unknown state key "nada", in "title"',
     ]);
   });
 });
 
 describe('table, flyout and key_value nodes', () => {
-  const tableDoc = (onRowClick: unknown, extra: Record<string, unknown> = {}) => ({
-    state: {
-      service: { type: 'string', default: '' },
-      limit: { type: 'number', default: 1 },
-    },
-    root: {
-      type: 'section',
-      title: 'App',
-      id: 'root',
-      children: [
+  const tableDoc = (onRowClick: unknown) =>
+    app(
+      [
         { type: 'table', id: 'orders-table', query: 'FROM orders | LIMIT 10', onRowClick },
         { type: 'flyout', id: 'detail', title: 'Detail', children: [] },
       ],
-    },
-    ...extra,
-  });
+      { service: '', limit: 1 }
+    );
 
   it('parses a table with typed columns and a row click that fills state and opens a flyout', () => {
     const result = appDocumentSchema.parse(
-      tableDoc([{ state: { service: { fromColumn: 'service.name' } } }, { flyout: 'detail' }])
+      tableDoc([{ state: { service: '{{row.service.name}}' } }, { flyout: 'detail' }])
     );
-    const [table] = getNodeChildren(result.root);
+    const [table] = result.body;
     expect(table).toMatchObject({ type: 'table', query: 'FROM orders | LIMIT 10' });
   });
 
@@ -639,14 +514,14 @@ describe('table, flyout and key_value nodes', () => {
 
   it('defaults a table to no actions', () => {
     const result = appDocumentSchema.parse(tableDoc([]));
-    const [table, flyout] = getNodeChildren(result.root);
+    const [table, flyout] = result.body;
     expect(table).toMatchObject({ onRowClick: [] });
     expect(flyout).toMatchObject({ children: [] });
   });
 
   it('finds a flyout nested inside another container', () => {
     const doc = tableDoc([{ flyout: 'inner' }]);
-    (doc.root.children as unknown[]).push({
+    doc.body.push({
       type: 'section',
       title: 'App',
       id: 'wrap',
@@ -694,22 +569,30 @@ describe('table, flyout and key_value nodes', () => {
 
   it('validates flyout content like any other node', () => {
     expect(
-      issuesOf({
-        root: {
-          type: 'flyout',
-          id: 'f',
-          title: 'Detail',
-          children: [
-            { type: 'select', id: 'find', label: 'Find', bind: 'ghost', options: [{ value: 'a' }] },
-          ],
-        },
-      })
+      issuesOf(
+        app([
+          {
+            type: 'flyout',
+            id: 'f',
+            title: 'Detail',
+            children: [
+              {
+                type: 'select',
+                id: 'find',
+                label: 'Find',
+                bind: 'ghost',
+                options: [{ value: 'a' }],
+              },
+            ],
+          },
+        ])
+      )
     ).toEqual(['Node "find" binds unknown state key "ghost"']);
   });
 });
 
 describe('customAppStateSchema', () => {
-  const document = { root: { type: 'markdown', id: 'a', text: 'hi' } };
+  const document = app([{ type: 'markdown', id: 'a', text: 'hi' }]);
 
   it('requires the current version', () => {
     expect(customAppStateSchema.safeParse({ version: 1, document }).success).toBe(true);
@@ -720,9 +603,11 @@ describe('customAppStateSchema', () => {
 
 describe('getNodeChildren', () => {
   it('returns children for a stack and none for leaf nodes', () => {
-    const { root } = appDocumentSchema.parse({
-      root: stackOf('root', [{ type: 'markdown', id: 'a', text: 'hi' }]),
-    });
+    const {
+      body: [root],
+    } = appDocumentSchema.parse(
+      app([stackOf('root', [{ type: 'markdown', id: 'a', text: 'hi' }])])
+    );
     expect(getNodeChildren(root)).toHaveLength(1);
     expect(getNodeChildren(getNodeChildren(root)[0])).toEqual([]);
   });

@@ -81,7 +81,7 @@ export const CreatePage = ({
     async ({ title, description }: { title: string; description?: string }) => {
       setIsSaving(true);
       try {
-        const { id } = await client.create({ title, description, document: draft });
+        const { id } = await client.create({ ...draft, title, description });
         setSavedId(id);
       } catch (error) {
         notifications.toasts.addDanger({

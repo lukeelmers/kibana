@@ -5,7 +5,7 @@
  * 2.0.
  */
 
-import { getCapability, toActionArray } from '@kbn/custom-app-registry';
+import { getCapability, NODE_EVENTS, toActionArray } from '@kbn/custom-app-registry';
 import { OPTIONS_SOURCE_SUFFIX } from './constants';
 import {
   isContainerNode,
@@ -20,11 +20,29 @@ export const getNodeChildren = (node: AppNode): readonly AppNode[] =>
   isContainerNode(node) ? node.children : [];
 
 /**
- * Whether an app has nothing in it yet: a root that holds no components. A new app starts like
- * this, and is shown an empty state, not a blank panel, until something is added.
+ * Whether an app has nothing in it yet. A new app starts like this, and is shown an empty state,
+ * not a blank panel, until something is added.
  */
-export const isEmptyDocument = (document: { root: AppNode }): boolean =>
-  document.root.type === 'section' && (document.root.children?.length ?? 0) === 0;
+export const isEmptyDocument = (document: { body: readonly AppNode[] }): boolean =>
+  document.body.length === 0;
+
+/** A node that is drawn, which has an id whether or not one was written. */
+export type IdentifiedNode = AppNode & { id: string };
+
+/**
+ * The nodes with an id each: one that has none is given its place under its parent, such as
+ * `kpis.1`, or `.1` at the top, which no id that is written can be, since those have no dot.
+ */
+export const withNodeIds = (nodes: readonly AppNode[], parentId = ''): IdentifiedNode[] =>
+  nodes.map((node, index) => {
+    const id = node.id ?? `${parentId}.${index}`;
+    const children = getNodeChildren(node);
+    return {
+      ...node,
+      id,
+      ...(children.length > 0 ? { children: withNodeIds(children, id) } : {}),
+    } as IdentifiedNode;
+  });
 
 /** The props of a node whose text may contain `{{state.key}}` references. */
 export const getInterpolatedText = (node: AppNode): ReadonlyArray<{ prop: string; text: string }> =>
@@ -66,23 +84,29 @@ export const getNodeSource = (node: AppNode): DataSource | undefined => {
 /** The id the source of the options of a select is known by, which is not that of a component. */
 export const getOptionsSourceId = (nodeId: string): string => `${nodeId}${OPTIONS_SOURCE_SUFFIX}`;
 
-/** Every source in the tree, by the id of the node that shows it, and of the options of a select. */
-export const collectSources = (root: AppNode): Record<string, DataSource> => {
-  const source = getNodeSource(root);
+const collectNodeSources = (node: IdentifiedNode): Record<string, DataSource> => {
+  const source = getNodeSource(node);
   return {
-    ...(source === undefined ? {} : { [root.id]: source }),
+    ...(source === undefined ? {} : { [node.id]: source }),
     ...Object.fromEntries(
       (
         (
-          getCapability(root.type)?.sources as
+          getCapability(node.type)?.sources as
             | ((node: AppNode) => ReadonlyArray<{ suffix: string; query: string }>)
             | undefined
-        )?.(root) ?? []
-      ).map(({ suffix, query }) => [`${root.id}${suffix}`, { type: 'esql', query }])
+        )?.(node) ?? []
+      ).map(({ suffix, query }) => [`${node.id}${suffix}`, { type: 'esql', query }])
     ),
-    ...Object.assign({}, ...getNodeChildren(root).map(collectSources)),
+    ...Object.assign({}, ...(getNodeChildren(node) as IdentifiedNode[]).map(collectNodeSources)),
   };
 };
+
+/**
+ * Every source of the app, by the id of the node that shows it, and of the options of a select.
+ * The ids are those `withNodeIds` gives.
+ */
+export const collectSources = (body: readonly AppNode[]): Record<string, DataSource> =>
+  Object.assign({}, ...withNodeIds(body).map(collectNodeSources));
 
 /** The values of the app that a source is driven by, which are the ones that make it run again. */
 export const getSourceStateKeys = (source: DataSource): string[] => {
@@ -92,9 +116,13 @@ export const getSourceStateKeys = (source: DataSource): string[] => {
   );
 };
 
-/** The state keys an input node reads and writes: one for an input, one for each field of a form. */
-export const getNodeBindings = (node: AppNode): string[] =>
-  (getCapability(node.type)?.bindings as ((node: AppNode) => string[]) | undefined)?.(node) ?? [];
+/** The state keys an input node reads and writes: its `bind`, or one for each field of a form. */
+export const getNodeBindings = (node: AppNode): string[] => {
+  const bindings = getCapability(node.type)?.bindings as ((node: AppNode) => string[]) | undefined;
+  if (bindings) return bindings(node);
+  const { bind } = node as { bind?: unknown };
+  return typeof bind === 'string' ? [bind] : [];
+};
 
 /**
  * What kind of value an input sets: a list for a box of lines, and for a select that takes several
@@ -110,22 +138,20 @@ export const getBindingType = (node: AppNode): 'string' | 'list' | 'boolean' => 
 /** The actions a node can run, with the event that runs them. */
 export const getNodeActions = (
   node: AppNode
-): ReadonlyArray<{ event: string; actions: readonly Action[] }> => {
-  const events = getCapability(node.type)?.events;
-  if (events) {
-    return Object.entries(events).map(([event, prop]) => ({
-      event,
-      actions: toActionArray((node as unknown as Record<string, ActionList>)[prop]),
-    }));
-  }
-  return [];
-};
+): ReadonlyArray<{ event: string; actions: readonly Action[] }> =>
+  NODE_EVENTS.flatMap((event) => {
+    const actions = (node as unknown as Record<string, ActionList | undefined>)[event];
+    return actions === undefined ? [] : [{ event, actions: toActionArray(actions) }];
+  });
 
-/** Every query in the tree, by the id of the node that runs it. */
-export const collectQueries = (root: AppNode): Record<string, string> => {
-  const query = getNodeQuery(root);
-  return {
-    ...(query === undefined ? {} : { [root.id]: query }),
-    ...Object.assign({}, ...getNodeChildren(root).map(collectQueries)),
+/** Every query of the app, by the id of the node that runs it, as `withNodeIds` gives it. */
+export const collectQueries = (body: readonly AppNode[]): Record<string, string> => {
+  const collect = (node: IdentifiedNode): Record<string, string> => {
+    const query = getNodeQuery(node);
+    return {
+      ...(query === undefined ? {} : { [node.id]: query }),
+      ...Object.assign({}, ...(getNodeChildren(node) as IdentifiedNode[]).map(collect)),
+    };
   };
+  return Object.assign({}, ...withNodeIds(body).map(collect));
 };

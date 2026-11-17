@@ -93,8 +93,9 @@ interface LibraryApp {
 
 /** An app of the library, checked as a panel checks its own: one that is not valid is not shown. */
 const loadLibraryApp = async (client: SavedAppsClient, id: string): Promise<LibraryApp> => {
-  const { title, description, document } = await client.get(id);
-  const parsed = appDocumentSchema.safeParse(document);
+  const app = await client.get(id);
+  const { title, description } = app;
+  const parsed = appDocumentSchema.safeParse(app);
   if (!parsed.success) {
     throw new Error(
       i18n.translate('xpack.customApp.embeddable.invalidLibraryApp', {
@@ -150,7 +151,7 @@ export const customAppEmbeddableFactory: EmbeddablePublicDefinition<
       runCases: createRunCases({ http: core.http }),
       getParameterNames: (query) => getESQLQueryVariables(query),
     });
-    dataLayer.setSources(collectSources(initialDocument.root));
+    dataLayer.setSources(collectSources(initialDocument.body));
     const runtime = createAppRuntime(initialDocument);
     // Emits the defaults straight away, then every change a user makes.
     const stateSubscription = runtime.state$.subscribe(dataLayer.setState);
@@ -184,9 +185,9 @@ export const customAppEmbeddableFactory: EmbeddablePublicDefinition<
       if (libraryId && library) {
         try {
           await savedApps.update(libraryId, {
+            ...document,
             title: library.title,
             description: library.description,
-            document,
           });
         } catch (error) {
           core.notifications.toasts.addDanger({
@@ -250,9 +251,9 @@ export const customAppEmbeddableFactory: EmbeddablePublicDefinition<
       // Moving between the dashboard and the library.
       saveToLibrary: async (title: string) => {
         const { id } = await savedApps.create({
+          ...document$.getValue(),
           title,
           description: titleManager.getLatestState().description,
-          document: document$.getValue(),
         });
         return id;
       },
@@ -276,7 +277,7 @@ export const customAppEmbeddableFactory: EmbeddablePublicDefinition<
       .pipe(distinctUntilChanged(), skip(1))
       .subscribe((document) => {
         runtime.setDocument(document);
-        dataLayer.setSources(collectSources(document.root));
+        dataLayer.setSources(collectSources(document.body));
       });
 
     return {
@@ -347,8 +348,8 @@ export const customAppEmbeddableFactory: EmbeddablePublicDefinition<
                       onUseExample={() => document$.next(createDefaultDocument())}
                     />
                   ) : (
-                    <AppFrame theme={document.theme}>
-                      <AppBody root={document.root} />
+                    <AppFrame>
+                      <AppBody body={document.body} />
                     </AppFrame>
                   )}
                 </ActionUiProviders>

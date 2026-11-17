@@ -7,16 +7,10 @@
 
 import { z, lazySchema } from '@kbn/zod/v4';
 import { appDocumentSchema } from '@kbn/custom-app-common';
-import { MAX_APP_DESCRIPTION_LENGTH, MAX_APP_TITLE_LENGTH } from './constants';
+import { MAX_APP_TITLE_LENGTH } from './constants';
 
-/** What a client sends to save an app: the document goes through the full rules of its schema. */
-export const savedAppInputSchema = lazySchema(() =>
-  z.object({
-    title: z.string().min(1).max(MAX_APP_TITLE_LENGTH),
-    description: z.string().max(MAX_APP_DESCRIPTION_LENGTH).optional(),
-    document: appDocumentSchema,
-  })
-);
+/** What a client sends to save an app: the app as it is written, with the full rules of its schema. */
+export const savedAppInputSchema = appDocumentSchema;
 
 export type SavedAppInput = z.output<typeof savedAppInputSchema>;
 

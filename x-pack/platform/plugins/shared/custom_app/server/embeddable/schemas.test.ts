@@ -7,7 +7,7 @@
 
 import { customAppEmbeddableSchema } from './schemas';
 
-const document = { state: {}, root: { type: 'header', id: 'title', text: 'Hi' } };
+const document = { title: 'App', state: {}, body: [{ type: 'header', id: 'title', text: 'Hi' }] };
 
 describe('the custom app panel schema', () => {
   it('accepts an app of the panel, with its titles and time range', () => {
@@ -37,7 +37,7 @@ describe('the custom app panel schema', () => {
     expect(
       customAppEmbeddableSchema.safeParse({
         version: 1,
-        document: { state: {}, root: { type: 'carousel', id: 'x' } },
+        document: { title: 'App', state: {}, body: [{ type: 'carousel', id: 'x' }] },
       }).success
     ).toBe(false);
   });

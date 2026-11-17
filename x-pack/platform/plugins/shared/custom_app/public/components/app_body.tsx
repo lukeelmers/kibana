@@ -6,7 +6,8 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import { EuiSkeletonText } from '@elastic/eui';
+import { css } from '@emotion/react';
+import { EuiSkeletonText, useEuiTheme } from '@elastic/eui';
 import { i18n } from '@kbn/i18n';
 import { KbnDangerCallout } from '@kbn/ui-callout';
 import type { AppNode } from '@kbn/custom-app-common';
@@ -15,7 +16,8 @@ import { getServices } from '../services';
 import { createKibanaUiSurface, type KibanaUiSurface } from '../surface/kibana_ui_surface';
 
 /** The nodes of an app, drawn through the `kibana-ui` surface once the Isomer runtime has loaded. */
-export const AppBody = ({ root }: { root: AppNode }) => {
+export const AppBody = ({ body }: { body: readonly AppNode[] }) => {
+  const { euiTheme } = useEuiTheme();
   const [surface, setSurface] = useState<KibanaUiSurface>();
   const [error, setError] = useState<string>();
 
@@ -51,5 +53,12 @@ export const AppBody = ({ root }: { root: AppNode }) => {
       />
     );
   }
-  return surface ? <>{surface.render([root])}</> : <EuiSkeletonText lines={3} isLoading />;
+  // The nodes are spaced as the sections of a Kibana page are.
+  return surface ? (
+    <div css={css({ display: 'flex', flexDirection: 'column', gap: euiTheme.size.l })}>
+      {surface.render(body)}
+    </div>
+  ) : (
+    <EuiSkeletonText lines={3} isLoading />
+  );
 };

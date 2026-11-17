@@ -36,7 +36,10 @@ jest.mock('@kbn/presentation-util-plugin/public', () => ({
   ),
 }));
 
-const document = appDocumentSchema.parse({ root: { type: 'header', id: 'title', text: 'Hi' } });
+const document = appDocumentSchema.parse({
+  title: 'Hi',
+  body: [{ type: 'header', text: 'Hi' }],
+});
 
 const setup = ({ canWrite = true, canSave = true, canSaveApps = true } = {}) => {
   const navigateToApp = jest.fn();
@@ -114,9 +117,7 @@ describe('the app card', () => {
     await userEvent.type(name, 'My app');
     await userEvent.click(screen.getByTestId('customAppDetailsConfirm'));
 
-    expect(createSaved).toHaveBeenCalledWith(
-      expect.objectContaining({ title: 'My app', document })
-    );
+    expect(createSaved).toHaveBeenCalledWith({ ...document, title: 'My app' });
     expect(await screen.findByText('Saved as "My app"')).toBeInTheDocument();
     expect(buttons().map(({ label }) => label)).toEqual(['Save to dashboard', 'Open app']);
 

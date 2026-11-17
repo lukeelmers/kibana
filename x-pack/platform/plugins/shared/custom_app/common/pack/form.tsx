@@ -17,11 +17,18 @@ const fieldSchema = z
       .string()
       .regex(/^[A-Za-z_][A-Za-z0-9_]*$/)
       .max(64)
-      .describe('The value of the app the answer is put in when the form is submitted.'),
+      .describe(
+        'The value of the app the answer is put in when the form is submitted, and the input of a workflow that is given no inputs.'
+      ),
     label: z.string().max(100).optional().describe('The question, when not the name.'),
     kind: z.enum(['text', 'select']).optional().describe('A text box, the default, or a select.'),
     options: z.array(optionSchema).max(50).optional().describe('The choices of a select.'),
     required: z.boolean().optional().describe('The form is not submitted while it is empty.'),
+    value: z
+      .string()
+      .max(1000)
+      .optional()
+      .describe('The answer it starts with. It may use {{row.<column>}} or {{state.<key>}}.'),
   })
   .strict();
 

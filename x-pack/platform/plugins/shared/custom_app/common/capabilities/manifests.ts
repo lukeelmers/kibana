@@ -8,6 +8,7 @@
 import { z, lazySchema } from '@kbn/zod/v4';
 import type { AnyPrimitiveDefinition } from '@elastic/isomer-sdk';
 import {
+  getCapability,
   registerCapability,
   type AnyCapability,
   type CapabilityManifest,
@@ -91,10 +92,10 @@ const fromPrimitive = (
 const refinements =
   (primitive: AnyPrimitiveDefinition) =>
   (
-    node: Record<string, unknown> & { id: string },
+    node: Record<string, unknown> & { id?: string },
     { issue }: { issue: (message: string) => void }
   ) => {
-    const { id, visibleWhen, ...props } = node;
+    const { id = primitive.type, visibleWhen, ...props } = node;
     const result = primitive.schema.safeParse(props);
     if (!result.success) issue(`Node "${id}": ${result.error.issues[0]?.message}`);
   };
@@ -165,12 +166,18 @@ export const BUILTIN_CAPABILITIES = [
     fills: DATA_PROPS.table.fills,
     props: {
       ...query('Every row is shown, under its columns.'),
+      columns: (table.schema.shape.columns as z.ZodType)
+        .optional()
+        .describe(
+          'Left out, the columns are those of the query. A column given here with the label of one of the query says how to format it.'
+        ),
       onRowClick: actionsSchema
         .default([])
-        .describe('The actions to run when a row is clicked, with that row.'),
+        .describe(
+          'The actions to run when a row is clicked. { "flyout": "<id>" } opens a flyout that has the row as {{row.<column>}}.'
+        ),
     },
     data: 'query',
-    events: { onRowClick: 'onRowClick' },
     example: {
       type: 'table',
       id: 'services',
@@ -179,8 +186,6 @@ export const BUILTIN_CAPABILITIES = [
   }),
   fromPrimitive(input, {
     props: { ...bind(), ...handlers('onChange', 'after it sets its value, with the value') },
-    events: { onChange: 'onChange' },
-    bindings: (node) => [String(node.bind)],
     private: true,
     example: { type: 'input', id: 'name', label: 'Service', bind: 'name_filter' },
   }),
@@ -192,16 +197,18 @@ export const BUILTIN_CAPABILITIES = [
         .optional()
         .describe('An ES|QL query whose first column is the value of each option, after options.'),
     },
-    events: { onChange: 'onChange' },
-    bindings: (node) => [String(node.bind)],
     bindingType: (node) => (node.multiple === true ? 'list' : 'string'),
     sources: (node) =>
       node.optionsQuery === undefined
         ? []
         : [{ suffix: OPTIONS_SOURCE_SUFFIX, query: String(node.optionsQuery) }],
     validate: (node, { issue }) => {
-      const { id, options, optionsQuery } = node as unknown as SelectNode & {
-        id: string;
+      const {
+        id = 'select',
+        options,
+        optionsQuery,
+      } = node as unknown as SelectNode & {
+        id?: string;
         optionsQuery?: string;
       };
       if (options.length === 0 && optionsQuery === undefined) {
@@ -219,17 +226,22 @@ export const BUILTIN_CAPABILITIES = [
   }),
   fromPrimitive(button, {
     props: handlers('onClick', 'when it is pressed'),
-    events: { onClick: 'onClick' },
     compact: true,
     example: { type: 'button', id: 'go', label: 'Escalate', onClick: [] },
   }),
   fromPrimitive(form, {
-    props: handlers('onSubmit', 'once the answers are in their values'),
-    events: { onSubmit: 'onSubmit' },
+    props: handlers(
+      'onSubmit',
+      'once the answers are in the values named by the fields. A workflow with no inputs is given the answers by name. A flyout the form is in closes once they are done'
+    ),
     private: true,
     bindings: (node) => (node as unknown as FormNode).fields.map(({ name }) => name),
+    extraText: (node) =>
+      (node as unknown as FormNode).fields.flatMap(({ value }, index) =>
+        value === undefined ? [] : [{ prop: `fields[${index}].value`, text: value }]
+      ),
     validate: (node, { issue }) => {
-      const { id, fields: questions } = node as unknown as FormNode & { id: string };
+      const { id = 'form', fields: questions } = node as unknown as FormNode & { id?: string };
       const seen = new Set<string>();
       questions.forEach(({ name, kind, options = [] }) => {
         if (seen.has(name)) issue(`Node "${id}" has two fields that set "${name}"`);
@@ -271,6 +283,21 @@ export const BUILTIN_CONTAINERS = [
     example: { type: 'flyout', id: 'detail', title: 'Detail', children: [] },
   }),
 ] as const;
+
+/**
+ * Registers the primitives of the runtime's packs that are not registered yet, such as those of
+ * other plugins, with nothing beyond what every node of an app has.
+ */
+export const registerPackPrimitives = (primitives: readonly AnyPrimitiveDefinition[]): void =>
+  primitives
+    .filter(({ type }) => getCapability(type) === undefined)
+    .forEach((primitive) =>
+      registerCapability(
+        fromPrimitive(primitive, {
+          example: primitive.catalog.example as unknown as Record<string, unknown>,
+        })
+      )
+    );
 
 /** Registers the capabilities that ship with custom apps. It can be called more than once. */
 export const registerBuiltinCapabilities = (): void => {

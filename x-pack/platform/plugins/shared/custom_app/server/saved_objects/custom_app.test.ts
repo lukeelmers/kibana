@@ -7,13 +7,16 @@
 
 import { CUSTOM_APP_SAVED_OBJECT_TYPE } from '../../common/constants';
 import { customAppSavedObjectType } from './custom_app';
-import type { customAppAttributesSchemaV1 } from './schemas';
+import type { customAppAttributesSchemaV2 } from './schemas';
 
 const attributes = {
   title: 'Service explorer',
   description: 'Filters and a table of services',
-  version: 1,
-  document: { state: {}, root: { type: 'header', id: 'title', text: 'Hi' } },
+  showInNav: true,
+  icon: 'users',
+  package: { name: 'observability' },
+  state: {},
+  body: [{ type: 'header', id: 'title', text: 'Hi' }],
 };
 
 describe('the custom app saved object type', () => {
@@ -55,45 +58,36 @@ describe('the custom app saved object type', () => {
     expect(title).toBe('Service explorer');
   });
 
-  describe('model version 1', () => {
+  describe('model version 2', () => {
     const version = customAppSavedObjectType.modelVersions as Record<
       string,
-      { changes: unknown[]; schemas: { create: typeof customAppAttributesSchemaV1 } }
+      { changes: unknown[]; schemas: { create: typeof customAppAttributesSchemaV2 } }
     >;
 
-    it('is the only version, and needs no change to the index mappings', () => {
-      expect(Object.keys(version)).toEqual(['1']);
-      expect(version['1'].changes).toEqual([]);
+    it('is the latest version, and needs no change to the index mappings', () => {
+      expect(Object.keys(version)).toEqual(['1', '2']);
+      expect(version['2'].changes).toEqual([]);
     });
 
     it('accepts what the routes store, with or without a description', () => {
-      expect(() => version['1'].schemas.create.validate(attributes)).not.toThrow();
+      expect(() => version['2'].schemas.create.validate(attributes)).not.toThrow();
       const { description, ...withoutDescription } = attributes;
-      expect(() => version['1'].schemas.create.validate(withoutDescription)).not.toThrow();
-    });
-
-    it('accepts an app that has a theme, which is stored with the document and not indexed', () => {
-      const themed = {
-        ...attributes,
-        document: { ...attributes.document, theme: { accent: 'purple', shape: 'soft' } },
-      };
-
-      expect(version['1'].schemas.create.validate(themed)).toEqual(themed);
+      expect(() => version['2'].schemas.create.validate(withoutDescription)).not.toThrow();
     });
 
     it.each([
       ['no title', { ...attributes, title: undefined }],
       ['a title that is too long', { ...attributes, title: 'x'.repeat(257) }],
-      ['no document', { ...attributes, document: undefined }],
-      ['a document without a root', { ...attributes, document: { state: {} } }],
+      ['no body', { ...attributes, body: undefined }],
+      ['no state', { ...attributes, state: undefined }],
     ])('refuses %s', (_name, bad) => {
-      expect(() => version['1'].schemas.create.validate(bad)).toThrow();
+      expect(() => version['2'].schemas.create.validate(bad)).toThrow();
     });
 
     it('lets a newer build add attributes without breaking this one', () => {
       const forward = (
-        version['1'].schemas as unknown as {
-          forwardCompatibility: typeof customAppAttributesSchemaV1;
+        version['2'].schemas as unknown as {
+          forwardCompatibility: typeof customAppAttributesSchemaV2;
         }
       ).forwardCompatibility;
 

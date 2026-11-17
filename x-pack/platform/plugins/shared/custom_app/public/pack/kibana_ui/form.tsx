@@ -16,8 +16,9 @@ import {
   EuiToolTip,
 } from '@elastic/eui';
 import { i18n } from '@kbn/i18n';
-import { MAX_STATE_STRING_LENGTH } from '@kbn/custom-app-common';
+import { MAX_STATE_STRING_LENGTH, interpolate, type Action } from '@kbn/custom-app-common';
 import {
+  actionKind,
   toActionArray,
   type AppNodeProps,
   type KibanaUiEnv,
@@ -27,6 +28,7 @@ import type { FormField, FormNode } from '../../../common/pack';
 import { useAppId } from '../../runtime/app_id_context';
 import { useActionGate } from '../../actions/use_action_gate';
 import { DroppedActions } from '../../components/dropped_actions';
+import { useCloseFlyout } from '../../components/flyout_node';
 import {
   getFormAnswersKey,
   readFormAnswers,
@@ -80,15 +82,29 @@ const FieldInput = ({
   );
 };
 
+/** The form's actions, with a workflow that is given no inputs given the answers by name. */
+const withAnswers = (actions: readonly Action[], fields: readonly FormField[]): Action[] =>
+  actions.map((action) => {
+    const { inputs } = action as { inputs?: Record<string, string> };
+    if (actionKind(action) !== 'workflow' || (inputs && Object.keys(inputs).length > 0)) {
+      return action;
+    }
+    return {
+      ...action,
+      inputs: Object.fromEntries(fields.map(({ name }) => [name, `{{state.${name}}}`])),
+    } as unknown as Action;
+  });
+
 /**
  * Asks for some answers, and does something with them only when it is submitted: typing in a field
  * changes nothing. On submit the answers go into their values of the app, and then the form's
  * actions run, so that a workflow is given what was answered. A form that is missing a required
- * answer says which, and does nothing.
+ * answer says which, and does nothing. A form in a flyout closes it once everything was done.
  */
 const FormView = ({ node, env }: { node: FormNode & AppNodeProps; env: KibanaUiEnv }) => {
-  const { state } = env;
+  const { state, row } = env;
   const onSubmit = node.onSubmit ?? [];
+  const closeFlyout = useCloseFlyout();
   const baseId = useId();
   const appId = useAppId();
   const storageKey = appId === undefined ? undefined : getFormAnswersKey(appId, node.id);
@@ -106,7 +122,11 @@ const FormView = ({ node, env }: { node: FormNode & AppNodeProps; env: KibanaUiE
   const [missing, setMissing] = useState<ReadonlySet<string>>(new Set());
   const [dropped, setDropped] = useState<string[]>([]);
 
-  const answerTo = ({ name }: FormField): string => typed[name] ?? String(state[name] ?? '');
+  const answerTo = ({ name, value }: FormField): string =>
+    typed[name] ??
+    (value === undefined
+      ? String(state[name] ?? '')
+      : interpolate(value, { state, row: row ?? {} }));
 
   const unavailableReason = useActionGate(onSubmit);
 
@@ -119,11 +139,9 @@ const FormView = ({ node, env }: { node: FormNode & AppNodeProps; env: KibanaUiE
     setMissing(new Set(empty.map(({ field }) => field.name)));
     if (empty.length > 0) return;
 
+    answers.forEach(({ field, answer }) => env.setState(field.name, answer));
     setDropped(
-      env.dispatch([
-        { state: Object.fromEntries(answers.map(({ field, answer }) => [field.name, answer])) },
-        ...toActionArray(onSubmit),
-      ])
+      env.dispatch(withAnswers(toActionArray(onSubmit), node.fields), undefined, closeFlyout)
     );
   };
 

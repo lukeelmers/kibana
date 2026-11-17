@@ -16,7 +16,7 @@ import { createUpdateCustomAppTool, UPDATE_CUSTOM_APP_TOOL_ID } from './update_c
 const CURRENT = {
   embeddable_id: 'panel-1',
   panel_title: 'Service health',
-  document: { state: {}, root: { type: 'header', id: 'title', text: 'Before' } },
+  document: { title: 'App', state: {}, body: [{ type: 'header', id: 'title', text: 'Before' }] },
 };
 
 const attachment = (data: unknown, id = 'att-1') => ({
@@ -56,8 +56,9 @@ const call = async (
 };
 
 const NEW_DOCUMENT = {
+  title: 'App',
   state: {},
-  root: { type: 'header', id: 'title', text: 'After' },
+  body: [{ type: 'header', id: 'title', text: 'After' }],
 };
 
 describe('the update custom app tool', () => {
@@ -156,17 +157,13 @@ describe('the update custom app tool', () => {
 
   describe('with an app that is not valid', () => {
     const broken = {
+      title: 'App',
       state: {},
-      root: {
-        type: 'section',
-        title: 'App',
-        id: 'root',
-        children: [
-          { type: 'select', id: 'find', label: 'Find', bind: 'missing', options: [{ value: 'a' }] },
-          { type: 'markdown', id: 'dup', text: 'a' },
-          { type: 'markdown', id: 'dup', text: 'b' },
-        ],
-      },
+      body: [
+        { type: 'select', id: 'find', label: 'Find', bind: 'missing', options: [{ value: 'a' }] },
+        { type: 'markdown', id: 'dup', text: 'a' },
+        { type: 'markdown', id: 'dup', text: 'b' },
+      ],
     };
 
     it('lists every problem, each naming its component, for the agent to fix', async () => {
@@ -183,13 +180,16 @@ describe('the update custom app tool', () => {
       const { result } = await call({
         embeddable_id: 'panel-1',
         document: {
-          root: {
-            type: 'select',
-            id: 'find',
-            label: 'Find',
-            bind: 'missing',
-            options: [{ value: 'a' }],
-          },
+          title: 'App',
+          body: [
+            {
+              type: 'select',
+              id: 'find',
+              label: 'Find',
+              bind: 'missing',
+              options: [{ value: 'a' }],
+            },
+          ],
         },
       });
 

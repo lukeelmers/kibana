@@ -6,35 +6,27 @@
  */
 
 import type { SavedObjectsClientContract } from '@kbn/core/server';
-import { CUSTOM_APP_STATE_VERSION } from '@kbn/custom-app-common';
 import { CUSTOM_APP_SAVED_OBJECT_TYPE } from '../../common/constants';
 import type { SavedAppInput } from '../../common/saved_app_schema';
 
-interface StoredApp {
-  title: string;
-  description?: string;
-  version: number;
-  document: SavedAppInput['document'];
-}
+/** An app as it is written, and the package it was installed from, if it was. */
+type StoredApp = SavedAppInput & { package?: { name: string } };
 
-export interface SavedApp extends StoredApp {
+export type SavedApp = StoredApp & {
   id: string;
   updatedAt?: string;
-}
+};
 
 export interface SavedAppListItem {
   id: string;
   title: string;
   description?: string;
+  showInNav?: boolean;
+  icon?: string;
   updatedAt?: string;
 }
 
-const toStored = ({ title, description, document }: SavedAppInput): StoredApp => ({
-  title,
-  ...(description === undefined ? {} : { description }),
-  version: CUSTOM_APP_STATE_VERSION,
-  document,
-});
+const toStored = (input: SavedAppInput): StoredApp => input;
 
 const toSavedApp = (object: {
   id: string;
@@ -81,7 +73,7 @@ export const createSavedAppsService = (client: SavedObjectsClientContract) => ({
       sortField: 'updated_at',
       sortOrder: 'desc',
       // Only what a list shows: the documents can be large.
-      fields: ['title', 'description'],
+      fields: ['title', 'description', 'showInNav', 'icon'],
       ...(search ? { search: `${search}*`, searchFields: ['title'] } : {}),
     });
 
@@ -90,6 +82,8 @@ export const createSavedAppsService = (client: SavedObjectsClientContract) => ({
         id,
         title: attributes.title,
         ...(attributes.description === undefined ? {} : { description: attributes.description }),
+        ...(attributes.showInNav === undefined ? {} : { showInNav: attributes.showInNav }),
+        ...(attributes.icon === undefined ? {} : { icon: attributes.icon }),
         ...(updatedAt ? { updatedAt } : {}),
       })),
       total: result.total,

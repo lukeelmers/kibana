@@ -9,5 +9,7 @@ export const MAX_NODE_ID_LENGTH = 64;
 export const MAX_CHILDREN_PER_NODE = 50;
 export const MAX_STATE_KEY_LENGTH = 64;
 export const MAX_STATE_STRING_LENGTH = 1_000;
+export const MAX_QUERY_LENGTH = 10_000;
+export const MAX_ACTIONS_PER_EVENT = 5;
 /** The names that ES|QL keeps for the time range, so a value of an app cannot have them. */
 export const RESERVED_STATE_KEYS: readonly string[] = ['_tstart', '_tend'];

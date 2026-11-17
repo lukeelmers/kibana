@@ -15,11 +15,12 @@ export const CUSTOM_APP_APPLICATION_ID = 'customApp';
 export const SAVED_APPS_API_PATH = '/internal/custom_app/apps';
 export const SAVED_APPS_API_VERSION = '1';
 
+export const MAX_APP_TITLE_LENGTH = 256;
+export const MAX_APP_DESCRIPTION_LENGTH = 2_000;
 export const MAX_NODE_COUNT = 200;
 export const MAX_NODE_DEPTH = 8;
 export const MAX_HEADING_LENGTH = 200;
 export const MAX_TEXT_LENGTH = 5_000;
-export const MAX_QUERY_LENGTH = 10_000;
 /** A template is markup with Liquid in it; a generated one is a few thousand characters. */
 export const MAX_TEMPLATE_LENGTH = 40_000;
 /** What a template is generated from: an instruction, not a description of the result. */
@@ -27,7 +28,6 @@ export const MAX_PROMPT_LENGTH = 10_000;
 export const MAX_STATE_KEYS = 20;
 /** A list holds a few values to look for, as many as a person can paste into a box. */
 export const MAX_LIST_ITEMS = 1_000;
-export const MAX_ACTIONS_PER_EVENT = 5;
 /** A workflow is named by its id, which is a text of this length at most. */
 export const MAX_WORKFLOW_ID_LENGTH = 256;
 /** What an action can hand to a workflow: a few named inputs, as a workflow declares few. */
@@ -103,8 +103,10 @@ export const MAX_LINK_APP_ID_LENGTH = 100;
 export const MAX_FORM_FIELDS = 10;
 
 export {
+  MAX_ACTIONS_PER_EVENT,
   MAX_CHILDREN_PER_NODE,
   MAX_NODE_ID_LENGTH,
+  MAX_QUERY_LENGTH,
   MAX_STATE_KEY_LENGTH,
   MAX_STATE_STRING_LENGTH,
   RESERVED_STATE_KEYS,

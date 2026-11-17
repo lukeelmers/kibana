@@ -21,13 +21,18 @@ export const useActionRunner = (nodeId: string) => {
   const uis = useActionUis();
 
   return useCallback(
-    (actions: ActionList, input?: ActionInput): string[] => {
+    (actions: ActionList, input?: ActionInput, onDone?: () => void): string[] => {
       const { dropped, requests } = runtime.run(actions, input);
       const byAction = new Map<string, unknown[]>();
       requests.forEach(({ action, payload }) =>
         byAction.set(action, [...(byAction.get(action) ?? []), payload])
       );
-      byAction.forEach((payloads, action) => uis[action]?.request(payloads, nodeId));
+      const done = Array.from(byAction, ([action, payloads]) =>
+        uis[action] ? uis[action].request(payloads, nodeId) : Promise.resolve(false)
+      );
+      if (onDone && dropped.length === 0) {
+        Promise.all(done).then((results) => results.every(Boolean) && onDone());
+      }
       return dropped;
     },
     [runtime, uis, nodeId]

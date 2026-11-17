@@ -21,3 +21,6 @@ export const useStateValues = (): StateValues => useSubjectValue(useAppRuntime()
 
 export const useOpenFlyoutId = (): string | undefined =>
   useSubjectValue(useAppRuntime().openFlyoutId$);
+
+export const useFlyoutRow = (): Readonly<Record<string, unknown>> | undefined =>
+  useSubjectValue(useAppRuntime().flyoutRow$);

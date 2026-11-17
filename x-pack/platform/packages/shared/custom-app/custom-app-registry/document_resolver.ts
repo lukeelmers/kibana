@@ -10,8 +10,7 @@ import type { GenericNode } from '.';
 /** A document as a resolver sees it: any node, since each resolver only knows its own. */
 export interface ResolvableDocument {
   state: Record<string, unknown>;
-  root: GenericNode;
-  theme?: unknown;
+  body: GenericNode[];
 }
 
 /** What a resolver gives back: the document finished, or why it could not be. */

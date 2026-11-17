@@ -39,27 +39,27 @@ describe('the create custom app tool', () => {
   });
 
   it('saves a valid app as a new attachment without a panel, and returns its id', async () => {
-    const { result, add } = await call({ title: 'Services', document: AUTHORING_GUIDE_EXAMPLE });
+    const { result, add } = await call({ document: AUTHORING_GUIDE_EXAMPLE });
 
     expect(add).toHaveBeenCalledWith({
       type: CUSTOM_APP_CONTEXT_ATTACHMENT_TYPE,
       data: {
-        panel_title: 'Services',
+        panel_title: 'Service owners',
         document: customAppCreateSchema.parse({ document: AUTHORING_GUIDE_EXAMPLE }).document,
       },
-      description: 'Custom app: Services',
+      description: 'Custom app: Service owners',
     });
     expect(result.type).toBe(ToolResultType.other);
     expect(result.data).toMatchObject({ attachment_id: 'att-1', version: 1 });
   });
 
   it('tells the browser that the app was made, so that a page that can keep it may', async () => {
-    const { sendUiEvent } = await call({ title: 'Services', document: AUTHORING_GUIDE_EXAMPLE });
+    const { sendUiEvent } = await call({ document: AUTHORING_GUIDE_EXAMPLE });
 
     expect(sendUiEvent).toHaveBeenCalledWith('custom_app:created', {
       attachmentId: 'att-1',
       data: {
-        panel_title: 'Services',
+        panel_title: 'Service owners',
         document: customAppCreateSchema.parse({ document: AUTHORING_GUIDE_EXAMPLE }).document,
       },
     });
@@ -76,14 +76,17 @@ describe('the create custom app tool', () => {
 
   it('returns each problem of an app that is not valid, and saves nothing', async () => {
     const broken = {
+      title: 'App',
       state: {},
-      root: {
-        type: 'select',
-        id: 'find',
-        label: 'Find',
-        bind: 'missing',
-        options: [{ value: 'a' }],
-      },
+      body: [
+        {
+          type: 'select',
+          id: 'find',
+          label: 'Find',
+          bind: 'missing',
+          options: [{ value: 'a' }],
+        },
+      ],
     };
     const { result, add } = await call({ document: broken });
 

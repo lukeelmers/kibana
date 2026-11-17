@@ -5,11 +5,15 @@
  * 2.0.
  */
 
-import type { StateDeclaration } from './document_schema';
 import type { StateValue } from './interpolation';
+
+export type StateType = 'string' | 'number' | 'boolean' | 'list';
+
+/** The type of a value of the app, which is that of its default. */
+export const getStateType = (value: StateValue): StateType =>
+  Array.isArray(value) ? 'list' : (typeof value as StateType);
 
 /** The value every state key starts with when a panel loads. */
 export const getStateDefaults = (
-  declarations: Readonly<Record<string, StateDeclaration>>
-): Record<string, StateValue> =>
-  Object.fromEntries(Object.entries(declarations).map(([key, { default: value }]) => [key, value]));
+  state: Readonly<Record<string, StateValue>>
+): Record<string, StateValue> => ({ ...state });

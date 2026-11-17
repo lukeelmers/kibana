@@ -8,9 +8,10 @@
 import { isNodeVisible } from '@kbn/custom-app-common';
 import { appDocumentSchema } from '@kbn/custom-app-common';
 
-const doc = (children: unknown[], state: Record<string, unknown> = {}) => ({
+const doc = (body: unknown[], state: Record<string, unknown> = {}) => ({
+  title: 'App',
   state,
-  root: { type: 'section', title: 'App', id: 'root', children },
+  body,
 });
 const messagesOf = (document: unknown) => {
   const result = appDocumentSchema.safeParse(document);
@@ -30,7 +31,7 @@ describe('showing a component by a value', () => {
             { type: 'table', id: 't', query: 'ROW a = 1', visibleWhen: { $state: 'on' } },
             { type: 'section', title: 'App', id: 's', visibleWhen: { $state: 'on' }, children: [] },
           ],
-          { on: { type: 'boolean', default: true } }
+          { on: true }
         )
       )
     ).toEqual([]);
@@ -49,25 +50,15 @@ describe('showing a component by a value', () => {
 
   it.each([
     ['a key that does not exist', {}, 'Node "h" is shown by unknown state key "on"'],
-    [
-      'a text without a value to equal',
-      { on: { type: 'string', default: 'x' } },
-      'without "equals" it needs a boolean key',
-    ],
-    [
-      'a list',
-      { on: { type: 'list', default: [] } },
-      'is shown by state key "on", which is a list',
-    ],
+    ['a text without a value to equal', { on: 'x' }, 'without "equals" it needs a boolean key'],
+    ['a list', { on: [] }, 'is shown by state key "on", which is a list'],
   ])('is refused for %s', (_what, state, message) => {
     expect(messagesOf(withRule({ $state: 'on' }, state))[0]).toContain(message);
   });
 
   it('is refused when the value to equal is of another kind than the key', () => {
-    expect(
-      messagesOf(
-        withRule({ $state: 'view', equals: 3 }, { view: { type: 'string', default: 'a' } })
-      )[0]
-    ).toContain('which is a number');
+    expect(messagesOf(withRule({ $state: 'view', equals: 3 }, { view: 'a' }))[0]).toContain(
+      'which is a number'
+    );
   });
 });

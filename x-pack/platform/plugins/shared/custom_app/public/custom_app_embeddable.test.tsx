@@ -35,12 +35,8 @@ jest.mock('./data/run_esql_query', () => ({
 
 const documentWith = (heading: string): AppDocument =>
   appDocumentSchema.parse({
-    root: {
-      type: 'section',
-      title: 'App',
-      id: 'root',
-      children: [{ type: 'header', id: 'title', text: heading }],
-    },
+    title: 'App',
+    body: [{ type: 'section', title: 'App', children: [{ type: 'header', text: heading }] }],
   });
 
 const SAVED = documentWith('Saved heading');
@@ -64,9 +60,7 @@ const build = async ({
   };
 };
 
-const EMPTY: AppDocument = appDocumentSchema.parse({
-  root: { type: 'section', title: 'App', id: 'root', children: [] },
-});
+const EMPTY: AppDocument = appDocumentSchema.parse({ title: 'App', body: [] });
 
 describe('the custom app panel', () => {
   describe('when there is nothing in it yet', () => {
@@ -94,7 +88,7 @@ describe('the custom app panel', () => {
 
       expect(screen.queryByText('Build your app')).not.toBeInTheDocument();
       expect(screen.getByTestId('customAppFrame')).toBeInTheDocument();
-      expect(api.getDocument().root).toMatchObject({ type: 'section', title: 'Your custom app' });
+      expect(api.getDocument()).toMatchObject({ title: 'Your custom app' });
       expect(isEmptyDocument(api.getDocument())).toBe(false);
     });
 
@@ -256,7 +250,10 @@ describe('the custom app panel', () => {
 
       it('ignores an app that is not valid, rather than break the panel', async () => {
         const api = await converse();
-        const broken = { root: { type: 'carousel', id: 'x' } } as unknown as AppDocument;
+        const broken = {
+          title: 'Broken',
+          body: [{ type: 'carousel' }],
+        } as unknown as AppDocument;
 
         await act(async () => agentBuilder.chatEvents$.next(updatedEvent('panel-1', broken)));
 

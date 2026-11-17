@@ -38,38 +38,26 @@ describe('the authoring guide', () => {
     expect(CUSTOM_APP_AUTHORING_GUIDE).toContain('{{state.name}}');
   });
 
-  it("says each data component has its own query, and that the look is not the author's to set", () => {
-    expect(CUSTOM_APP_AUTHORING_GUIDE).toMatch(/OWN ES\|QL "query"/);
-    expect(CUSTOM_APP_AUTHORING_GUIDE).toMatch(
-      /Do not set sizes, spacing, colours or number formats/
-    );
-  });
-
   it('does not teach anything the app no longer has', () => {
-    expect(CUSTOM_APP_AUTHORING_GUIDE).not.toMatch(/dataSources|valueField|"gap"|"size"|"format"/);
-  });
-
-  it('says there is no shared data source, so a model does not go looking for one', () => {
-    expect(CUSTOM_APP_AUTHORING_GUIDE).toContain('there is no shared data source');
+    expect(CUSTOM_APP_AUTHORING_GUIDE).not.toMatch(
+      /dataSources|valueField|"gap"|"size"|"theme"|"root"/
+    );
   });
 
   it('teaches how a workflow is run, and that it is run by whoever presses the button', () => {
     expect(CUSTOM_APP_AUTHORING_GUIDE).toContain('"workflow"');
     expect(CUSTOM_APP_AUTHORING_GUIDE).toContain('as the person who presses the button');
-    expect(CUSTOM_APP_AUTHORING_GUIDE).toContain('fromState');
+    expect(CUSTOM_APP_AUTHORING_GUIDE).toContain('{{row.<column>}}');
     expect(CUSTOM_APP_AUTHORING_GUIDE).toContain('found with the workflow tools');
   });
 
-  it('teaches how alerts are read and acted on, and that cases cannot be listed yet', () => {
+  it('teaches how alerts are read and acted on', () => {
     expect(CUSTOM_APP_AUTHORING_GUIDE).toContain('.alerts-*');
     expect(CUSTOM_APP_AUTHORING_GUIDE).toContain('kibana.alert.uuid');
     // The alerts of the newer kind are somewhere else, and are read per episode.
     expect(CUSTOM_APP_AUTHORING_GUIDE).toContain('.rule-events');
     expect(CUSTOM_APP_AUTHORING_GUIDE).toContain('episode.id');
     expect(CUSTOM_APP_AUTHORING_GUIDE).toContain('Never write to an alert index');
-    expect(CUSTOM_APP_AUTHORING_GUIDE).toContain(
-      'Cases are not read with a query but with a source'
-    );
   });
 
   it('says what to do when no workflow does what a button needs: draft one under an id it chooses, and build the whole app', () => {
@@ -92,31 +80,6 @@ describe('the authoring guide', () => {
   it('says to look at the alert indices and fields first, since they differ', () => {
     expect(CUSTOM_APP_AUTHORING_GUIDE).toContain(
       'look at the indices and fields with the tools before you write a query, and never assume'
-    );
-  });
-
-  it('teaches lists: the value type, the box, the multiple select, and how a query uses one', () => {
-    expect(CUSTOM_APP_AUTHORING_GUIDE).toContain('"list"');
-    expect(CUSTOM_APP_AUTHORING_GUIDE).toContain('list_input');
-    expect(CUSTOM_APP_AUTHORING_GUIDE).toContain('"multiple": true');
-    expect(CUSTOM_APP_AUTHORING_GUIDE).toContain('WHERE user.name IN (?users)');
-    expect(CUSTOM_APP_AUTHORING_GUIDE).toContain('Nothing written or chosen is an empty list');
-    expect(CUSTOM_APP_AUTHORING_GUIDE).toContain('A list is not kept in the address of the page');
-    expect(CUSTOM_APP_AUTHORING_GUIDE).toContain('makes a list of that one value');
-  });
-
-  it('says that a component has a query or a source, not both', () => {
-    expect(CUSTOM_APP_AUTHORING_GUIDE).toContain('either a "query" or a "source", never both');
-  });
-
-  it('teaches the theme: the accents, the shapes, and not to invent colours', () => {
-    expect(CUSTOM_APP_AUTHORING_GUIDE).toContain('"theme"');
-    expect(CUSTOM_APP_AUTHORING_GUIDE).toContain(
-      '"blue" | "teal" | "purple" | "pink" | "orange" | "green" | "red"'
-    );
-    expect(CUSTOM_APP_AUTHORING_GUIDE).toContain('"soft" | "sharp"');
-    expect(CUSTOM_APP_AUTHORING_GUIDE).toContain(
-      'There are no other colours, fonts or sizes to choose'
     );
   });
 });

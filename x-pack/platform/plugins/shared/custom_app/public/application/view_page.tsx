@@ -40,7 +40,7 @@ const toMessage = (error: unknown): string =>
   (error instanceof Error ? error.message : String(error));
 
 const toViewState = (app: SavedApp): ViewState => {
-  const parsed = appDocumentSchema.safeParse(app.document);
+  const parsed = appDocumentSchema.safeParse(app);
   return parsed.success
     ? { status: 'ready', app, document: parsed.data }
     : { status: 'invalid', app, problems: parsed.error.issues.map(({ message }) => message) };
@@ -121,9 +121,11 @@ export const ViewPage = ({
     async (details: { title: string; description?: string }, document: AppDocument) => {
       setIsSaving(true);
       try {
-        const saved = await client.update(id, { ...details, document });
+        const { title: _title, description: _description, ...rest } = document;
+        const next: AppDocument = { ...rest, ...details };
+        const saved = await client.update(id, next);
         // Saving the document saves the draft; saving only the details leaves a draft as it is.
-        setState({ status: 'ready', app: saved, document });
+        setState({ status: 'ready', app: saved, document: next });
         return true;
       } catch (error) {
         notifications.toasts.addDanger({

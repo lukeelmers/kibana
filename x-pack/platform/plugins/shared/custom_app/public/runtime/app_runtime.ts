@@ -10,12 +10,15 @@ import isEqual from 'lodash/isEqual';
 import {
   MAX_LIST_ITEMS,
   MAX_STATE_STRING_LENGTH,
+  findReferences,
   getNodeChildren,
   getStateDefaults,
+  getStateType,
+  resolveText,
   type Action,
   type ActionList,
   type AppDocument,
-  type StateDeclaration,
+  type StateType,
   type StateValue,
 } from '@kbn/custom-app-common';
 import {
@@ -70,10 +73,12 @@ export interface AppRuntime {
   state$: BehaviorSubject<StateValues>;
   /** The id of the flyout that is open, if any. */
   openFlyoutId$: BehaviorSubject<string | undefined>;
+  /** The row of the row click that opened the flyout, if a row click did. */
+  flyoutRow$: BehaviorSubject<Readonly<Record<string, unknown>> | undefined>;
   /** Runs actions in order, each seeing the effect of the ones before it. */
   run: (actions: ActionList, input?: ActionInput) => RunActionsResult;
   /** Follows the document when it changes, keeping the values that are still valid. */
-  setDocument: (document: Pick<AppDocument, 'state' | 'root'>) => void;
+  setDocument: (document: Pick<AppDocument, 'state' | 'body'>) => void;
   /**
    * Puts the app as a view says: the values it names are set, every other value of `keys` goes
    * back to how it starts, and the flyout of the view is open, or none. A value that is not
@@ -89,19 +94,15 @@ const describe = (value: unknown): string =>
   value === null ? 'null' : Array.isArray(value) ? 'a list' : typeof value;
 
 /** Whether a value is of the kind a key was declared as. */
-const hasType = (value: unknown, declaration: StateDeclaration): boolean =>
-  declaration.type === 'list' ? Array.isArray(value) : typeof value === declaration.type;
+const hasType = (value: unknown, type: StateType): boolean =>
+  type === 'list' ? Array.isArray(value) : typeof value === type;
 
 /** Returns why a value cannot be stored under a key, or undefined when it can. */
-const rejectValue = (
-  key: string,
-  declaration: StateDeclaration,
-  value: unknown
-): string | undefined => {
-  if (!hasType(value, declaration)) {
-    return `"${key}" expects ${
-      declaration.type === 'list' ? 'a list' : `a ${declaration.type}`
-    } but got ${describe(value)}`;
+const rejectValue = (key: string, type: StateType, value: unknown): string | undefined => {
+  if (!hasType(value, type)) {
+    return `"${key}" expects ${type === 'list' ? 'a list' : `a ${type}`} but got ${describe(
+      value
+    )}`;
   }
   if (Array.isArray(value)) {
     if (value.length > MAX_LIST_ITEMS) return `"${key}" expects at most ${MAX_LIST_ITEMS} values`;
@@ -119,21 +120,22 @@ const rejectValue = (
   }
 };
 
-const collectFlyoutIds = (root: AppDocument['root']): Set<string> => {
+export const collectFlyoutIds = (body: AppDocument['body']): Set<string> => {
   const ids = new Set<string>();
-  const pending = [root];
+  const pending = [...body];
   for (let node = pending.pop(); node; node = pending.pop()) {
-    if (getCapability(node.type)?.overlay === true) ids.add(node.id);
+    if (getCapability(node.type)?.overlay === true && node.id !== undefined) ids.add(node.id);
     pending.push(...getNodeChildren(node));
   }
   return ids;
 };
 
-export const createAppRuntime = (document: Pick<AppDocument, 'state' | 'root'>): AppRuntime => {
-  let declarations = document.state;
-  let flyoutIds = collectFlyoutIds(document.root);
-  const state$ = new BehaviorSubject<StateValues>(getStateDefaults(declarations));
+export const createAppRuntime = (document: Pick<AppDocument, 'state' | 'body'>): AppRuntime => {
+  let defaults = document.state;
+  let flyoutIds = collectFlyoutIds(document.body);
+  const state$ = new BehaviorSubject<StateValues>(getStateDefaults(defaults));
   const openFlyoutId$ = new BehaviorSubject<string | undefined>(undefined);
+  const flyoutRow$ = new BehaviorSubject<Readonly<Record<string, unknown>> | undefined>(undefined);
 
   const setState = (
     key: string,
@@ -141,30 +143,34 @@ export const createAppRuntime = (document: Pick<AppDocument, 'state' | 'root'>):
     input: ActionInput,
     dropped: string[]
   ) => {
-    const declaration = declarations[key];
-    if (!declaration) {
+    if (!(key in defaults)) {
       dropped.push(`Unknown state key "${key}"`);
       return;
     }
+    const type = getStateType(defaults[key]);
 
     let resolved: unknown;
-    if (typeof value !== 'object' || Array.isArray(value)) {
-      resolved = value;
-    } else if ('fromColumn' in value) {
-      if (!input.row || !(value.fromColumn in input.row)) {
-        dropped.push(`Column "${value.fromColumn}" is not in the row`);
+    const template = typeof value === 'string' && value.includes('{{') ? value : undefined;
+    if (template !== undefined) {
+      const column = findReferences(template).find(
+        ({ scope, key: name }) => scope === 'row' && !(input.row && name in input.row)
+      );
+      if (column) {
+        dropped.push(`Column "${column.key}" is not in the row`);
         return;
       }
-      resolved = input.row[value.fromColumn];
+      resolved = resolveText(template, { state: state$.getValue(), row: input.row });
+    } else if (typeof value !== 'object' || Array.isArray(value)) {
+      resolved = value;
     } else {
       resolved = input.input;
     }
 
-    // A value that comes from a column of a clicked row, or from an input, and not one that was
+    // A value that comes from a clicked row, another value or an input, and not one that was
     // written down: a list takes a single one as a list of that one, an empty one as an empty list.
-    const isLiteral = typeof value !== 'object' || Array.isArray(value);
+    const isLiteral = template === undefined && (typeof value !== 'object' || Array.isArray(value));
     if (
-      declaration.type === 'list' &&
+      type === 'list' &&
       !isLiteral &&
       (typeof resolved === 'string' ||
         typeof resolved === 'number' ||
@@ -174,14 +180,11 @@ export const createAppRuntime = (document: Pick<AppDocument, 'state' | 'root'>):
     }
 
     // A column often holds a number, such as an id or a count; a text value takes it as text.
-    if (
-      declaration.type === 'string' &&
-      (typeof resolved === 'number' || typeof resolved === 'boolean')
-    ) {
+    if (type === 'string' && (typeof resolved === 'number' || typeof resolved === 'boolean')) {
       resolved = String(resolved);
     }
 
-    const rejection = rejectValue(key, declaration, resolved);
+    const rejection = rejectValue(key, type, resolved);
     if (rejection) {
       dropped.push(rejection);
       return;
@@ -193,6 +196,7 @@ export const createAppRuntime = (document: Pick<AppDocument, 'state' | 'root'>):
   return {
     state$,
     openFlyoutId$,
+    flyoutRow$,
     run: (actions, input = {}) => {
       const dropped: string[] = [];
       const requests: ActionRequest[] = [];
@@ -208,6 +212,7 @@ export const createAppRuntime = (document: Pick<AppDocument, 'state' | 'root'>):
           case 'flyout': {
             const { flyout } = action as Extract<Action, { flyout: unknown }>;
             if (flyoutIds.has(flyout)) {
+              flyoutRow$.next(input.row);
               openFlyoutId$.next(flyout);
             } else {
               dropped.push(`"${flyout}" is not a flyout`);
@@ -241,28 +246,30 @@ export const createAppRuntime = (document: Pick<AppDocument, 'state' | 'root'>):
       const current = state$.getValue();
       const next = { ...current };
       keys.forEach((key) => {
-        const declaration = declarations[key];
-        if (!declaration) return;
+        if (!(key in defaults)) return;
         const value = values[key];
         next[key] =
-          value !== undefined && rejectValue(key, declaration, value) === undefined
+          value !== undefined && rejectValue(key, getStateType(defaults[key]), value) === undefined
             ? value
-            : declaration.default;
+            : defaults[key];
       });
       if (Object.keys(next).some((key) => !isEqual(next[key], current[key]))) state$.next(next);
 
       const open = flyout !== undefined && flyoutIds.has(flyout) ? flyout : undefined;
-      if (openFlyoutId$.getValue() !== open) openFlyoutId$.next(open);
+      if (openFlyoutId$.getValue() !== open) {
+        flyoutRow$.next(undefined);
+        openFlyoutId$.next(open);
+      }
     },
     setDocument: (next) => {
-      declarations = next.state;
-      flyoutIds = collectFlyoutIds(next.root);
+      defaults = next.state;
+      flyoutIds = collectFlyoutIds(next.body);
 
       const current = state$.getValue();
       const merged = Object.fromEntries(
-        Object.entries(declarations).map(([key, declaration]) => [
+        Object.entries(defaults).map(([key, value]) => [
           key,
-          key in current && hasType(current[key], declaration) ? current[key] : declaration.default,
+          key in current && hasType(current[key], getStateType(value)) ? current[key] : value,
         ])
       );
       const changed =

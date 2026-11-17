@@ -7,7 +7,6 @@
 
 import { getESQLQueryVariables } from '@kbn/esql-utils';
 import type { DocumentResolution, GenericNode, ResolvableDocument } from '@kbn/custom-app-registry';
-import type { StateDeclaration } from '@kbn/custom-app-common';
 import {
   CUSTOM_CONTENT_EMBEDDABLE_TYPE,
   CUSTOM_CONTENT_SCRIPT_PATTERN,
@@ -41,11 +40,11 @@ const collectPrompted = (node: GenericNode): GenericNode[] => [
 /** The default of each value the query uses, so a query with parameters can be tried. */
 const getSampleParams = (
   query: string | undefined,
-  state: Readonly<Record<string, StateDeclaration>>
+  state: Readonly<Record<string, unknown>>
 ): Params =>
   Array.from(new Set(query ? getESQLQueryVariables(query) : [])).flatMap((name) => {
     if (!(name in state)) return [];
-    const { default: value } = state[name];
+    const value = state[name] as string | number | boolean | string[];
     // A list is tried with its first value, or an empty one: it is a sample of the data that is
     // wanted, and a value stands for a list of one.
     return [{ [name]: Array.isArray(value) ? value[0] ?? '' : value }];
@@ -53,9 +52,9 @@ const getSampleParams = (
 
 const replaceNodes = (
   node: GenericNode,
-  replacements: ReadonlyMap<string, GenericNode>
+  replacements: ReadonlyMap<GenericNode, GenericNode>
 ): GenericNode => {
-  const replacement = replacements.get(node.id);
+  const replacement = replacements.get(node);
   if (replacement) return replacement;
   // Any component that holds others: a panel may be inside tabs, a card or columns as well.
   if (node.children) {
@@ -74,7 +73,7 @@ export const resolveCustomContent = async (
   document: ResolvableDocument,
   resolver: CustomContentTemplateResolver
 ): Promise<DocumentResolution<ResolvableDocument>> => {
-  const prompted = collectPrompted(document.root);
+  const prompted = document.body.flatMap(collectPrompted);
   if (prompted.length === 0) return { document };
   if (prompted.length > MAX_TEMPLATES_PER_CALL) {
     return {
@@ -82,12 +81,13 @@ export const resolveCustomContent = async (
     };
   }
 
-  const replacements = new Map<string, GenericNode>();
+  const replacements = new Map<GenericNode, GenericNode>();
   for (const node of prompted) {
     const { prompt, ...state } = node.state as State;
+    const name = node.id ?? node.type;
     try {
       const query = readEsqlQuery(state);
-      const esqlParams = getSampleParams(query, document.state as Record<string, StateDeclaration>);
+      const esqlParams = getSampleParams(query, document.state);
       const { template, height } = await resolver({
         prompt: prompt as string,
         esqlQuery: query,
@@ -97,18 +97,23 @@ export const resolveCustomContent = async (
       });
       if (CUSTOM_CONTENT_SCRIPT_PATTERN.test(template)) {
         return {
-          error: `The template of "${node.id}" has a script in it; it is shown with scripting off, so it must be plain HTML`,
+          error: `The template of "${name}" has a script in it; it is shown with scripting off, so it must be plain HTML`,
         };
       }
-      replacements.set(node.id, { ...node, height, state: { ...state, template } });
+      replacements.set(node, { ...node, height, state: { ...state, template } });
     } catch (err) {
       return {
-        error: `Could not write the template of "${node.id}": ${
+        error: `Could not write the template of "${name}": ${
           err instanceof Error ? err.message : String(err)
         }`,
       };
     }
   }
 
-  return { document: { ...document, root: replaceNodes(document.root, replacements) } };
+  return {
+    document: {
+      ...document,
+      body: document.body.map((node) => replaceNodes(node, replacements)),
+    },
+  };
 };

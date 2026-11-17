@@ -5,13 +5,15 @@
  * 2.0.
  */
 
+import type { PluginInitializerContext } from '@kbn/core/server';
+
 export type {
   CustomAppByReferenceState,
   CustomAppByValueState,
   CustomAppEmbeddableState,
 } from './embeddable/schemas';
 
-export const plugin = async () => {
+export const plugin = async (initializerContext: PluginInitializerContext) => {
   const { CustomAppPlugin } = await import('./plugin');
-  return new CustomAppPlugin();
+  return new CustomAppPlugin(initializerContext);
 };

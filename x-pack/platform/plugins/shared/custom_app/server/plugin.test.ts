@@ -30,7 +30,7 @@ const setup = (withAgentBuilder: boolean) => {
     skills: { register: jest.fn() },
   };
 
-  new CustomAppPlugin().setup(core, {
+  new CustomAppPlugin(coreMock.createPluginInitializerContext()).setup(core, {
     embeddable,
     features,
     isomer: { registerPack: jest.fn() },

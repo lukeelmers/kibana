@@ -17,25 +17,21 @@ const DETAIL: SourceData = {
 };
 
 const document = appDocumentSchema.parse({
-  state: { service: { type: 'string', default: 'checkout' } },
-  root: {
-    type: 'section',
-    title: 'App',
-    id: 'root',
-    children: [
-      { type: 'markdown', id: 'before', text: 'before' },
-      {
-        type: 'flyout',
-        id: 'service-flyout',
-        title: 'Service {{state.service}}',
-        children: [
-          { type: 'markdown', id: 'inside', text: 'inside the flyout' },
-          { type: 'fields', id: 'kv', query: 'FROM x | WHERE s == ?service' },
-        ],
-      },
-      { type: 'markdown', id: 'after', text: 'after' },
-    ],
-  },
+  title: 'App',
+  state: { service: 'checkout' },
+  body: [
+    { type: 'markdown', text: 'before' },
+    {
+      type: 'flyout',
+      id: 'service-flyout',
+      title: 'Service {{state.service}}',
+      children: [
+        { type: 'markdown', text: 'inside the flyout' },
+        { type: 'fields', query: 'FROM x | WHERE s == ?service' },
+      ],
+    },
+    { type: 'markdown', text: 'after' },
+  ],
 });
 
 const setup = () => {

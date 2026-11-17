@@ -28,8 +28,9 @@ export interface ActionUiApi {
   /**
    * Does what handlers requested, once the person has had their say. It gets every request that
    * one event made, so that they can be put to the person together. `nodeId` is the component.
+   * It resolves to whether it was done: false when the person said no, or it failed.
    */
-  request: (payloads: readonly unknown[], nodeId: string) => void;
+  request: (payloads: readonly unknown[], nodeId: string) => Promise<boolean>;
   /** Says which actions a component that is shown has, so that what is needed to know can be found out. */
   watch?: (actions: readonly Action[]) => void;
   /** Why these actions cannot be done now, if they cannot. Without a reason they can. */

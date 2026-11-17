@@ -32,15 +32,11 @@ jest.mock('../services', () => ({
 }));
 
 const document = appDocumentSchema.parse({
-  root: {
-    type: 'section',
-    title: 'App',
-    id: 'root',
-    children: [
-      { type: 'header', id: 'title', text: 'Orders' },
-      { type: 'stat', id: 'total', title: 'Total', query: 'ROW value = 42' },
-    ],
-  },
+  title: 'App',
+  body: [
+    { type: 'header', text: 'Orders' },
+    { type: 'stat', title: 'Total', query: 'ROW value = 42' },
+  ],
 });
 
 describe('the app in the conversation', () => {
@@ -64,17 +60,20 @@ describe('the app in the conversation', () => {
 
   it('shows the data of the new app when the app changes under it, not a table that never finishes', async () => {
     const before = appDocumentSchema.parse({
-      root: { type: 'table', id: 'table', query: 'ROW value = 42' },
+      title: 'App',
+      body: [{ type: 'table', query: 'ROW value = 42' }],
     });
     // What a draft looks like after a row click that remembers a column: a value, and an action.
     const after = appDocumentSchema.parse({
-      state: { value: { type: 'string', default: '' } },
-      root: {
-        type: 'table',
-        id: 'table',
-        query: 'ROW value = 42',
-        onRowClick: [{ state: { value: { fromColumn: 'value' } } }],
-      },
+      title: 'App',
+      state: { value: '' },
+      body: [
+        {
+          type: 'table',
+          query: 'ROW value = 42',
+          onRowClick: [{ state: { value: '{{row.value}}' } }],
+        },
+      ],
     });
     const { rerender } = render(<LiveApp document={before} />);
     expect(await screen.findByText('42')).toBeInTheDocument();
@@ -88,8 +87,9 @@ describe('the app in the conversation', () => {
   it('shows the values of the new app too, since they come from a new runtime', async () => {
     const withGreeting = (greeting: string) =>
       appDocumentSchema.parse({
-        state: { greeting: { type: 'string', default: greeting } },
-        root: { type: 'header', id: 'title', text: 'Say {{state.greeting}}' },
+        title: 'App',
+        state: { greeting },
+        body: [{ type: 'header', text: 'Say {{state.greeting}}' }],
       });
     const { rerender } = render(<LiveApp document={withGreeting('hello')} />);
     expect(await screen.findByText('Say hello')).toBeInTheDocument();
@@ -104,42 +104,24 @@ describe('the app, as it is seen', () => {
   beforeEach(() => runQuery.mockClear());
 
   const filtered = appDocumentSchema.parse({
-    state: { greeting: { type: 'string', default: 'hello' } },
-    root: {
-      type: 'section',
-      title: 'App',
-      id: 'root',
-      children: [
-        { type: 'header', id: 'title', text: 'Say {{state.greeting}}' },
-        {
-          type: 'button',
-          id: 'change',
-          label: 'Change',
-          onClick: [{ state: { greeting: 'bye' } }],
-        },
-        {
-          type: 'button',
-          id: 'open',
-          label: 'Open',
-          onClick: [{ flyout: 'more' }],
-        },
-        { type: 'flyout', id: 'more', title: 'More', children: [] },
-      ],
-    },
+    title: 'App',
+    state: { greeting: 'hello' },
+    body: [
+      { type: 'header', text: 'Say {{state.greeting}}' },
+      { type: 'button', label: 'Change', onClick: [{ state: { greeting: 'bye' } }] },
+      { type: 'button', label: 'Open', onClick: [{ flyout: 'more' }] },
+      { type: 'flyout', id: 'more', title: 'More', children: [] },
+    ],
   });
 
   it('starts as the view says, and asks for the data of the period of the view', async () => {
     const withData = appDocumentSchema.parse({
-      state: { greeting: { type: 'string', default: 'hello' } },
-      root: {
-        type: 'section',
-        title: 'App',
-        id: 'root',
-        children: [
-          { type: 'header', id: 'title', text: 'Say {{state.greeting}}' },
-          { type: 'stat', id: 'total', title: 'Total', query: 'ROW value = 42' },
-        ],
-      },
+      title: 'App',
+      state: { greeting: 'hello' },
+      body: [
+        { type: 'header', text: 'Say {{state.greeting}}' },
+        { type: 'stat', title: 'Total', query: 'ROW value = 42' },
+      ],
     });
     render(
       <LiveApp
@@ -216,10 +198,7 @@ describe('the app, as it is seen', () => {
 
     const changed = appDocumentSchema.parse({
       ...filtered,
-      root: {
-        ...filtered.root,
-        children: [{ type: 'header', id: 'title', text: 'Now {{state.greeting}}' }],
-      },
+      body: [{ type: 'header', text: 'Now {{state.greeting}}' }],
     });
     rerender(<LiveApp document={changed} view={view} />);
 

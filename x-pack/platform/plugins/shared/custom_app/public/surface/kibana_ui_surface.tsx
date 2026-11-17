@@ -14,16 +14,19 @@ import type { KibanaIsomerRuntime } from '@kbn/isomer';
 import type { ComponentsRenderContext } from '@kbn/isomer-components';
 import {
   defineSurface,
+  getCapability,
   KIBANA_UI_SURFACE,
   type KibanaUiEnv,
   type KibanaUiRenderer,
 } from '@kbn/custom-app-registry';
 import {
   fillDataProps,
-  getInterpolatedText,
   interpolate,
   resolveBoundProps,
+  withNodeIds,
   type AppNode,
+  type IdentifiedNode,
+  type InterpolationScopes,
 } from '@kbn/custom-app-common';
 import { useActionRunner } from '../actions/use_action_runner';
 import { DataState } from '../components/data_state';
@@ -31,7 +34,6 @@ import { useDataLayer, useOptionalDataLayer } from '../data/data_layer_context';
 import { createRunEsqlQuery } from '../data/run_esql_query';
 import { useSource } from '../data/use_source';
 import { useAppRuntime, useStateValues } from '../runtime/app_runtime_context';
-import type { StateValues } from '../runtime/app_runtime';
 import { getServices } from '../services';
 import { dispatchNode, type KibanaUiHost } from './dispatch';
 
@@ -47,12 +49,12 @@ const withoutAppProps = (node: PrimitiveNode): PrimitiveNode =>
     Object.entries(node).filter(([key]) => !APP_PROPS.has(key) && !/^on[A-Z]/.test(key))
   ) as PrimitiveNode;
 
-/** The node with its bound props and its `{{state.key}}` text as the values are now. */
-const resolveNode = (node: AppNode, state: StateValues): AppNode =>
-  getInterpolatedText(node).reduce<AppNode>(
-    (resolved, { prop, text }) => ({ ...resolved, [prop]: interpolate(text, state) }),
-    resolveBoundProps(node, state)
-  );
+/** The node with its bound props and its `{{state.key}}` and `{{row.key}}` text as they are now. */
+const resolveNode = (node: AppNode, scopes: InterpolationScopes): AppNode =>
+  (getCapability(node.type)?.interpolated ?? []).reduce<AppNode>((resolved, prop) => {
+    const text = (resolved as unknown as Record<string, unknown>)[prop];
+    return typeof text === 'string' ? { ...resolved, [prop]: interpolate(text, scopes) } : resolved;
+  }, resolveBoundProps(node, scopes.state));
 
 const UnsupportedNode = ({ node }: { node: { id?: unknown; type?: unknown } }) => (
   <KbnWarningCallout
@@ -73,7 +75,13 @@ const UnsupportedNode = ({ node }: { node: { id?: unknown; type?: unknown } }) =
 );
 
 /** A node that shows data: its query runs while it is shown, and fills its props when it returns. */
-const DataNode = ({ node, render }: { node: AppNode; render: (filled: AppNode) => ReactNode }) => {
+const DataNode = ({
+  node,
+  render,
+}: {
+  node: IdentifiedNode;
+  render: (filled: AppNode) => ReactNode;
+}) => {
   const layer = useDataLayer();
   const source = useSource(node.id);
   return (
@@ -106,18 +114,23 @@ export const kibanaUiSurface = defineSurface<KibanaUiHost, ReactNode, KibanaUiSu
   visibleAs: 'react',
   fallback: (node, host) => <ReactFallback node={node} host={host} />,
   create: (host) => {
-    const KibanaUiNode = ({ node, row }: { node: AppNode; row?: KibanaUiEnv['row'] }) => {
+    const KibanaUiNode = ({ node, row }: { node: IdentifiedNode; row?: KibanaUiEnv['row'] }) => {
       const runtime = useAppRuntime();
       const state = useStateValues();
       const dispatch = useActionRunner(node.id);
       const layer = useOptionalDataLayer();
-      const resolved = useMemo(() => resolveNode(node, state), [node, state]);
+      const resolved = useMemo(() => resolveNode(node, { state, row }), [node, state, row]);
       const env: KibanaUiEnv = {
         state,
         row,
+        // As it is, and not read as text that refers to values.
         setState: (key, value) =>
-          runtime.run({ state: { [key]: typeof value === 'object' ? [...value] : value } }),
-        dispatch,
+          runtime.run(
+            { state: { [key]: { fromInput: true } } },
+            { input: typeof value === 'object' ? [...value] : value }
+          ),
+        // A node in a flyout that a row click opened acts with that row.
+        dispatch: (handlers, input, onDone) => dispatch(handlers, { row, ...input }, onDone),
         runQuery: (query, signal) => {
           const context = layer?.context$.getValue();
           if (!context)
@@ -125,14 +138,16 @@ export const kibanaUiSurface = defineSurface<KibanaUiHost, ReactNode, KibanaUiSu
           const { core, search } = getServices();
           return createRunEsqlQuery({ search, http: core.http })(query, { context, state }, signal);
         },
-        renderChild: (child) => <KibanaUiNode key={child.id} node={child as AppNode} row={row} />,
+        renderChild: (child, childRow) => (
+          <KibanaUiNode key={child.id} node={child as IdentifiedNode} row={childRow ?? row} />
+        ),
       };
-      return <>{dispatchNode(resolved, env, host)}</>;
+      return <>{dispatchNode(resolved as IdentifiedNode, env, host)}</>;
     };
 
     return {
       render: (body, { row } = {}) =>
-        body.map((node) => <KibanaUiNode key={node.id} node={node} row={row} />),
+        withNodeIds(body).map((node) => <KibanaUiNode key={node.id} node={node} row={row} />),
     };
   },
 });

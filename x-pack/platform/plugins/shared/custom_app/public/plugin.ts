@@ -45,6 +45,27 @@ interface StartDeps {
   share?: SharePluginStart;
 }
 
+let packPrimitives: Promise<void> | undefined;
+
+/**
+ * Registers the primitives of every pack, those of other plugins too, which documents are checked
+ * against, after the built-in ones so those keep their own manifests. Once: the runtime is the
+ * same. A runtime that fails to load is shown where the app is.
+ */
+const loadPackPrimitives = (isomer: IsomerPluginStart): Promise<void> => {
+  packPrimitives ??= Promise.all([
+    import('../common/capabilities/manifests'),
+    isomer.getRuntime(),
+  ]).then(
+    ([{ registerBuiltinCapabilities, registerPackPrimitives }, { primitives }]) => {
+      registerBuiltinCapabilities();
+      registerPackPrimitives(primitives);
+    },
+    () => {}
+  );
+  return packPrimitives;
+};
+
 export class CustomAppPlugin implements Plugin<void, void, SetupDeps, StartDeps> {
   setup(core: CoreSetup<StartDeps>, { embeddable, isomer }: SetupDeps) {
     core.application.register({
@@ -56,13 +77,16 @@ export class CustomAppPlugin implements Plugin<void, void, SetupDeps, StartDeps>
       // In the side navigation, which takes people to the list of apps, and in search.
       visibleIn: ['classicSideNav', 'projectSideNav', 'globalSearch'],
       async mount(params) {
-        const [coreStart] = await core.getStartServices();
+        const [coreStart, { isomer: isomerStart }] = await core.getStartServices();
+        await loadPackPrimitives(isomerStart);
         const { renderApp } = await import('./application/mount');
         return renderApp(coreStart, params);
       },
     });
 
     embeddable.registerEmbeddablePublicDefinition(CUSTOM_APP_EMBEDDABLE_TYPE, async () => {
+      const [, { isomer: isomerStart }] = await core.getStartServices();
+      await loadPackPrimitives(isomerStart);
       const { customAppEmbeddableFactory } = await import('./async_services');
       return customAppEmbeddableFactory;
     });

@@ -10,7 +10,7 @@ import type { CapabilityQueryResult } from '@kbn/custom-app-registry';
 /** How a primitive that shows data takes it: the props its query fills, and from what. */
 export interface DataProps {
   fills: readonly string[];
-  from: (result: CapabilityQueryResult) => Record<string, unknown>;
+  from: (result: CapabilityQueryResult, node: Record<string, unknown>) => Record<string, unknown>;
 }
 
 /** The rows a table shows; a note says how many more there were. */
@@ -38,15 +38,20 @@ const toCell = (value: unknown, max = 500): string | number | null =>
 
 export const DATA_PROPS: Readonly<Record<string, DataProps>> = {
   table: {
-    fills: ['columns', 'rows'],
-    from: ({ columns: allColumns, rows }) => {
+    // `columns` is filled too, and a column the node gives, by its label, says how to format it.
+    fills: ['rows'],
+    from: ({ columns: allColumns, rows }, node) => {
       const columns = allColumns.slice(0, TABLE_COLUMN_LIMIT);
+      const given = (node.columns ?? []) as ReadonlyArray<{ label: string }>;
       const kept = Math.min(
         TABLE_ROW_LIMIT,
         Math.floor(TABLE_CELL_LIMIT / Math.max(columns.length, 1))
       );
       return {
-        columns: columns.map(({ name }) => ({ label: name.slice(0, 100) })),
+        columns: columns.map(({ name }) => {
+          const label = name.slice(0, 100);
+          return { ...given.find((column) => column.label === label), label };
+        }),
         rows: rows
           .slice(0, kept)
           .map((row) => row.slice(0, columns.length).map((cell) => toCell(cell))),
@@ -84,5 +89,5 @@ export const fillDataProps = <TNode extends { type: string }>(
   result: CapabilityQueryResult
 ): TNode => {
   const props = DATA_PROPS[node.type];
-  return props ? { ...node, ...props.from(result) } : node;
+  return props ? { ...node, ...props.from(result, node as Record<string, unknown>) } : node;
 };

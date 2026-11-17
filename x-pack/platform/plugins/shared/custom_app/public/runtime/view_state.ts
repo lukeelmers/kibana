@@ -12,11 +12,13 @@ import {
   MAX_STATE_STRING_LENGTH,
   getNodeBindings,
   getNodeChildren,
+  getStateType,
   type AppDocument,
   type AppNode,
   type StateValue,
 } from '@kbn/custom-app-common';
 import { getCapability } from '@kbn/custom-app-registry';
+import { collectFlyoutIds } from './app_runtime';
 
 /** What a link has to carry for another person, or a refresh, to see the app as it was left. */
 export interface ViewState {
@@ -44,16 +46,16 @@ const collectFormKeys = (node: AppNode): string[] => [
  * can be long or private, and the lists, which can be long, such as a thousand usernames pasted
  * in a box. Neither belongs in a link.
  */
-export const getViewKeys = (document: Pick<AppDocument, 'state' | 'root'>): string[] => {
-  const formKeys = new Set(collectFormKeys(document.root));
+export const getViewKeys = (document: Pick<AppDocument, 'state' | 'body'>): string[] => {
+  const formKeys = new Set(document.body.flatMap(collectFormKeys));
   return Object.keys(document.state).filter(
-    (key) => !formKeys.has(key) && document.state[key].type !== 'list'
+    (key) => !formKeys.has(key) && getStateType(document.state[key]) !== 'list'
   );
 };
 
 /** Only what differs from how the app starts, so an app as it starts has an empty view. */
 export const createView = (
-  document: Pick<AppDocument, 'state' | 'root'>,
+  document: Pick<AppDocument, 'state' | 'body'>,
   state: Readonly<Record<string, StateValue>>,
   flyout: string | undefined,
   timeRange: { from: string; to: string },
@@ -61,7 +63,7 @@ export const createView = (
 ): ViewState => ({
   values: Object.fromEntries(
     getViewKeys(document)
-      .filter((key) => key in state && state[key] !== document.state[key].default)
+      .filter((key) => key in state && state[key] !== document.state[key])
       .map((key) => [key, state[key]])
   ),
   ...(flyout === undefined ? {} : { flyout }),
@@ -99,7 +101,7 @@ const isObject = (value: unknown): value is Record<string, unknown> =>
  * that cannot be read at all is no view. It never throws.
  */
 export const decodeView = (
-  document: Pick<AppDocument, 'state' | 'root'>,
+  document: Pick<AppDocument, 'state' | 'body'>,
   encoded: string | null | undefined
 ): ViewState => {
   if (!encoded || encoded.length > MAX_ENCODED_LENGTH) return EMPTY_VIEW;
@@ -115,19 +117,13 @@ export const decodeView = (
   const keys = new Set(getViewKeys(document));
   const values = Object.fromEntries(
     Object.entries(isObject(parsed.v) ? parsed.v : {}).filter(([key, value]) => {
-      const declaration = document.state[key];
-      if (!declaration || !keys.has(key) || typeof value !== declaration.type) return false;
+      if (!keys.has(key) || typeof value !== typeof document.state[key]) return false;
       if (typeof value === 'string') return value.length <= MAX_STATE_STRING_LENGTH;
       return typeof value !== 'number' || Number.isFinite(value);
     })
   ) as Record<string, StateValue>;
 
-  const flyoutIds = new Set<string>();
-  const pending = [document.root];
-  for (let node = pending.pop(); node; node = pending.pop()) {
-    if (getCapability(node.type)?.overlay === true) flyoutIds.add(node.id);
-    pending.push(...getNodeChildren(node));
-  }
+  const flyoutIds = collectFlyoutIds(document.body);
   const flyout = typeof parsed.f === 'string' && flyoutIds.has(parsed.f) ? parsed.f : undefined;
 
   const time = isObject(parsed.t) ? parsed.t : undefined;

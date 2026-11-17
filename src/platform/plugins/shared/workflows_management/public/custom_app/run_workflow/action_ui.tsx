@@ -44,6 +44,7 @@ import { i18n } from '@kbn/i18n';
 import { toMountPoint } from '@kbn/react-kibana-mount';
 import { getServices } from './services';
 import { createWorkflowClient, type WorkflowClient, type WorkflowSummary } from './workflow_client';
+import { getWorkflowId } from '../../../common/custom_app/run_workflow/manifest';
 
 /** The id of the Workflows application, which an execution is looked at in. */
 const WORKFLOWS_APPLICATION_ID = 'workflows';
@@ -107,8 +108,8 @@ export type WorkflowStatus = 'found' | 'missing' | 'unknown';
 /** The ids of the workflows that these actions run. */
 const getWorkflowIds = (actions: readonly Action[]): string[] =>
   actions.flatMap((action) => {
-    const { workflow } = action as { workflow?: string };
-    return typeof workflow === 'string' ? [workflow] : [];
+    const { workflow } = action as { workflow?: string | { id: string } };
+    return workflow === undefined ? [] : [getWorkflowId({ workflow })];
   });
 
 type Details =
@@ -330,6 +331,8 @@ const ConfirmRunModal = ({
 interface Pending {
   requests: WorkflowRunRequest[];
   nodeId: string;
+  /** Says whether every workflow was started. */
+  resolve: (done: boolean) => void;
 }
 
 /** How long a run is followed, and how often it is asked after, to show what it changed. */
@@ -434,9 +437,9 @@ export const RunWorkflowUi = ({
           }),
           text: availability.reason,
         });
-        return;
+        return Promise.resolve(false);
       }
-      setPending({ requests, nodeId });
+      return new Promise<boolean>((resolve) => setPending({ requests, nodeId, resolve }));
     },
     [availability, core.notifications]
   );
@@ -444,6 +447,7 @@ export const RunWorkflowUi = ({
   const confirm = useCallback(async () => {
     if (!pending) return;
     setIsRunning(true);
+    let started = 0;
     for (const { workflow, inputs } of pending.requests) {
       try {
         const { workflowExecutionId } = await client.run(workflow, {
@@ -454,6 +458,7 @@ export const RunWorkflowUi = ({
             ...(appId ? { appId } : {}),
           },
         });
+        started++;
         void refreshWhenDone(workflowExecutionId);
         core.notifications.toasts.addSuccess({
           title: i18n.translate('workflows.customApp.runWorkflow.started', {
@@ -487,6 +492,7 @@ export const RunWorkflowUi = ({
     }
     setIsRunning(false);
     setPending(undefined);
+    pending.resolve(started === pending.requests.length);
   }, [appId, client, core, pending, refreshWhenDone]);
 
   const api = useMemo<ActionUiApi>(
@@ -522,7 +528,10 @@ export const RunWorkflowUi = ({
           client={client}
           isRunning={isRunning}
           onConfirm={confirm}
-          onCancel={() => setPending(undefined)}
+          onCancel={() => {
+            pending.resolve(false);
+            setPending(undefined);
+          }}
         />
       )}
     </ActionUiBridge>

@@ -27,3 +27,18 @@ export const customAppAttributesSchemaV1 = schema.object({
     theme: schema.maybe(schema.recordOf(schema.string(), schema.any())),
   }),
 });
+
+/**
+ * The app as it is written, with its values and its components in `body`, and the package it was
+ * installed from. Only the title and the description are indexed.
+ */
+export const customAppAttributesSchemaV2 = schema.object({
+  title: schema.string({ maxLength: MAX_APP_TITLE_LENGTH }),
+  description: schema.maybe(schema.string({ maxLength: MAX_APP_DESCRIPTION_LENGTH })),
+  showInNav: schema.maybe(schema.boolean()),
+  icon: schema.maybe(schema.string()),
+  width: schema.maybe(schema.literal('page')),
+  package: schema.maybe(schema.object({ name: schema.string() })),
+  state: schema.recordOf(schema.string(), schema.any()),
+  body: schema.arrayOf(schema.recordOf(schema.string(), schema.any())),
+});

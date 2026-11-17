@@ -8,8 +8,8 @@
 import { z, lazySchema } from '@kbn/zod/v4';
 import { defineAction, type ActionOf } from '@kbn/custom-app-registry';
 import {
+  getStateType,
   listValueSchema,
-  MAX_HEADING_LENGTH,
   stateKeySchema,
   stateValueSchema,
 } from '@kbn/custom-app-common';
@@ -23,47 +23,39 @@ export const setStateAction = defineAction({
       state: z
         .record(
           stateKeySchema,
-          z.union([
-            stateValueSchema,
-            listValueSchema,
-            z.object({ fromColumn: z.string().min(1).max(MAX_HEADING_LENGTH) }),
-            z.object({ fromInput: z.literal(true) }),
-          ])
+          z.union([stateValueSchema, listValueSchema, z.object({ fromInput: z.literal(true) })])
         )
         .describe(
-          'The values of the app to set, each to a fixed value, a column of the row that was clicked, or the new value of the input.'
+          'The values of the app to set, each to a value, which a text can take from the clicked row as {{row.<column>}} or from another value as {{state.<key>}}.'
         ),
     })
   ),
   doc: {
     summary: 'Sets values of the app, which the components that read them follow.',
     whenToUse:
-      'To remember a choice: a clicked row, a selected option. A column of the row works on a row click, and the value of the input on a change.',
-    example: { state: { service: { fromColumn: 'service' } } },
+      'To remember a choice, such as a column of a clicked row, which queries then read as ?name.',
+    example: { state: { service: '{{row.service}}' } },
   },
-  validate: (action, { nodeId, event, allowed, state, issue }) => {
+  validate: (action, { nodeId, event, state, checkText, issue }) => {
     Object.entries(action.state).forEach(([key, value]) => {
-      const declaration = state[key];
-      if (!declaration) {
+      if (!(key in state)) {
         issue(`Node "${nodeId}" sets unknown state key "${key}"`);
         return;
       }
+      const type = getStateType(state[key]);
 
       if (Array.isArray(value)) {
-        if (declaration.type !== 'list') {
-          issue(`Node "${nodeId}" sets state key "${key}" (${declaration.type}) to a list`);
-        }
+        if (type !== 'list') issue(`Node "${nodeId}" sets state key "${key}" (${type}) to a list`);
       } else if (typeof value === 'object') {
-        if ('fromColumn' in value && !allowed.fromColumn) {
-          issue(`Node "${nodeId}": fromColumn is not valid in ${event}`);
-        }
-        if ('fromInput' in value && !allowed.fromInput) {
+        if (event !== 'onChange') {
           issue(`Node "${nodeId}": fromInput is only valid on input nodes`);
         }
-      } else if (typeof value !== declaration.type) {
-        issue(
-          `Node "${nodeId}" sets state key "${key}" (${declaration.type}) to a ${typeof value}`
+      } else if (typeof value === 'string' && value.includes('{{')) {
+        checkText(value).forEach((problem) =>
+          issue(`Node "${nodeId}": the value of "${key}" ${problem}`)
         );
+      } else if (typeof value !== type) {
+        issue(`Node "${nodeId}" sets state key "${key}" (${type}) to a ${typeof value}`);
       }
     });
   },

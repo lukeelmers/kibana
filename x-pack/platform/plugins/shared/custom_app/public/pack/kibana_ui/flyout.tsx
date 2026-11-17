@@ -13,12 +13,14 @@ import { FlyoutNode } from '../../components/flyout_node';
 
 export const renderFlyout: KibanaUiRenderer<Node & AppNodeProps> = (node, env) => (
   <FlyoutNode node={node}>
-    <EuiFlexGroup direction="column" gutterSize="m" responsive={false}>
-      {(node.children ?? []).map((child) => (
-        <EuiFlexItem key={child.id} grow={false}>
-          {env.renderChild(child)}
-        </EuiFlexItem>
-      ))}
-    </EuiFlexGroup>
+    {(row) => (
+      <EuiFlexGroup direction="column" gutterSize="m" responsive={false}>
+        {(node.children ?? []).map((child) => (
+          <EuiFlexItem key={child.id} grow={false}>
+            {env.renderChild(child, row)}
+          </EuiFlexItem>
+        ))}
+      </EuiFlexGroup>
+    )}
   </FlyoutNode>
 );

@@ -24,11 +24,13 @@ export interface CapabilityDoc {
 
 export interface CapabilityValidationContext {
   /** Every node of the document. */
-  nodes: ReadonlyArray<{ id: string; type: string }>;
+  nodes: ReadonlyArray<{ id?: string; type: string }>;
   /** Where the node with this id gets what it shows, if it shows data. */
   sourceOf: (nodeId: string) => { type: string } | undefined;
   /** The node that holds the one with this id, if any. */
-  parentOf: (nodeId: string) => { id: string; type: string } | undefined;
+  parentOf: (nodeId: string) => { id?: string; type: string } | undefined;
+  /** What is wrong with the references of a text, in words, as in a property of the node. */
+  checkText: (text: string) => string[];
   /** Reports a problem with the node that is being checked. */
   issue: (message: string) => void;
 }
@@ -40,10 +42,10 @@ export interface CapabilityManifest<
   kind: 'component';
   id: Id;
   version: number;
-  /** The settings of the component, without `type`, `id` and `visibleWhen`, which every node has. */
+  /** The settings of the component, without `type` and the envelope, which every node has. */
   props: z.ZodObject<Shape>;
   doc: CapabilityDoc;
-  /** The settings whose text may refer to values of the app as `{{state.key}}`. */
+  /** The settings whose text may refer to values of the app as `{{state.key}}`, or `{{row.key}}`. */
   interpolated?: ReadonlyArray<keyof Shape & string>;
   /** The settings that a value of the app can set, with what a value must be. */
   bound?: Readonly<Record<string, CapabilityBoundProp>>;
@@ -55,8 +57,6 @@ export interface CapabilityManifest<
   data?: 'query' | 'query_or_source' | 'own';
   /** That the component holds other components, in `children`. */
   container?: true;
-  /** The settings that hold what happens on an event, by the name of the event. */
-  events?: Readonly<Record<string, keyof Shape & string>>;
   /** The values of the app that the component reads and writes. */
   bindings?: (node: z.output<z.ZodObject<Shape>>) => string[];
   /** What kind of value the component sets: text unless it says otherwise. */
@@ -73,7 +73,7 @@ export interface CapabilityManifest<
   ) => ReadonlyArray<{ suffix: string; query: string }>;
   /** What is wrong with the component beyond what its settings say, with the whole document in view. */
   validate?: (
-    node: z.output<z.ZodObject<Shape>> & { id: string },
+    node: z.output<z.ZodObject<Shape>> & { id?: string },
     context: CapabilityValidationContext
   ) => void;
   /** Whether the component is opened by an action and draws nothing where it is in the tree. */

@@ -5,14 +5,23 @@
  * 2.0.
  */
 
-import type { CoreSetup, Plugin } from '@kbn/core/server';
+import type {
+  CoreSetup,
+  CoreStart,
+  Logger,
+  Plugin,
+  PluginInitializerContext,
+} from '@kbn/core/server';
 import type { AgentBuilderPluginSetup } from '@kbn/agent-builder-server';
 import type { EmbeddableSetup } from '@kbn/embeddable-plugin/server';
 import type { FeaturesPluginSetup } from '@kbn/features-plugin/server';
-import type { IsomerPluginSetup } from '@kbn/isomer-plugin/server';
+import type { IsomerPluginSetup, IsomerPluginStart } from '@kbn/isomer-plugin/server';
 import { CUSTOM_APP_EMBEDDABLE_TYPE } from '@kbn/custom-app-common';
 import { createCustomAppContextAttachmentType } from './attachment_types/custom_app_context';
-import { registerBuiltinCapabilities } from '../common/capabilities/manifests';
+import {
+  registerBuiltinCapabilities,
+  registerPackPrimitives,
+} from '../common/capabilities/manifests';
 import { customAppFeature } from './feature';
 import { registerSavedAppRoutes } from './routes/register_routes';
 import { customAppSavedObjectType } from './saved_objects';
@@ -29,7 +38,17 @@ interface SetupDeps {
   agentBuilder?: AgentBuilderPluginSetup;
 }
 
-export class CustomAppPlugin implements Plugin<void, void, SetupDeps> {
+interface StartDeps {
+  isomer: IsomerPluginStart;
+}
+
+export class CustomAppPlugin implements Plugin<void, void, SetupDeps, StartDeps> {
+  private readonly logger: Logger;
+
+  constructor(initializerContext: PluginInitializerContext) {
+    this.logger = initializerContext.logger.get();
+  }
+
   setup(core: CoreSetup, { embeddable, features, isomer, agentBuilder }: SetupDeps) {
     // Registered unconditionally: the saved objects check can only vouch for what it can see.
     core.savedObjects.registerType(customAppSavedObjectType);
@@ -62,5 +81,11 @@ export class CustomAppPlugin implements Plugin<void, void, SetupDeps> {
     }
   }
 
-  start() {}
+  start(_core: CoreStart, { isomer }: StartDeps) {
+    // Documents are checked against the primitives of every pack, those of other plugins too.
+    isomer.getRuntime().then(
+      ({ primitives }) => registerPackPrimitives(primitives),
+      (error) => this.logger.error(`Could not load the Isomer runtime: ${error}`)
+    );
+  }
 }

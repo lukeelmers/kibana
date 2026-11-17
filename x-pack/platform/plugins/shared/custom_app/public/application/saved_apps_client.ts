@@ -9,20 +9,21 @@ import type { HttpStart } from '@kbn/core/public';
 import type { AppDocument } from '@kbn/custom-app-common';
 import { SAVED_APPS_API_PATH, SAVED_APPS_API_VERSION } from '../../common/constants';
 
+/** As stored: the page checks it with the schema of an app before it shows it. */
 export interface SavedApp {
   id: string;
   title: string;
   description?: string;
-  version: number;
-  /** As stored: the page checks it with the schema before it shows it. */
-  document: unknown;
   updatedAt?: string;
+  [attribute: string]: unknown;
 }
 
 export interface SavedAppListItem {
   id: string;
   title: string;
   description?: string;
+  showInNav?: boolean;
+  icon?: string;
   updatedAt?: string;
 }
 
@@ -33,11 +34,8 @@ export interface SavedAppList {
   perPage: number;
 }
 
-export interface SavedAppInput {
-  title: string;
-  description?: string;
-  document: AppDocument;
-}
+/** An app to save is the app as it is written. */
+export type SavedAppInput = AppDocument;
 
 const options = { version: SAVED_APPS_API_VERSION } as const;
 

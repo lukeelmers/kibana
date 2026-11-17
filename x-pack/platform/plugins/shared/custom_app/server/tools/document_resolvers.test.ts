@@ -10,26 +10,30 @@ import { resolveDocument } from './document_resolvers';
 
 const context = {} as Parameters<typeof resolveDocument>[1];
 const documentOf = (title: string) =>
-  ({ state: {}, root: { type: 'header', id: 'h', text: title } } as never);
+  ({ state: {}, body: [{ type: 'header', id: 'h', text: title }] } as never);
 
 describe('resolving a document', () => {
   it('runs each resolver in turn on what the one before gave', async () => {
     registerDocumentResolver(async (document) => ({
       document: {
         ...document,
-        root: {
-          ...document.root,
-          text: `${(document.root as never as { text: string }).text} one`,
-        },
+        body: [
+          {
+            ...document.body[0],
+            text: `${(document.body[0] as never as { text: string }).text} one`,
+          },
+        ],
       } as never,
     }));
     registerDocumentResolver(async (document) => ({
       document: {
         ...document,
-        root: {
-          ...document.root,
-          text: `${(document.root as never as { text: string }).text} two`,
-        },
+        body: [
+          {
+            ...document.body[0],
+            text: `${(document.body[0] as never as { text: string }).text} two`,
+          },
+        ],
       } as never,
     }));
 
@@ -37,7 +41,7 @@ describe('resolving a document', () => {
 
     expect(resolved).toEqual({
       document: expect.objectContaining({
-        root: expect.objectContaining({ text: 'start one two' }),
+        body: [expect.objectContaining({ text: 'start one two' })],
       }),
     });
   });

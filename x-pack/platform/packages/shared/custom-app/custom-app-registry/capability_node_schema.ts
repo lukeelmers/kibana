@@ -7,17 +7,13 @@
 
 import { z } from '@kbn/zod/v4';
 import { MAX_CHILDREN_PER_NODE } from './constants';
-import { nodeIdSchema, visibleWhenSchema } from './node_envelope';
+import { getNodeEnvelope } from './node_envelope';
 import type { CapabilityManifest } from './define_capability';
 
 /** The node of a capability: what every node has, and the settings of the capability. */
 export type CapabilityNode<Id extends string, Shape extends z.ZodRawShape> = z.output<
   z.ZodObject<
-    {
-      type: z.ZodLiteral<Id>;
-      id: typeof nodeIdSchema;
-      visibleWhen: typeof visibleWhenSchema;
-    } & Shape
+    { type: z.ZodLiteral<Id> } & Omit<ReturnType<typeof getNodeEnvelope>, keyof Shape> & Shape
   >
 >;
 
@@ -29,8 +25,9 @@ export type CapabilityNodeOf<Manifest> = Manifest extends CapabilityManifest<inf
 const schemas = new WeakMap<object, z.ZodType>();
 
 /**
- * The schema of a node of a capability, made once for each. A capability that holds other
- * components gets `children`, each of any type, from the schema that is given for a node.
+ * The schema of a node of a capability, made once for each: the app's envelope and the settings of
+ * the capability. A capability that holds other components gets `children`, each of any type,
+ * from the schema that is given for a node.
  */
 export const capabilityNodeSchema = <Id extends string, Shape extends z.ZodRawShape>(
   manifest: CapabilityManifest<Id, Shape>,
@@ -50,8 +47,7 @@ const createNodeSchema = <Id extends string, Shape extends z.ZodRawShape>(
 ) => {
   const shape = {
     type: z.literal(manifest.id),
-    id: nodeIdSchema,
-    visibleWhen: visibleWhenSchema,
+    ...getNodeEnvelope(),
     ...manifest.props.shape,
   };
   if (!manifest.container || !nodeSchema) return z.object(shape);

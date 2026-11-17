@@ -40,7 +40,7 @@ describe('customAppUpdateSchema', () => {
     expect(
       customAppUpdateSchema.safeParse({
         embeddable_id: 'p',
-        document: { root: { type: 'carousel', id: 'x' } },
+        document: { title: 'App', body: [{ type: 'carousel', id: 'x' }] },
       }).success
     ).toBe(false);
   });
@@ -50,13 +50,16 @@ describe('customAppUpdateSchema', () => {
     const result = customAppUpdateSchema.safeParse({
       embeddable_id: 'p',
       document: {
-        root: {
-          type: 'select',
-          id: 'find',
-          label: 'Find',
-          bind: 'missing',
-          options: [{ value: 'a' }],
-        },
+        title: 'App',
+        body: [
+          {
+            type: 'select',
+            id: 'find',
+            label: 'Find',
+            bind: 'missing',
+            options: [{ value: 'a' }],
+          },
+        ],
       },
     });
 
@@ -66,11 +69,11 @@ describe('customAppUpdateSchema', () => {
   it('fills in what an app leaves out, so an agent need not write empty values', () => {
     const result = customAppUpdateSchema.parse({
       embeddable_id: 'p',
-      document: { root: { type: 'table', id: 't', query: 'ROW 1' } },
+      document: { title: 'App', body: [{ type: 'table', id: 't', query: 'ROW 1' }] },
     });
 
     expect(result.document.state).toEqual({});
-    expect(result.document.root).toMatchObject({ onRowClick: [] });
+    expect(result.document.body[0]).toMatchObject({ onRowClick: [] });
   });
 
   describe('as the model sees it', () => {
@@ -108,7 +111,7 @@ describe('customAppUpdateSchema', () => {
           .document.required ?? []
       );
 
-      expect(required).toContain('root');
+      expect(required).toContain('body');
       expect(required).not.toContain('state');
     });
   });

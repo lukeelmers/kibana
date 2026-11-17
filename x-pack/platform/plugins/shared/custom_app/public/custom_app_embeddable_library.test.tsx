@@ -45,27 +45,19 @@ jest.mock('./data/run_esql_query', () => ({
   createRunEsqlQuery: () => async () => ({ columns: [], rows: [] }),
 }));
 
-const documentWith = (heading: string): AppDocument =>
+const documentWith = (heading: string, details: object = { title: 'App' }): AppDocument =>
   appDocumentSchema.parse({
-    root: {
-      type: 'section',
-      title: 'App',
-      id: 'root',
-      children: [{ type: 'header', id: 'title', text: heading }],
-    },
+    ...details,
+    body: [{ type: 'section', title: 'App', children: [{ type: 'header', text: heading }] }],
   });
 
-const LIBRARY_DOCUMENT = documentWith('Library heading');
-const OWN_DOCUMENT = documentWith('Own heading');
-
-const libraryItem = (overrides = {}) => ({
-  id: 'lib-1',
+const LIBRARY_DOCUMENT = documentWith('Library heading', {
   title: 'Library app',
   description: 'About it',
-  version: 1,
-  document: LIBRARY_DOCUMENT,
-  ...overrides,
 });
+const OWN_DOCUMENT = documentWith('Own heading');
+
+const libraryItem = (overrides = {}) => ({ id: 'lib-1', ...LIBRARY_DOCUMENT, ...overrides });
 
 interface Api {
   serializeState: () => CustomAppByValueState | CustomAppByReferenceState;
@@ -158,9 +150,7 @@ describe('the custom app panel and the library', () => {
       });
 
       it('does not build a panel, and says what is wrong, when the app in the library is not valid', async () => {
-        mockSavedApps.get.mockResolvedValue(
-          libraryItem({ document: { state: {}, root: { type: 'carousel', id: 'x' } } })
-        );
+        mockSavedApps.get.mockResolvedValue(libraryItem({ body: [{ type: 'carousel' }] }));
 
         await expect(buildLinked()).rejects.toThrow(/Library app.*cannot be shown/);
       });
@@ -197,10 +187,11 @@ describe('the custom app panel and the library', () => {
 
         await act(async () => agent.chatEvents$.next(updated(made)));
 
-        expect(mockSavedApps.update).toHaveBeenCalledWith(
-          'lib-1',
-          expect.objectContaining({ document: made })
-        );
+        expect(mockSavedApps.update).toHaveBeenCalledWith('lib-1', {
+          ...made,
+          title: 'Library app',
+          description: 'About it',
+        });
         expect(
           await screen.findByRole('heading', { name: 'Made by the agent' })
         ).toBeInTheDocument();
@@ -238,9 +229,9 @@ describe('the custom app panel and the library', () => {
 
       expect(id).toBe('new-lib');
       expect(mockSavedApps.create).toHaveBeenCalledWith({
+        ...OWN_DOCUMENT,
         title: 'My app',
         description: 'Panel notes',
-        document: OWN_DOCUMENT,
       });
     });
 

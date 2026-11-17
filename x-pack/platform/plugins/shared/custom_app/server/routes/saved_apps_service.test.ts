@@ -6,20 +6,17 @@
  */
 
 import { savedObjectsClientMock } from '@kbn/core/server/mocks';
-import { CUSTOM_APP_STATE_VERSION } from '@kbn/custom-app-common';
 import { CUSTOM_APP_SAVED_OBJECT_TYPE } from '../../common/constants';
 import { createSavedAppsService } from './saved_apps_service';
 
 const input = {
   title: 'Explorer',
   description: 'About',
-  document: {
-    state: {},
-    root: { type: 'header' as const, id: 'title', text: 'Hi' },
-  },
+  state: {},
+  body: [{ type: 'header' as const, id: 'title', text: 'Hi' }],
 };
 
-const stored = { ...input, version: CUSTOM_APP_STATE_VERSION };
+const stored = input;
 
 const object = (id = 'app-1', updatedAt = '2026-10-16T10:00:00.000Z') => ({
   id,
@@ -35,7 +32,7 @@ describe('the saved apps service', () => {
 
   beforeEach(() => jest.resetAllMocks());
 
-  it('creates an app with the version of its format, and returns it with its id', async () => {
+  it('creates an app as it is written, and returns it with its id', async () => {
     client.create.mockResolvedValue(object());
 
     const app = await service.create(input);
@@ -47,7 +44,8 @@ describe('the saved apps service', () => {
   it('leaves out a description that was not given, instead of storing an empty one', async () => {
     client.create.mockResolvedValue(object());
 
-    await service.create({ title: input.title, document: input.document });
+    const { description, ...withoutDescription } = input;
+    await service.create(withoutDescription);
 
     expect(client.create.mock.calls[0][1]).not.toHaveProperty('description');
   });
@@ -95,7 +93,7 @@ describe('the saved apps service', () => {
           type: CUSTOM_APP_SAVED_OBJECT_TYPE,
           sortField: 'updated_at',
           sortOrder: 'desc',
-          fields: ['title', 'description'],
+          fields: ['title', 'description', 'showInNav', 'icon'],
         })
       );
       expect(result).toEqual({
@@ -111,7 +109,7 @@ describe('the saved apps service', () => {
         page: 1,
         perPage: 20,
       });
-      expect(JSON.stringify(result)).not.toContain('document');
+      expect(JSON.stringify(result)).not.toContain('body');
     });
 
     it('searches titles by prefix, and does not search at all without a term', async () => {

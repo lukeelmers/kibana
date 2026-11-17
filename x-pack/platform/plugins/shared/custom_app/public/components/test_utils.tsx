@@ -28,7 +28,7 @@ const surface = createKibanaUiSurface(isomerRuntime, { renderers: KIBANA_UI_REND
 export const testIsomer = { getRuntime: async () => isomerRuntime };
 
 export const emptyDocument = (state: unknown = {}): AppDocument =>
-  appDocumentSchema.parse({ state, root: { type: 'text', id: 'unused', text: '' } });
+  appDocumentSchema.parse({ title: 'Test', state, body: [] });
 
 /** Renders a node inside a runtime built from the given document's declared state. */
 export const renderWithRuntime = (
@@ -61,7 +61,7 @@ export const renderApp = async (
   document: AppDocument,
   runQuery: RunQuery,
   runCases?: RunCases,
-  /** Shows the app in the frame of a page, with its theme, as a page does. */
+  /** Shows the app in the frame of a page, as a page does. */
   {
     framed = false,
   }: {
@@ -70,7 +70,7 @@ export const renderApp = async (
 ): Promise<{ runtime: AppRuntime; layer: DataLayer } & RenderResult> => {
   const runtime = createAppRuntime(document);
   const layer = createDataLayer({ runQuery, runCases, getParameterNames });
-  layer.setSources(collectSources(document.root));
+  layer.setSources(collectSources(document.body));
   runtime.state$.subscribe(layer.setState);
 
   const view = render(
@@ -78,9 +78,9 @@ export const renderApp = async (
       <DataLayerContext.Provider value={layer}>
         <ActionUiProviders>
           {framed ? (
-            <AppFrame theme={document.theme}>{surface.render([document.root])}</AppFrame>
+            <AppFrame>{surface.render(document.body)}</AppFrame>
           ) : (
-            surface.render([document.root])
+            surface.render(document.body)
           )}
         </ActionUiProviders>
       </DataLayerContext.Provider>

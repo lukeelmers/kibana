@@ -51,7 +51,7 @@ export type { CapabilityNode, CapabilityNodeOf } from './capability_node_schema'
 export { getNodeSchemas, nodeSchema } from './node_schema';
 export { checkCapability } from './check_capability';
 export { describeCapability } from './capability_guide';
-export { nodeIdSchema, stateKeySchema, visibleWhenSchema } from './node_envelope';
+export { NODE_EVENTS, nodeIdSchema, stateKeySchema, visibleWhenSchema } from './node_envelope';
 export type { VisibleWhen } from './node_envelope';
 export { defineSurface } from './surface/define_surface';
 export type { SurfaceDefinition } from './surface/define_surface';
@@ -63,8 +63,10 @@ export type {
   KibanaUiStateValue,
 } from './surface/env';
 export {
+  MAX_ACTIONS_PER_EVENT,
   MAX_CHILDREN_PER_NODE,
   MAX_NODE_ID_LENGTH,
+  MAX_QUERY_LENGTH,
   MAX_STATE_KEY_LENGTH,
   MAX_STATE_STRING_LENGTH,
   RESERVED_STATE_KEYS,
@@ -89,7 +91,7 @@ type RegisteredType = Exclude<keyof NodeTypeMap, '__none'>;
  */
 export interface GenericNode {
   type: string;
-  id: string;
+  id?: string;
   visibleWhen?: { $state: string; equals?: string | number | boolean };
   children?: GenericNode[];
   [prop: string]: unknown;

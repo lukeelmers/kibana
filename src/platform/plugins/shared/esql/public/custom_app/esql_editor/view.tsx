@@ -140,7 +140,7 @@ const EsqlEditorView = ({
       {node.title ? (
         <>
           <EuiTitle size="xxs">
-            <h4>{interpolate(node.title, state)}</h4>
+            <h4>{interpolate(node.title, { state })}</h4>
           </EuiTitle>
           <EuiSpacer size="xs" />
         </>

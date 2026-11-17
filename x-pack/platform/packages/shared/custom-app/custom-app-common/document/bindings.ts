@@ -12,14 +12,7 @@ import {
   visibleWhenSchema,
   type VisibleWhen,
 } from '@kbn/custom-app-registry';
-import {
-  BADGE_COLORS,
-  CARD_ICONS,
-  MAX_COLUMNS,
-  PROGRESS_COLORS,
-  THEME_ACCENTS,
-  THEME_SHAPES,
-} from './constants';
+import { BADGE_COLORS, CARD_ICONS, MAX_COLUMNS, PROGRESS_COLORS } from './constants';
 import type { AppNode } from './document_schema';
 
 /** The value of a state key, in place of a value that is written down. */
@@ -63,8 +56,6 @@ export const columnsCountSchema = lazySchema(() =>
   z.number().int().min(2).max(MAX_COLUMNS).default(2)
 );
 export const sectionOpenSchema = lazySchema(() => z.boolean().optional());
-export const themeAccentSchema = lazySchema(() => z.enum(THEME_ACCENTS).optional());
-export const themeShapeSchema = lazySchema(() => z.enum(THEME_SHAPES).optional());
 
 type BoundKind = 'string' | 'number' | 'boolean';
 
@@ -75,17 +66,9 @@ interface BoundProp {
   kind: BoundKind;
 }
 
-const prop = (schema: z.ZodType, kind: BoundKind): BoundProp => ({ schema, kind });
-
 /** The properties of a type of component that can be set by a value, by their path. */
 export const getBoundProps = (type: string): Readonly<Record<string, BoundProp>> | undefined =>
   getCapability(type)?.bound as Readonly<Record<string, BoundProp>> | undefined;
-
-/** The same for the theme of a page. */
-export const THEME_BOUND_PROPS: Readonly<Record<string, BoundProp>> = {
-  accent: prop(themeAccentSchema, 'string'),
-  shape: prop(themeShapeSchema, 'string'),
-};
 
 export const getPath = (value: unknown, path: string): unknown =>
   path

@@ -8,14 +8,12 @@
 import { getStateDefaults } from './state_defaults';
 
 describe('getStateDefaults', () => {
-  it('returns each key with its declared default', () => {
-    expect(
-      getStateDefaults({
-        service: { type: 'string', default: 'checkout' },
-        limit: { type: 'number', default: 0 },
-        compact: { type: 'boolean', default: false },
-      })
-    ).toEqual({ service: 'checkout', limit: 0, compact: false });
+  it('returns each key with its default', () => {
+    expect(getStateDefaults({ service: 'checkout', limit: 0, compact: false })).toEqual({
+      service: 'checkout',
+      limit: 0,
+      compact: false,
+    });
   });
 
   it('returns nothing when no state is declared', () => {

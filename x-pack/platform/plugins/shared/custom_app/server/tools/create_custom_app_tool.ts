@@ -61,12 +61,13 @@ ${getAuthoringGuide()}`;
   },
   schema: customAppCreateSchema,
   handler: async (
-    { title, document: requested },
+    { document: requested },
     { attachments, events, logger, modelProvider, esClient }
   ) => {
     const resolved = await resolveDocument(requested, { modelProvider, esClient, logger });
     if ('error' in resolved) return error(resolved.error);
     const { document } = resolved;
+    const { title } = document;
 
     const issues = getDocumentIssues(document);
     if (issues.length > 0) {
