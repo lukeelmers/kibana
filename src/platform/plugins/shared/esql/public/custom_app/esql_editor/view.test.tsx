@@ -10,13 +10,8 @@
 import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import type { FetchContext } from '@kbn/presentation-publishing';
-import type {
-  CapabilityNodeOf,
-  CapabilityViewProps as CustomAppCapabilityViewProps,
-} from '@kbn/custom-app-registry';
-import type { esqlEditorCapability } from '../../../common/custom_app/esql_editor/manifest';
-import { EsqlEditorView } from './view';
+import type { EsqlEditorNode as Node } from '../../../common/custom_app/esql_editor/manifest';
+import { renderEsqlEditor } from './view';
 
 jest.mock('../../create_editor', () => ({
   ESQLLangEditor: ({
@@ -34,30 +29,22 @@ jest.mock('../../create_editor', () => ({
   ),
 }));
 
-type Node = CapabilityNodeOf<typeof esqlEditorCapability>;
-
-const context = { timeRange: { from: 'now-15m', to: 'now' } } as FetchContext;
-
-const setup = (
-  node: Partial<Node> = {},
-  overrides: Partial<CustomAppCapabilityViewProps<Node>> = {}
-) => {
+const setup = (node: Partial<Node> = {}) => {
   const runQuery = jest.fn();
   const setValue = jest.fn();
   render(
-    <EsqlEditorView
-      node={{ type: 'esql_editor', id: 'explore', query: 'FROM a', ...node } as Node}
-      text={(value) => value}
-      context={context}
-      state={{}}
-      runQuery={runQuery}
-      setValue={setValue}
-      source={undefined}
-      esqlVariables={undefined}
-      runActions={jest.fn()}
-      retry={jest.fn()}
-      {...overrides}
-    />
+    <>
+      {renderEsqlEditor(
+        { type: 'esql_editor', id: 'explore', query: 'FROM a', ...node },
+        {
+          state: {},
+          setState: setValue,
+          dispatch: jest.fn(),
+          runQuery,
+          renderChild: jest.fn(),
+        }
+      )}
+    </>
   );
   return { runQuery, setValue };
 };
@@ -107,13 +94,8 @@ describe('the ES|QL editor', () => {
     expect(screen.getByText('The query could not run')).toBeInTheDocument();
   });
 
-  it('does not run an empty query, or before the page says what to look at', () => {
+  it('does not run an empty query', () => {
     setup({ query: '' });
-    expect(screen.getByTestId('customAppEsqlEditorRun')).toBeDisabled();
-  });
-
-  it('waits for the page to say what to look at', () => {
-    setup({}, { context: undefined });
     expect(screen.getByTestId('customAppEsqlEditorRun')).toBeDisabled();
   });
 

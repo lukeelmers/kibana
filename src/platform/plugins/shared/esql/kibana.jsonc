@@ -13,7 +13,8 @@
       "fieldsMetadata",
       "usageCollection",
       "licensing",
-      "searchInferenceEndpoints"
+      "searchInferenceEndpoints",
+      "isomer"
     ],
     "requiredPlugins": [
       "data",

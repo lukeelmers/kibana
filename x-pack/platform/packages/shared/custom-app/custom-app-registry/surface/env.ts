@@ -6,7 +6,7 @@
  */
 
 import type { ReactNode } from 'react';
-import type { ActionList, GenericNode } from '..';
+import type { ActionList, CapabilityQueryResult, GenericNode } from '..';
 
 export type KibanaUiStateValue = string | number | boolean | readonly string[];
 
@@ -34,6 +34,8 @@ export interface KibanaUiEnv {
     handlers: ActionList,
     input?: { row?: Readonly<Record<string, unknown>>; input?: unknown }
   ) => string[];
+  /** Runs an ES|QL query as the person who is looking, with the context and the values of the app. */
+  runQuery: (query: string, signal: AbortSignal) => Promise<CapabilityQueryResult>;
   /** The row the node was opened with, as in a flyout. */
   row?: Readonly<Record<string, unknown>>;
   /** Renders a child node through the same dispatch. */

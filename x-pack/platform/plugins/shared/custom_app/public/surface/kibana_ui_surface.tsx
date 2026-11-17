@@ -27,10 +27,12 @@ import {
 } from '@kbn/custom-app-common';
 import { useActionRunner } from '../actions/use_action_runner';
 import { DataState } from '../components/data_state';
-import { useDataLayer } from '../data/data_layer_context';
+import { useDataLayer, useOptionalDataLayer } from '../data/data_layer_context';
+import { createRunEsqlQuery } from '../data/run_esql_query';
 import { useSource } from '../data/use_source';
 import { useAppRuntime, useStateValues } from '../runtime/app_runtime_context';
 import type { StateValues } from '../runtime/app_runtime';
+import { getServices } from '../services';
 import { dispatchNode, type KibanaUiHost } from './dispatch';
 
 export interface KibanaUiSurface {
@@ -108,6 +110,7 @@ export const kibanaUiSurface = defineSurface<KibanaUiHost, ReactNode, KibanaUiSu
       const runtime = useAppRuntime();
       const state = useStateValues();
       const dispatch = useActionRunner(node.id);
+      const layer = useOptionalDataLayer();
       const resolved = useMemo(() => resolveNode(node, state), [node, state]);
       const env: KibanaUiEnv = {
         state,
@@ -115,6 +118,13 @@ export const kibanaUiSurface = defineSurface<KibanaUiHost, ReactNode, KibanaUiSu
         setState: (key, value) =>
           runtime.run({ state: { [key]: typeof value === 'object' ? [...value] : value } }),
         dispatch,
+        runQuery: (query, signal) => {
+          const context = layer?.context$.getValue();
+          if (!context)
+            return Promise.reject(new Error('The page has not said what to look at yet'));
+          const { core, search } = getServices();
+          return createRunEsqlQuery({ search, http: core.http })(query, { context, state }, signal);
+        },
         renderChild: (child) => <KibanaUiNode key={child.id} node={child as AppNode} row={row} />,
       };
       return <>{dispatchNode(resolved, env, host)}</>;

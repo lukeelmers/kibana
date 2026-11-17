@@ -21,14 +21,15 @@ import {
 import { i18n } from '@kbn/i18n';
 import { ESQLVariableType, type ESQLControlVariable } from '@kbn/esql-types';
 import { KbnDangerCallout } from '@kbn/ui-callout';
-import { MAX_STATE_STRING_LENGTH, type StateValue } from '@kbn/custom-app-common';
+import { interpolate, MAX_STATE_STRING_LENGTH, type StateValue } from '@kbn/custom-app-common';
 import type {
-  CapabilityNodeOf,
+  AppNodeProps,
   CapabilityQueryResult as CustomAppQueryResult,
-  CapabilityViewProps as CustomAppCapabilityViewProps,
+  KibanaUiEnv,
+  KibanaUiRenderer,
 } from '@kbn/custom-app-registry';
 import { ESQLLangEditor } from '../../create_editor';
-import type { esqlEditorCapability } from '../../../common/custom_app/esql_editor/manifest';
+import type { EsqlEditorNode } from '../../../common/custom_app/esql_editor/manifest';
 
 type Result =
   | { status: 'idle' }
@@ -73,14 +74,13 @@ const formatCell = (value: unknown, type: string): string => {
  * query is theirs, so it is not one that the app knows about: it runs here, as the person who is
  * looking, with the period, the filters and the values of the app.
  */
-export const EsqlEditorView = ({
+const EsqlEditorView = ({
   node,
-  text: interpolateText,
-  context,
-  state,
-  runQuery,
-  setValue,
-}: CustomAppCapabilityViewProps<CapabilityNodeOf<typeof esqlEditorCapability>>) => {
+  env: { state, runQuery, setState },
+}: {
+  node: EsqlEditorNode & AppNodeProps;
+  env: KibanaUiEnv;
+}) => {
   const [text, setText] = useState(node.query);
   const [result, setResult] = useState<Result>({ status: 'idle' });
   const controller = useRef<AbortController>();
@@ -108,10 +108,10 @@ export const EsqlEditorView = ({
   useEffect(() => {
     if (bind === undefined || text.length > MAX_STATE_STRING_LENGTH) return undefined;
     const timer = setTimeout(() => {
-      if (String(latest.current.state[bind] ?? '') !== text) setValue(bind, text);
+      if (String(latest.current.state[bind] ?? '') !== text) setState(bind, text);
     }, BIND_DEBOUNCE_MS);
     return () => clearTimeout(timer);
-  }, [bind, text, setValue]);
+  }, [bind, text, setState]);
 
   const columns = useMemo<Array<EuiBasicTableColumn<Record<string, unknown>>>>(
     () =>
@@ -140,7 +140,7 @@ export const EsqlEditorView = ({
       {node.title ? (
         <>
           <EuiTitle size="xxs">
-            <h4>{interpolateText(node.title)}</h4>
+            <h4>{interpolate(node.title, state)}</h4>
           </EuiTitle>
           <EuiSpacer size="xs" />
         </>
@@ -167,7 +167,7 @@ export const EsqlEditorView = ({
             iconType="playFilled"
             onClick={run}
             isLoading={result.status === 'loading'}
-            isDisabled={!context || text.trim() === ''}
+            isDisabled={text.trim() === ''}
             data-test-subj="customAppEsqlEditorRun"
           >
             {i18n.translate('xpack.customAppEsql.run', { defaultMessage: 'Run' })}
@@ -205,3 +205,7 @@ export const EsqlEditorView = ({
     </div>
   );
 };
+
+export const renderEsqlEditor: KibanaUiRenderer<EsqlEditorNode & AppNodeProps> = (node, env) => (
+  <EsqlEditorView node={node} env={env} />
+);

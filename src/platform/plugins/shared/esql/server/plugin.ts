@@ -10,7 +10,7 @@
 import type { CoreSetup, CoreStart, Plugin, PluginInitializerContext } from '@kbn/core/server';
 import { schema } from '@kbn/config-schema';
 import type { ContentManagementServerSetup } from '@kbn/content-management-plugin/server';
-import { registerEsqlEditorCapability } from '../common/custom_app/esql_editor/register';
+import type { IsomerPluginSetup } from '@kbn/isomer-plugin/server';
 import { getUiSettings } from './ui_settings';
 import { registerRoutes } from './routes';
 import { ESQLExtensionsRegistry } from './extensions_registry';
@@ -21,7 +21,7 @@ export class EsqlServerPlugin
     Plugin<
       EsqlServerPluginSetup,
       void,
-      { contentManagement: ContentManagementServerSetup },
+      { contentManagement: ContentManagementServerSetup; isomer?: IsomerPluginSetup },
       EsqlServerPluginStart
     >
 {
@@ -34,11 +34,13 @@ export class EsqlServerPlugin
 
   public setup(
     core: CoreSetup<EsqlServerPluginStart, void>,
-    plugins: { contentManagement: ContentManagementServerSetup }
+    plugins: { contentManagement: ContentManagementServerSetup; isomer?: IsomerPluginSetup }
   ) {
     const { initContext } = this;
 
-    registerEsqlEditorCapability();
+    plugins.isomer?.registerPack(() =>
+      import('../common/custom_app/esql_editor/pack').then((m) => m.esqlPack)
+    );
     core.uiSettings.register(getUiSettings());
 
     plugins.contentManagement.favorites.registerFavoriteType('esql_query', {
