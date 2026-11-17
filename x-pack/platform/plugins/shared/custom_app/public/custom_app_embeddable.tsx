@@ -56,7 +56,7 @@ import { isByReferenceState } from '../common/by_reference';
 import { createSavedAppsClient, type SavedAppsClient } from './application/saved_apps_client';
 import { AppFrame } from './components/app_frame';
 import { EmptyApp } from './components/empty_app';
-import { NodeRenderer } from './components/node_renderer';
+import { AppBody } from './components/app_body';
 import { createDataLayer } from './data/data_layer';
 import { DataLayerContext } from './data/data_layer_context';
 import { CUSTOM_APP_UPDATED_UI_EVENT, type CustomAppUpdatedUiEventData } from '../common/ui_events';
@@ -348,7 +348,7 @@ export const customAppEmbeddableFactory: EmbeddablePublicDefinition<
                     />
                   ) : (
                     <AppFrame theme={document.theme}>
-                      <NodeRenderer node={document.root} />
+                      <AppBody root={document.root} />
                     </AppFrame>
                   )}
                 </ActionUiProviders>

@@ -13,11 +13,11 @@ import {
   EuiTitle,
   useGeneratedHtmlId,
 } from '@elastic/eui';
-import { interpolate, type AppNodeOfType } from '@kbn/custom-app-common';
+import { interpolate } from '@kbn/custom-app-common';
 import { useAppRuntime, useOpenFlyoutId, useStateValues } from '../runtime/app_runtime_context';
 
 interface FlyoutNodeProps {
-  node: AppNodeOfType<'flyout'>;
+  node: { id: string; title: string };
   /** The node's rendered children. They are only mounted while the flyout is open. */
   children: ReactNode;
 }

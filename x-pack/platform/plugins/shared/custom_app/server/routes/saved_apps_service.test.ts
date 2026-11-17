@@ -15,7 +15,7 @@ const input = {
   description: 'About',
   document: {
     state: {},
-    root: { type: 'heading' as const, id: 'title', text: 'Hi' },
+    root: { type: 'header' as const, id: 'title', text: 'Hi' },
   },
 };
 

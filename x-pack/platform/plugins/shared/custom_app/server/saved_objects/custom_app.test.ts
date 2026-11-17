@@ -13,7 +13,7 @@ const attributes = {
   title: 'Service explorer',
   description: 'Filters and a table of services',
   version: 1,
-  document: { state: {}, root: { type: 'heading', id: 'title', text: 'Hi' } },
+  document: { state: {}, root: { type: 'header', id: 'title', text: 'Hi' } },
 };
 
 describe('the custom app saved object type', () => {

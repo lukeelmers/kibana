@@ -36,7 +36,7 @@ jest.mock('@kbn/presentation-util-plugin/public', () => ({
   ),
 }));
 
-const document = appDocumentSchema.parse({ root: { type: 'heading', id: 'title', text: 'Hi' } });
+const document = appDocumentSchema.parse({ root: { type: 'header', id: 'title', text: 'Hi' } });
 
 const setup = ({ canWrite = true, canSave = true, canSaveApps = true } = {}) => {
   const navigateToApp = jest.fn();

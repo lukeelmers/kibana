@@ -94,6 +94,7 @@ export {
   getNodeQuery,
   isEmptyDocument,
 } from './document/node_tree';
+export { DATA_PROPS, fillDataProps } from './document/data_props';
 export { getStateDefaults } from './document/state_defaults';
 export { getDocumentIssues, type DocumentIssue } from './document/document_issues';
 

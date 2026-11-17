@@ -19,20 +19,21 @@ const DETAIL: SourceData = {
 const document = appDocumentSchema.parse({
   state: { service: { type: 'string', default: 'checkout' } },
   root: {
-    type: 'stack',
+    type: 'section',
+    title: 'App',
     id: 'root',
     children: [
-      { type: 'text', id: 'before', text: 'before' },
+      { type: 'markdown', id: 'before', text: 'before' },
       {
         type: 'flyout',
         id: 'service-flyout',
         title: 'Service {{state.service}}',
         children: [
-          { type: 'text', id: 'inside', text: 'inside the flyout' },
-          { type: 'key_value', id: 'kv', query: 'FROM x | WHERE s == ?service' },
+          { type: 'markdown', id: 'inside', text: 'inside the flyout' },
+          { type: 'fields', id: 'kv', query: 'FROM x | WHERE s == ?service' },
         ],
       },
-      { type: 'text', id: 'after', text: 'after' },
+      { type: 'markdown', id: 'after', text: 'after' },
     ],
   },
 });

@@ -7,7 +7,7 @@
 
 import { customAppEmbeddableSchema } from './schemas';
 
-const document = { state: {}, root: { type: 'heading', id: 'title', text: 'Hi' } };
+const document = { state: {}, root: { type: 'header', id: 'title', text: 'Hi' } };
 
 describe('the custom app panel schema', () => {
   it('accepts an app of the panel, with its titles and time range', () => {

@@ -33,6 +33,7 @@ const setup = (withAgentBuilder: boolean) => {
   new CustomAppPlugin().setup(core, {
     embeddable,
     features,
+    isomer: { registerPack: jest.fn() },
     ...(withAgentBuilder ? { agentBuilder } : {}),
   } as never);
 

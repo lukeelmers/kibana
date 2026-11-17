@@ -5,7 +5,6 @@
  * 2.0.
  */
 
-import { registerCapability } from '@kbn/custom-app-registry';
 import { DEFAULT_APP_CATEGORIES } from '@kbn/core/public';
 import type { CoreSetup, CoreStart, Plugin } from '@kbn/core/public';
 import type { AgentBuilderPluginStart } from '@kbn/agent-builder-browser';
@@ -14,11 +13,11 @@ import type { DataViewsPublicPluginStart } from '@kbn/data-views-plugin/public';
 import type { SharePluginStart } from '@kbn/share-plugin/public';
 import { i18n } from '@kbn/i18n';
 import type { EmbeddableSetup, EmbeddableStart } from '@kbn/embeddable-plugin/public';
+import type { IsomerPluginSetup, IsomerPluginStart } from '@kbn/isomer-plugin/public';
 import type { UiActionsStart } from '@kbn/ui-actions-plugin/public';
 import { ADD_PANEL_TRIGGER, ON_OPEN_PANEL_MENU } from '@kbn/ui-actions-plugin/common/trigger_ids';
 import type { EmbeddableApiContext } from '@kbn/presentation-publishing';
 import { CUSTOM_APP_EMBEDDABLE_TYPE } from '@kbn/custom-app-common';
-import { embeddableCapability } from '../common/capabilities/embeddable/manifest';
 import { CUSTOM_APP_CONTEXT_ATTACHMENT_TYPE } from '../common/app_context_attachment';
 import type { CustomAppByReferenceState } from '../server';
 import {
@@ -29,24 +28,25 @@ import {
   VIEW_CUSTOM_APP_SOURCE_ACTION_ID,
 } from '../common/constants';
 import { customAppContextAttachmentUiDefinition } from './attachment_types/custom_app_context';
-import { registerBuiltinCapabilities } from '../common/capabilities/manifests';
 import { setServices } from './services';
 
 interface SetupDeps {
   embeddable: EmbeddableSetup;
+  isomer: IsomerPluginSetup;
 }
 
 interface StartDeps {
   data: DataPublicPluginStart;
   dataViews: DataViewsPublicPluginStart;
   embeddable: EmbeddableStart;
+  isomer: IsomerPluginStart;
   uiActions: UiActionsStart;
   agentBuilder?: AgentBuilderPluginStart;
   share?: SharePluginStart;
 }
 
 export class CustomAppPlugin implements Plugin<void, void, SetupDeps, StartDeps> {
-  setup(core: CoreSetup<StartDeps>, { embeddable }: SetupDeps) {
+  setup(core: CoreSetup<StartDeps>, { embeddable, isomer }: SetupDeps) {
     core.application.register({
       id: CUSTOM_APP_APPLICATION_ID,
       title: i18n.translate('xpack.customApp.application.title', { defaultMessage: 'Custom apps' }),
@@ -85,19 +85,14 @@ export class CustomAppPlugin implements Plugin<void, void, SetupDeps, StartDeps>
       getIconForSavedObject: () => 'apps',
     });
 
-    registerBuiltinCapabilities();
-    registerCapability(embeddableCapability, () =>
-      import('./capabilities/embeddable/view').then(({ EmbeddableView }) => ({
-        default: EmbeddableView,
-      }))
-    );
+    isomer.registerPack(() => import('./pack').then(({ browserAppPack }) => browserAppPack));
   }
 
   start(
     core: CoreStart,
-    { data, dataViews, embeddable, uiActions, agentBuilder, share }: StartDeps
+    { data, dataViews, embeddable, isomer, uiActions, agentBuilder, share }: StartDeps
   ) {
-    setServices(core, data.search.search, embeddable, dataViews, agentBuilder, share);
+    setServices(core, data.search.search, embeddable, dataViews, isomer, agentBuilder, share);
 
     uiActions.registerActionAsync<EmbeddableApiContext>(ADD_CUSTOM_APP_ACTION_ID, async () => {
       const { getAddCustomAppAction } = await import('./actions/add_custom_app_action');

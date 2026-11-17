@@ -9,6 +9,7 @@ import type { CoreSetup, Plugin } from '@kbn/core/server';
 import type { AgentBuilderPluginSetup } from '@kbn/agent-builder-server';
 import type { EmbeddableSetup } from '@kbn/embeddable-plugin/server';
 import type { FeaturesPluginSetup } from '@kbn/features-plugin/server';
+import type { IsomerPluginSetup } from '@kbn/isomer-plugin/server';
 import { CUSTOM_APP_EMBEDDABLE_TYPE } from '@kbn/custom-app-common';
 import { createCustomAppContextAttachmentType } from './attachment_types/custom_app_context';
 import { registerBuiltinCapabilities } from '../common/capabilities/manifests';
@@ -24,15 +25,17 @@ import { createUpdateCustomAppTool } from './tools/update_custom_app_tool';
 interface SetupDeps {
   embeddable: EmbeddableSetup;
   features: FeaturesPluginSetup;
+  isomer: IsomerPluginSetup;
   agentBuilder?: AgentBuilderPluginSetup;
 }
 
 export class CustomAppPlugin implements Plugin<void, void, SetupDeps> {
-  setup(core: CoreSetup, { embeddable, features, agentBuilder }: SetupDeps) {
+  setup(core: CoreSetup, { embeddable, features, isomer, agentBuilder }: SetupDeps) {
     // Registered unconditionally: the saved objects check can only vouch for what it can see.
     core.savedObjects.registerType(customAppSavedObjectType);
     features.registerKibanaFeature(customAppFeature);
     registerBuiltinCapabilities();
+    isomer.registerPack(() => import('../common/pack').then(({ appPack }) => appPack));
     registerSavedAppRoutes(core.http.createRouter());
 
     embeddable.registerEmbeddableServerDefinition(CUSTOM_APP_EMBEDDABLE_TYPE, {

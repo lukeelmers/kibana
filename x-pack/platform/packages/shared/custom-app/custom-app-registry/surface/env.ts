@@ -10,10 +10,14 @@ import type { Action, GenericNode } from '..';
 
 export type KibanaUiStateValue = string | number | boolean | readonly string[];
 
-/** What a node of an app has beside its primitive's props: an id, a bound value and its events. */
+/**
+ * What a node of an app has beside its primitive's props: an id, a bound value, the nodes it holds
+ * and the handlers of its events.
+ */
 export interface AppNodeProps {
   id: string;
   bind?: string;
+  children?: GenericNode[];
   [event: `on${string}`]: readonly Action[] | undefined;
 }
 

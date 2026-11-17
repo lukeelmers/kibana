@@ -18,17 +18,6 @@ const findNode = (node: AppNode, id: string): AppNode | undefined =>
         .find((found) => found !== undefined);
 
 describe('createDefaultDocument', () => {
-  it('lets the picker choose the accent, and only with accents the picker offers', () => {
-    const { theme, state, root } = createDefaultDocument();
-    const picker = (
-      findNode(root, 'look-picker') as unknown as { options: Array<{ value: string }> }
-    ).options.map(({ value }) => value);
-
-    expect(theme?.accent).toEqual({ $state: 'look' });
-    expect(state.look).toEqual({ type: 'string', default: 'teal' });
-    expect(picker).toEqual(['teal', 'purple', 'orange', 'blue']);
-  });
-
   it('is a valid document', () => {
     expect(appDocumentSchema.safeParse(createDefaultDocument()).success).toBe(true);
   });

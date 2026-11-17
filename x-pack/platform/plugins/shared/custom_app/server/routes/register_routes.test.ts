@@ -53,7 +53,7 @@ const find = (registered: Registered[], method: string, path: string) => {
   return route;
 };
 
-const document = { state: {}, root: { type: 'heading', id: 'title', text: 'Hi' } };
+const document = { state: {}, root: { type: 'header', id: 'title', text: 'Hi' } };
 const stored = { title: 'Explorer', version: CUSTOM_APP_STATE_VERSION, document };
 const savedObject = { id: 'app-1', type: 'custom_app', attributes: stored, references: [] };
 

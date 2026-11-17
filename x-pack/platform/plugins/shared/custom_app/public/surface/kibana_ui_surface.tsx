@@ -19,12 +19,16 @@ import {
   type KibanaUiRenderer,
 } from '@kbn/custom-app-registry';
 import {
+  fillDataProps,
   getInterpolatedText,
   interpolate,
   resolveBoundProps,
   type AppNode,
 } from '@kbn/custom-app-common';
 import { useActionRunner } from '../actions/use_action_runner';
+import { DataState } from '../components/data_state';
+import { useDataLayer } from '../data/data_layer_context';
+import { useSource } from '../data/use_source';
 import { useAppRuntime, useStateValues } from '../runtime/app_runtime_context';
 import type { StateValues } from '../runtime/app_runtime';
 import { dispatchNode, type KibanaUiHost } from './dispatch';
@@ -65,6 +69,17 @@ const UnsupportedNode = ({ node }: { node: { id?: unknown; type?: unknown } }) =
     </p>
   </KbnWarningCallout>
 );
+
+/** A node that shows data: its query runs while it is shown, and fills its props when it returns. */
+const DataNode = ({ node, render }: { node: AppNode; render: (filled: AppNode) => ReactNode }) => {
+  const layer = useDataLayer();
+  const source = useSource(node.id);
+  return (
+    <DataState state={source} onRetry={layer.retry}>
+      {(data) => render(fillDataProps(node, data))}
+    </DataState>
+  );
+};
 
 /** A primitive with no `kibana-ui` renderer, drawn read-only by the runtime's `react` surface. */
 const ReactFallback = ({ node, host }: { node: PrimitiveNode; host: KibanaUiHost }) => {
@@ -129,4 +144,10 @@ export const createKibanaUiSurface = (
     resolveKibanaPath?: (path: string) => string | undefined;
   } = {}
 ): KibanaUiSurface =>
-  kibanaUiSurface.create({ surface: kibanaUiSurface, runtime, renderers, resolveKibanaPath });
+  kibanaUiSurface.create({
+    surface: kibanaUiSurface,
+    runtime,
+    renderers,
+    resolveKibanaPath,
+    withData: (node, render) => <DataNode node={node} render={render} />,
+  });

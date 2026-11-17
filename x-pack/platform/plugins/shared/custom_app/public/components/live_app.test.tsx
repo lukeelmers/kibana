@@ -20,6 +20,7 @@ const runQuery = jest.fn<ReturnType<RunQuery>, Parameters<RunQuery>>(async () =>
 jest.mock('../data/run_esql_query', () => ({ createRunEsqlQuery: () => runQuery }));
 jest.mock('../services', () => ({
   getServices: () => ({
+    isomer: jest.requireActual('./test_utils').testIsomer,
     core: {
       http: {},
       application: { capabilities: {} },
@@ -32,10 +33,11 @@ jest.mock('../services', () => ({
 
 const document = appDocumentSchema.parse({
   root: {
-    type: 'stack',
+    type: 'section',
+    title: 'App',
     id: 'root',
     children: [
-      { type: 'heading', id: 'title', text: 'Orders' },
+      { type: 'header', id: 'title', text: 'Orders' },
       { type: 'stat', id: 'total', title: 'Total', query: 'ROW value = 42' },
     ],
   },
@@ -58,23 +60,6 @@ describe('the app in the conversation', () => {
 
     expect(screen.queryByTestId('superDatePickerToggleQuickMenuButton')).not.toBeInTheDocument();
     expect(screen.queryByTestId('customAppTimeRange')).not.toBeInTheDocument();
-  });
-
-  it('shows the time picker where the app has its time range, and the picker is usable', async () => {
-    const withPicker = appDocumentSchema.parse({
-      root: {
-        type: 'stack',
-        id: 'root',
-        children: [
-          { type: 'time_range', id: 'when' },
-          { type: 'stat', id: 'total', title: 'Total', query: 'ROW value = 42' },
-        ],
-      },
-    });
-    render(<LiveApp document={withPicker} />);
-
-    expect(await screen.findByTestId('customAppTimeRange')).toBeInTheDocument();
-    expect(await screen.findByTestId('superDatePickerToggleQuickMenuButton')).toBeEnabled();
   });
 
   it('shows the data of the new app when the app changes under it, not a table that never finishes', async () => {
@@ -104,7 +89,7 @@ describe('the app in the conversation', () => {
     const withGreeting = (greeting: string) =>
       appDocumentSchema.parse({
         state: { greeting: { type: 'string', default: greeting } },
-        root: { type: 'heading', id: 'title', text: 'Say {{state.greeting}}' },
+        root: { type: 'header', id: 'title', text: 'Say {{state.greeting}}' },
       });
     const { rerender } = render(<LiveApp document={withGreeting('hello')} />);
     expect(await screen.findByText('Say hello')).toBeInTheDocument();
@@ -121,10 +106,11 @@ describe('the app, as it is seen', () => {
   const filtered = appDocumentSchema.parse({
     state: { greeting: { type: 'string', default: 'hello' } },
     root: {
-      type: 'stack',
+      type: 'section',
+      title: 'App',
       id: 'root',
       children: [
-        { type: 'heading', id: 'title', text: 'Say {{state.greeting}}' },
+        { type: 'header', id: 'title', text: 'Say {{state.greeting}}' },
         {
           type: 'button',
           id: 'change',
@@ -146,10 +132,11 @@ describe('the app, as it is seen', () => {
     const withData = appDocumentSchema.parse({
       state: { greeting: { type: 'string', default: 'hello' } },
       root: {
-        type: 'stack',
+        type: 'section',
+        title: 'App',
         id: 'root',
         children: [
-          { type: 'heading', id: 'title', text: 'Say {{state.greeting}}' },
+          { type: 'header', id: 'title', text: 'Say {{state.greeting}}' },
           { type: 'stat', id: 'total', title: 'Total', query: 'ROW value = 42' },
         ],
       },
@@ -231,7 +218,7 @@ describe('the app, as it is seen', () => {
       ...filtered,
       root: {
         ...filtered.root,
-        children: [{ type: 'heading', id: 'title', text: 'Now {{state.greeting}}' }],
+        children: [{ type: 'header', id: 'title', text: 'Now {{state.greeting}}' }],
       },
     });
     rerender(<LiveApp document={changed} view={view} />);

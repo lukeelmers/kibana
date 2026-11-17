@@ -8,42 +8,23 @@
 import { describeCapability, listCapabilities, listEmbeddableDocs } from '@kbn/custom-app-registry';
 
 /**
- * A small app that uses every idea an agent needs: a filter that sets a value, a time range, a table whose
- * query uses it and whose rows remember a column and open a flyout, and a flyout with the detail
- * of the clicked row. A test checks it is a valid document, so the guide cannot drift from the
+ * A small app that uses the ideas an agent needs: a table whose rows remember a column and open a
+ * flyout, and a flyout with the detail of the clicked row. A test checks it is a valid document, so the guide cannot drift from the
  * schema.
  */
 export const AUTHORING_GUIDE_EXAMPLE = {
   state: {
-    name_filter: { type: 'string', default: '' },
     service: { type: 'string', default: '' },
   },
   root: {
-    type: 'stack',
+    type: 'section',
     id: 'root',
-    direction: 'vertical',
+    title: 'Service health',
     children: [
-      { type: 'heading', id: 'title', text: 'Service health' },
-      {
-        type: 'stack',
-        id: 'filters',
-        direction: 'horizontal',
-        children: [
-          {
-            type: 'search',
-            id: 'name-filter',
-            label: 'Service name',
-            placeholder: 'Search services',
-            bind: 'name_filter',
-          },
-          { type: 'time_range', id: 'period' },
-        ],
-      },
       {
         type: 'table',
         id: 'services',
-        query:
-          'FROM logs-* | WHERE CONTAINS(service.name, ?name_filter) | STATS errors = COUNT(*) BY service.name | SORT errors DESC',
+        query: 'FROM logs-* | STATS errors = COUNT(*) BY service.name | SORT errors DESC',
         onRowClick: [
           { type: 'setState', key: 'service', value: { fromColumn: 'service.name' } },
           { type: 'openFlyout', flyout: 'service-details' },
@@ -55,7 +36,7 @@ export const AUTHORING_GUIDE_EXAMPLE = {
         title: 'Service {{state.service}}',
         children: [
           {
-            type: 'key_value',
+            type: 'fields',
             id: 'service-facts',
             query:
               'FROM logs-* | WHERE service.name == ?service | STATS errors = COUNT(*), last_seen = MAX(@timestamp)',

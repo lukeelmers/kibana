@@ -27,6 +27,9 @@ import { createSavedAppsClient } from '../application/saved_apps_client';
 import { getServices } from '../services';
 import { CUSTOM_APP_APPLICATION_ID } from '../../common/constants';
 import { LiveApp } from '../components/live_app';
+import { registerBuiltinCapabilities } from '../../common/capabilities/manifests';
+
+registerBuiltinCapabilities();
 
 const saveLabel = i18n.translate('xpack.customApp.attachment.saveToDashboard', {
   defaultMessage: 'Save to dashboard',

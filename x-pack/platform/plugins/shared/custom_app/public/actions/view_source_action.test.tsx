@@ -16,7 +16,7 @@ jest.mock('../services', () => ({ getServices: () => ({ core: { name: 'core' } }
 jest.mock('@kbn/presentation-util', () => ({ openLazyFlyout: jest.fn() }));
 
 const document: AppDocument = appDocumentSchema.parse({
-  root: { type: 'heading', id: 'title', text: 'Service health' },
+  root: { type: 'header', id: 'title', text: 'Service health' },
 });
 
 const panel = (extra: Record<string, unknown> = {}) => ({
@@ -116,7 +116,7 @@ describe('the View source panel action', () => {
       const action = getViewSourceAction();
       await action.execute({ embeddable: live } as never);
       current = appDocumentSchema.parse({
-        root: { type: 'heading', id: 'title', text: 'Edited since' },
+        root: { type: 'header', id: 'title', text: 'Edited since' },
       });
 
       const { loadContent } = (openLazyFlyout as jest.Mock).mock.calls[0][0];

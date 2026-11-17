@@ -11,7 +11,7 @@ import type { FetchContext } from '@kbn/presentation-publishing';
 import { getESQLQueryVariables } from '@kbn/esql-utils';
 import { collectSources, type AppDocument } from '@kbn/custom-app-common';
 import { AppFrame } from './app_frame';
-import { NodeRenderer } from './node_renderer';
+import { AppBody } from './app_body';
 import { createDataLayer } from '../data/data_layer';
 import { DataLayerContext } from '../data/data_layer_context';
 import { createRunCases } from '../data/run_cases';
@@ -124,7 +124,7 @@ export const LiveApp = ({ document, appId, view, onViewChange }: LiveAppProps) =
             <DataLayerContext.Provider value={dataLayer}>
               <ActionUiProviders appId={appId}>
                 <AppFrame theme={document.theme}>
-                  <NodeRenderer node={document.root} />
+                  <AppBody root={document.root} />
                 </AppFrame>
               </ActionUiProviders>
             </DataLayerContext.Provider>

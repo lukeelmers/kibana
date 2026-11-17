@@ -27,7 +27,8 @@ const document = appDocumentSchema.parse({
     users: { type: 'list', default: [] },
   },
   root: {
-    type: 'stack',
+    type: 'section',
+    title: 'App',
     id: 'root',
     children: [
       {

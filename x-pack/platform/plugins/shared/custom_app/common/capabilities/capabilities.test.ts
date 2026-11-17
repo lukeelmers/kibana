@@ -8,10 +8,8 @@
 import { z } from '@kbn/zod/v4';
 import { appDocumentSchema } from '@kbn/custom-app-common';
 import { getInterpolatedText } from '@kbn/custom-app-common';
-import { badgeCapability } from './badge/manifest';
-import { statCapability } from './stat/manifest';
 import { collectSources } from '@kbn/custom-app-common';
-import { registerBuiltinCapabilities } from './manifests';
+import { BUILTIN_CAPABILITIES, registerBuiltinCapabilities } from './manifests';
 import {
   checkCapability,
   defineCapability,
@@ -22,23 +20,23 @@ import {
 
 const documentWith = (node: Record<string, unknown>) => ({
   state: {},
-  root: { type: 'stack', id: 'root', direction: 'vertical', children: [node] },
+  root: { type: 'section', id: 'root', title: 'App', children: [node] },
 });
 
 describe('capabilities', () => {
   it('registers what ships with custom apps, once', () => {
     registerBuiltinCapabilities();
     registerBuiltinCapabilities();
-    expect(getCapability('badge')).toBe(badgeCapability);
+    expect(getCapability('stat')).toBe(BUILTIN_CAPABILITIES.find(({ id }) => id === 'stat'));
   });
 
   it('does not take a second capability with the same id', () => {
-    const other = defineCapability({ ...badgeCapability, version: 2 });
+    const other = defineCapability({ ...getCapability('header')!, version: 2 });
     expect(() => registerCapability(other)).toThrow('registered already');
   });
 
-  it('has nothing wrong with the badge', () => {
-    expect(checkCapability(badgeCapability)).toEqual([]);
+  it.each(BUILTIN_CAPABILITIES.map(({ id }) => id))('has nothing wrong with %s', (id) => {
+    expect(checkCapability(getCapability(id)!)).toEqual([]);
   });
 
   it('finds what is wrong with a capability', () => {
@@ -63,76 +61,33 @@ describe('capabilities', () => {
     );
   });
 
-  it('puts a badge in a document through its manifest', () => {
-    const parsed = appDocumentSchema.safeParse(
-      documentWith({ type: 'badge', id: 'status', text: 'Healthy', color: 'success' })
+  it('checks a primitive without the props its query fills', () => {
+    const stat = {
+      type: 'stat',
+      id: 'errors',
+      title: 'Errors',
+      query: 'FROM logs-* | STATS n = COUNT(*)',
+    };
+    const parsed = appDocumentSchema.parse(documentWith(stat));
+    expect(collectSources(parsed.root)).toEqual({
+      errors: { type: 'esql', query: 'FROM logs-* | STATS n = COUNT(*)' },
+    });
+    expect(appDocumentSchema.safeParse(documentWith({ ...stat, query: undefined })).success).toBe(
+      false
     );
-    expect(parsed.success).toBe(true);
-    expect(
-      appDocumentSchema.safeParse(documentWith({ type: 'badge', id: 'status', text: '' })).success
-    ).toBe(false);
-    expect(
-      appDocumentSchema.safeParse(
-        documentWith({ type: 'badge', id: 'status', text: 'Up', color: 'purple' })
-      ).success
-    ).toBe(false);
+    expect(appDocumentSchema.safeParse(documentWith({ ...stat, title: '' })).success).toBe(false);
   });
 
   it('takes the text that can use values from the manifest', () => {
     expect(
-      getInterpolatedText({
-        type: 'badge',
-        id: 'status',
-        text: 'Up {{state.region}}',
-        color: 'default',
-      })
+      getInterpolatedText({ type: 'header', id: 'title', text: 'Up {{state.region}}' })
     ).toEqual([{ prop: 'text', text: 'Up {{state.region}}' }]);
   });
 
-  it('describes a capability for an LLM from its manifest', () => {
-    const line = describeCapability(badgeCapability);
-    expect(line).toContain('- badge { text, color?: "default"');
-    expect(line).toContain('A short coloured word, such as a status.');
-  });
-
-  describe('stat', () => {
-    it('has nothing wrong with it', () => {
-      expect(checkCapability(statCapability)).toEqual([]);
-    });
-
-    it('takes its data from the runtime, by what its manifest says', () => {
-      const document = documentWith({
-        type: 'stat',
-        id: 'errors',
-        title: 'Errors',
-        query: 'FROM logs-* | STATS n = COUNT(*)',
-      });
-      const parsed = appDocumentSchema.parse(document);
-      expect(collectSources(parsed.root)).toEqual({
-        errors: { type: 'esql', query: 'FROM logs-* | STATS n = COUNT(*)' },
-      });
-    });
-
-    it('needs a query or a source, and one of them only', () => {
-      const none = appDocumentSchema.safeParse(documentWith({ type: 'stat', id: 'a', title: 'A' }));
-      expect(none.success).toBe(false);
-      const both = appDocumentSchema.safeParse(
-        documentWith({
-          type: 'stat',
-          id: 'a',
-          title: 'A',
-          query: 'FROM x | LIMIT 1',
-          source: { type: 'cases', count: true },
-        })
-      );
-      expect(both.success).toBe(false);
-    });
-
-    it('describes itself for an LLM from its manifest', () => {
-      const line = describeCapability(statCapability);
-      expect(line).toContain('- stat { title, query?, source? }');
-      expect(line).toContain('"count": true');
-    });
+  it('describes a capability for an LLM from its primitive', () => {
+    expect(describeCapability(getCapability('stat')!)).toContain(
+      '- stat { title, surfaces?, query }'
+    );
   });
 
   it('takes a capability that another plugin registers, with no edit to the built-in ones', async () => {

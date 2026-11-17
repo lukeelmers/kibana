@@ -37,7 +37,9 @@
     "@kbn/field-types",
     "@kbn/expressions-plugin",
     "@kbn/isomer",
-    "@kbn/isomer-components"
+    "@kbn/isomer-components",
+    "@kbn/isomer-plugin",
+    "@kbn/isomer-theme"
   ],
   "exclude": ["target/**/*"]
 }

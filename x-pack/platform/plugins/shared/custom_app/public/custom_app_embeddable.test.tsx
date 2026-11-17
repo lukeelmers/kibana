@@ -18,6 +18,7 @@ import { customAppEmbeddableFactory } from './custom_app_embeddable';
 let mockAgentBuilder: unknown;
 jest.mock('./services', () => ({
   getServices: () => ({
+    isomer: jest.requireActual('./components/test_utils').testIsomer,
     core: {
       http: {},
       application: { capabilities: {} },
@@ -35,9 +36,10 @@ jest.mock('./data/run_esql_query', () => ({
 const documentWith = (heading: string): AppDocument =>
   appDocumentSchema.parse({
     root: {
-      type: 'stack',
+      type: 'section',
+      title: 'App',
       id: 'root',
-      children: [{ type: 'heading', id: 'title', text: heading }],
+      children: [{ type: 'header', id: 'title', text: heading }],
     },
   });
 
@@ -63,7 +65,7 @@ const build = async ({
 };
 
 const EMPTY: AppDocument = appDocumentSchema.parse({
-  root: { type: 'stack', id: 'root', children: [] },
+  root: { type: 'section', title: 'App', id: 'root', children: [] },
 });
 
 describe('the custom app panel', () => {
@@ -92,7 +94,7 @@ describe('the custom app panel', () => {
 
       expect(screen.queryByText('Build your app')).not.toBeInTheDocument();
       expect(screen.getByTestId('customAppFrame')).toBeInTheDocument();
-      expect(api.getDocument().root).toMatchObject({ type: 'stack' });
+      expect(api.getDocument().root).toMatchObject({ type: 'section', title: 'Your custom app' });
       expect(isEmptyDocument(api.getDocument())).toBe(false);
     });
 
@@ -124,14 +126,14 @@ describe('the custom app panel', () => {
   it('shows its saved document', async () => {
     await build();
 
-    expect(screen.getByRole('heading', { name: 'Saved heading' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Saved heading' })).toBeInTheDocument();
   });
 
   it('keeps the app inside a frame, so it has room around it in the panel', async () => {
     await build();
 
     expect(screen.getByTestId('customAppFrame')).toContainElement(
-      screen.getByRole('heading', { name: 'Saved heading' })
+      await screen.findByRole('heading', { name: 'Saved heading' })
     );
   });
 
@@ -236,7 +238,7 @@ describe('the custom app panel', () => {
         );
 
         expect(api.getDocument()).toBe(SAVED);
-        expect(screen.getByRole('heading', { name: 'Saved heading' })).toBeInTheDocument();
+        expect(await screen.findByRole('heading', { name: 'Saved heading' })).toBeInTheDocument();
       });
 
       it('ignores events that are not about a custom app', async () => {
@@ -259,7 +261,7 @@ describe('the custom app panel', () => {
         await act(async () => agentBuilder.chatEvents$.next(updatedEvent('panel-1', broken)));
 
         expect(api.getDocument()).toBe(SAVED);
-        expect(screen.getByRole('heading', { name: 'Saved heading' })).toBeInTheDocument();
+        expect(await screen.findByRole('heading', { name: 'Saved heading' })).toBeInTheDocument();
       });
 
       it('follows each answer in turn, as the agent refines the app', async () => {

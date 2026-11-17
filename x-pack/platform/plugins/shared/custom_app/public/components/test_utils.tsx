@@ -9,13 +9,23 @@ import React, { type ReactElement } from 'react';
 import { act, render, type RenderResult } from '@testing-library/react';
 import type { FetchContext } from '@kbn/presentation-publishing';
 import { appDocumentSchema, collectSources, type AppDocument } from '@kbn/custom-app-common';
+import { createKibanaIsomerRuntime } from '@kbn/isomer';
+import { componentsPack } from '@kbn/isomer-components';
 import { ActionUiProviders } from '../actions/action_ui_providers';
 import { createDataLayer, type DataLayer, type RunCases, type RunQuery } from '../data/data_layer';
 import { DataLayerContext } from '../data/data_layer_context';
 import { createAppRuntime, type AppRuntime } from '../runtime/app_runtime';
 import { AppRuntimeContext } from '../runtime/app_runtime_context';
 import { AppFrame } from './app_frame';
-import { NodeRenderer } from './node_renderer';
+import { browserAppPack } from '../pack';
+import { KIBANA_UI_RENDERERS } from '../pack/kibana_ui';
+import { createKibanaUiSurface } from '../surface/kibana_ui_surface';
+
+const isomerRuntime = createKibanaIsomerRuntime({ packs: [componentsPack, browserAppPack] });
+const surface = createKibanaUiSurface(isomerRuntime, { renderers: KIBANA_UI_RENDERERS });
+
+/** Stands in for the isomer plugin's start contract, with the app pack registered. */
+export const testIsomer = { getRuntime: async () => isomerRuntime };
 
 export const emptyDocument = (state: unknown = {}): AppDocument =>
   appDocumentSchema.parse({ state, root: { type: 'text', id: 'unused', text: '' } });
@@ -68,11 +78,9 @@ export const renderApp = async (
       <DataLayerContext.Provider value={layer}>
         <ActionUiProviders>
           {framed ? (
-            <AppFrame theme={document.theme}>
-              <NodeRenderer node={document.root} />
-            </AppFrame>
+            <AppFrame theme={document.theme}>{surface.render([document.root])}</AppFrame>
           ) : (
-            <NodeRenderer node={document.root} />
+            surface.render([document.root])
           )}
         </ActionUiProviders>
       </DataLayerContext.Provider>

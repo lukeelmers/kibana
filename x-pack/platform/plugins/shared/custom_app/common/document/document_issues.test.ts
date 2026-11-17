@@ -7,17 +7,21 @@
 
 import { getDocumentIssues } from '@kbn/custom-app-common';
 
-const stack = (children: unknown[]) => ({ type: 'stack', id: 'root', children });
+const stack = (children: unknown[]) => ({ type: 'section', title: 'App', id: 'root', children });
 
 describe('getDocumentIssues', () => {
   it('finds nothing wrong with a valid document', () => {
-    expect(getDocumentIssues({ root: stack([{ type: 'text', id: 'a', text: 'hi' }]) })).toEqual([]);
+    expect(getDocumentIssues({ root: stack([{ type: 'markdown', id: 'a', text: 'hi' }]) })).toEqual(
+      []
+    );
   });
 
   it('tags a reference problem with the node it is about', () => {
     expect(
       getDocumentIssues({
-        root: stack([{ type: 'search', id: 'find', label: 'Find', bind: 'missing' }]),
+        root: stack([
+          { type: 'select', id: 'find', label: 'Find', bind: 'missing', options: [{ value: 'a' }] },
+        ]),
       })
     ).toEqual([{ message: 'Node "find" binds unknown state key "missing"', nodeId: 'find' }]);
   });
@@ -26,9 +30,9 @@ describe('getDocumentIssues', () => {
     const issues = getDocumentIssues({
       state: { n: { type: 'number', default: 1 } },
       root: stack([
-        { type: 'text', id: 'a', text: 'x' },
-        { type: 'text', id: 'a', text: 'y' },
-        { type: 'search', id: 'find', label: 'Find', bind: 'n' },
+        { type: 'markdown', id: 'a', text: 'x' },
+        { type: 'markdown', id: 'a', text: 'y' },
+        { type: 'select', id: 'find', label: 'Find', bind: 'n', options: [{ value: 'a' }] },
       ]),
     });
 
@@ -45,19 +49,10 @@ describe('getDocumentIssues', () => {
     expect(issues[0].message).toMatch(/^Node "users", query: /);
   });
 
-  it('finds a nested field', () => {
-    const issues = getDocumentIssues({
-      root: stack([{ type: 'table', id: 'table', query: 'ROW 1', columns: [{ field: '' }] }]),
-    });
-
-    expect(issues[0].nodeId).toBe('table');
-    expect(issues[0].message).toMatch(/^Node "table", columns\[0\]\.field: /);
-  });
-
   it('reports a problem with no node, such as one in the state', () => {
     const issues = getDocumentIssues({
       state: { '1bad': { type: 'string', default: '' } },
-      root: { type: 'text', id: 'a', text: 'x' },
+      root: { type: 'markdown', id: 'a', text: 'x' },
     });
 
     expect(issues).toHaveLength(1);

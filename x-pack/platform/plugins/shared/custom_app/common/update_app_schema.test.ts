@@ -49,7 +49,15 @@ describe('customAppUpdateSchema', () => {
     // An input bound to a value that is not declared is well shaped but not valid.
     const result = customAppUpdateSchema.safeParse({
       embeddable_id: 'p',
-      document: { root: { type: 'search', id: 'find', label: 'Find', bind: 'missing' } },
+      document: {
+        root: {
+          type: 'select',
+          id: 'find',
+          label: 'Find',
+          bind: 'missing',
+          options: [{ value: 'a' }],
+        },
+      },
     });
 
     expect(result.success).toBe(true);
@@ -78,21 +86,12 @@ describe('customAppUpdateSchema', () => {
       ]);
     });
 
-    it.each([
-      'stack',
-      'heading',
-      'text',
-      'callout',
-      'stat',
-      'table',
-      'key_value',
-      'select',
-      'button_group',
-      'search',
-      'flyout',
-    ])('offers the %s component', (type) => {
-      expect(text).toContain(`"const":"${type}"`);
-    });
+    it.each(['section', 'header', 'markdown', 'stat', 'table', 'fields', 'select', 'flyout'])(
+      'offers the %s component',
+      (type) => {
+        expect(text).toContain(`"const":"${type}"`);
+      }
+    );
 
     it('says what the two fields are for', () => {
       expect(text).toContain('embeddable_id of the custom app');

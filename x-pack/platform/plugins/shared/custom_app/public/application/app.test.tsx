@@ -83,7 +83,7 @@ const savedApp = (overrides: Partial<SavedApp> = {}): SavedApp => ({
   title: 'Service explorer',
   description: 'Filters and a table',
   version: 1,
-  document: { state: {}, root: { type: 'heading', id: 'title', text: 'Hi' } },
+  document: { state: {}, root: { type: 'header', id: 'title', text: 'Hi' } },
   updatedAt: '2026-10-16T10:00:00.000Z',
   ...overrides,
 });
@@ -129,7 +129,7 @@ const makeAgentBuilder = () => {
 
 const madeByTheAgent = {
   state: {},
-  root: { type: 'text', id: 'agent-made', text: 'From the agent' },
+  root: { type: 'markdown', id: 'agent-made', text: 'From the agent' },
 };
 
 const makeClient = () =>
@@ -167,7 +167,7 @@ const applyAgentDraft = async () => {
   await act(async () =>
     lastAgent!.answer(attachments[0].id, {
       state: {},
-      root: { type: 'text', id: 'edited', text: 'x' },
+      root: { type: 'markdown', id: 'edited', text: 'x' },
     })
   );
   // What was pressed to ask may have left the menu open.
@@ -335,7 +335,7 @@ describe('the custom apps page', () => {
         const attachment = attachedTo(agent);
         expect(attachment.type).toBe('platform.custom_app.app_context');
         expect(attachment.data).toMatchObject({
-          document: { root: { type: 'stack', children: [] } },
+          document: { root: { type: 'section', title: 'New app', children: [] } },
         });
         // A page has no panel: it is told apart by the id of its attachment.
         expect(attachment.data).not.toHaveProperty('embeddable_id');
@@ -630,7 +630,7 @@ describe('the custom apps page', () => {
             savedApp({
               document: {
                 state: {},
-                root: { type: 'stack', id: 'root', direction: 'vertical', children: [] },
+                root: { type: 'section', title: 'App', id: 'root', children: [] },
               },
             })
           ),
@@ -711,7 +711,7 @@ describe('the custom apps page', () => {
             savedApp({
               document: {
                 state: {},
-                root: { type: 'stack', id: 'root', direction: 'vertical', children: [] },
+                root: { type: 'section', title: 'App', id: 'root', children: [] },
               },
             })
           ),
@@ -964,7 +964,7 @@ describe('the custom apps page', () => {
       const empty = savedApp({
         document: {
           state: {},
-          root: { type: 'stack', id: 'root', direction: 'vertical', children: [] },
+          root: { type: 'section', title: 'App', id: 'root', children: [] },
         },
       });
 

@@ -77,7 +77,13 @@ describe('the create custom app tool', () => {
   it('returns each problem of an app that is not valid, and saves nothing', async () => {
     const broken = {
       state: {},
-      root: { type: 'search', id: 'find', label: 'Find', bind: 'missing' },
+      root: {
+        type: 'select',
+        id: 'find',
+        label: 'Find',
+        bind: 'missing',
+        options: [{ value: 'a' }],
+      },
     };
     const { result, add } = await call({ document: broken });
 

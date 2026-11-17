@@ -27,6 +27,7 @@ jest.mock('./application/saved_apps_client', () => ({
 }));
 jest.mock('./services', () => ({
   getServices: () => ({
+    isomer: jest.requireActual('./components/test_utils').testIsomer,
     core: {
       http: {},
       application: { capabilities: {} },
@@ -47,9 +48,10 @@ jest.mock('./data/run_esql_query', () => ({
 const documentWith = (heading: string): AppDocument =>
   appDocumentSchema.parse({
     root: {
-      type: 'stack',
+      type: 'section',
+      title: 'App',
       id: 'root',
-      children: [{ type: 'heading', id: 'title', text: heading }],
+      children: [{ type: 'header', id: 'title', text: heading }],
     },
   });
 
@@ -211,7 +213,7 @@ describe('the custom app panel and the library', () => {
       await buildOwn();
 
       expect(mockSavedApps.get).not.toHaveBeenCalled();
-      expect(screen.getByRole('heading', { name: 'Own heading' })).toBeInTheDocument();
+      expect(await screen.findByRole('heading', { name: 'Own heading' })).toBeInTheDocument();
     });
 
     it('is saved on the dashboard with its document, as before', async () => {

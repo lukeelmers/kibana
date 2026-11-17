@@ -16,32 +16,18 @@ describe('the authoring guide', () => {
     expect(appDocumentSchema.safeParse(AUTHORING_GUIDE_EXAMPLE).success).toBe(true);
   });
 
-  it('has an example that shows the ideas it teaches: a value set by an input, a row click and a flyout', () => {
-    const json = JSON.stringify(AUTHORING_GUIDE_EXAMPLE);
-
-    expect(json).toContain('"bind":"name_filter"');
-    expect(json).toContain('?name_filter');
-    expect(json).toContain('fromColumn');
-    expect(json).toContain('openFlyout');
-    expect(json).toContain('{{state.service}}');
-  });
-
   it.each([
-    'stack',
-    'heading',
-    'text',
-    'callout',
+    'section',
+    'row',
+    'header',
+    'markdown',
     'stat',
     'table',
-    'key_value',
+    'fields',
     'select',
-    'button_group',
-    'search',
-    'list_input',
     'button',
     'link',
     'form',
-    'time_range',
     'flyout',
   ])('describes the %s component', (type) => {
     expect(CUSTOM_APP_AUTHORING_GUIDE).toContain(type);
@@ -109,26 +95,12 @@ describe('the authoring guide', () => {
     );
   });
 
-  it('teaches the cases source: its filters, the values of the app that can drive them, and its columns', () => {
-    expect(CUSTOM_APP_AUTHORING_GUIDE).toContain('"type": "cases"');
-    expect(CUSTOM_APP_AUTHORING_GUIDE).toContain('"in-progress"');
-    expect(CUSTOM_APP_AUTHORING_GUIDE).toContain('fromState');
-    expect(CUSTOM_APP_AUTHORING_GUIDE).toContain('assignee_count');
-    expect(CUSTOM_APP_AUTHORING_GUIDE).toContain('"count": true');
-  });
-
   it('teaches forms: what they are for, how answers reach a workflow, and that they are not filters', () => {
     expect(CUSTOM_APP_AUTHORING_GUIDE).toContain('"onSubmit"');
     expect(CUSTOM_APP_AUTHORING_GUIDE).toContain('"textarea"');
     expect(CUSTOM_APP_AUTHORING_GUIDE).toContain('only when it is submitted');
     expect(CUSTOM_APP_AUTHORING_GUIDE).toContain('hands them over with { "fromState": "<bind>" }');
     expect(CUSTOM_APP_AUTHORING_GUIDE).toContain('a form\'s "onSubmit"');
-  });
-
-  it('says a text is Markdown, and that a heading and a callout are not', () => {
-    expect(CUSTOM_APP_AUTHORING_GUIDE).toMatch(/- text \{[^\n]*written in Markdown/);
-    expect(CUSTOM_APP_AUTHORING_GUIDE).toMatch(/- heading \{[^\n]*no Markdown/);
-    expect(CUSTOM_APP_AUTHORING_GUIDE).toMatch(/- callout \{[^\n]*no Markdown/);
   });
 
   it('teaches a select that takes its options from a query, and how an All option is kept', () => {
@@ -149,15 +121,6 @@ describe('the authoring guide', () => {
 
   it('says that a component has a query or a source, not both', () => {
     expect(CUSTOM_APP_AUTHORING_GUIDE).toContain('either a "query" or a "source", never both');
-  });
-
-  it('teaches links: where they can go, that they stay in Kibana, and not to guess a path', () => {
-    expect(CUSTOM_APP_AUTHORING_GUIDE).toContain('"type": "discover"');
-    expect(CUSTOM_APP_AUTHORING_GUIDE).toContain('"type": "custom_app"');
-    expect(CUSTOM_APP_AUTHORING_GUIDE).toContain(
-      'A link stays inside Kibana and cannot go to another site'
-    );
-    expect(CUSTOM_APP_AUTHORING_GUIDE).toContain('do not guess it');
   });
 
   it('teaches the theme: the accents, the shapes, and not to invent colours', () => {

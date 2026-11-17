@@ -16,7 +16,7 @@ import { createUpdateCustomAppTool, UPDATE_CUSTOM_APP_TOOL_ID } from './update_c
 const CURRENT = {
   embeddable_id: 'panel-1',
   panel_title: 'Service health',
-  document: { state: {}, root: { type: 'heading', id: 'title', text: 'Before' } },
+  document: { state: {}, root: { type: 'header', id: 'title', text: 'Before' } },
 };
 
 const attachment = (data: unknown, id = 'att-1') => ({
@@ -57,7 +57,7 @@ const call = async (
 
 const NEW_DOCUMENT = {
   state: {},
-  root: { type: 'heading', id: 'title', text: 'After' },
+  root: { type: 'header', id: 'title', text: 'After' },
 };
 
 describe('the update custom app tool', () => {
@@ -158,12 +158,13 @@ describe('the update custom app tool', () => {
     const broken = {
       state: {},
       root: {
-        type: 'stack',
+        type: 'section',
+        title: 'App',
         id: 'root',
         children: [
-          { type: 'search', id: 'find', label: 'Find', bind: 'missing' },
-          { type: 'text', id: 'dup', text: 'a' },
-          { type: 'text', id: 'dup', text: 'b' },
+          { type: 'select', id: 'find', label: 'Find', bind: 'missing', options: [{ value: 'a' }] },
+          { type: 'markdown', id: 'dup', text: 'a' },
+          { type: 'markdown', id: 'dup', text: 'b' },
         ],
       },
     };
@@ -181,7 +182,15 @@ describe('the update custom app tool', () => {
     it('says it in the singular for one problem', async () => {
       const { result } = await call({
         embeddable_id: 'panel-1',
-        document: { root: { type: 'search', id: 'find', label: 'Find', bind: 'missing' } },
+        document: {
+          root: {
+            type: 'select',
+            id: 'find',
+            label: 'Find',
+            bind: 'missing',
+            options: [{ value: 'a' }],
+          },
+        },
       });
 
       expect((result.data as { message: string }).message).toContain(

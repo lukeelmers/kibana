@@ -5,4 +5,9 @@
  * 2.0.
  */
 
+import { registerBuiltinCapabilities } from '../common/capabilities/manifests';
+
+// Registered where an app is first drawn, so its primitives stay out of the page-load bundle.
+registerBuiltinCapabilities();
+
 export { customAppEmbeddableFactory } from './custom_app_embeddable';

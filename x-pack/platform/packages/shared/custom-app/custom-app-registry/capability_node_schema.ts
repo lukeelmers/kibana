@@ -39,7 +39,8 @@ export const capabilityNodeSchema = <Id extends string, Shape extends z.ZodRawSh
   const known = schemas.get(manifest);
   if (known) return known as unknown as ReturnType<typeof createNodeSchema<Id, Shape>>;
   const created = createNodeSchema(manifest, nodeSchema);
-  schemas.set(manifest, created);
+  // A container without the schema of its children is not the one to keep.
+  if (!manifest.container || nodeSchema) schemas.set(manifest, created);
   return created;
 };
 

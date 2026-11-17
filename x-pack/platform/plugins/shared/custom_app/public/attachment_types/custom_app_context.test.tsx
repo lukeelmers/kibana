@@ -18,7 +18,7 @@ jest.mock('./app_card', () => ({
   ),
 }));
 
-const document = appDocumentSchema.parse({ root: { type: 'heading', id: 'title', text: 'Hi' } });
+const document = appDocumentSchema.parse({ root: { type: 'header', id: 'title', text: 'Hi' } });
 
 const attachment = (data: { panel_title?: string; embeddable_id?: string } = {}) =>
   ({ id: 'att-1', type: 'platform.custom_app.app_context', data: { ...data, document } } as never);

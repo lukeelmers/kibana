@@ -10,7 +10,7 @@ import { resolveDocument } from './document_resolvers';
 
 const context = {} as Parameters<typeof resolveDocument>[1];
 const documentOf = (title: string) =>
-  ({ state: {}, root: { type: 'heading', id: 'h', text: title } } as never);
+  ({ state: {}, root: { type: 'header', id: 'h', text: title } } as never);
 
 describe('resolving a document', () => {
   it('runs each resolver in turn on what the one before gave', async () => {

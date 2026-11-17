@@ -46,7 +46,15 @@ describe('the custom app attachment type', () => {
       expect(
         type.validate(
           data({
-            document: { root: { type: 'search', id: 'find', label: 'Find', bind: 'missing' } },
+            document: {
+              root: {
+                type: 'select',
+                id: 'find',
+                label: 'Find',
+                bind: 'missing',
+                options: [{ value: 'a' }],
+              },
+            },
           })
         )
       ).toMatchObject({ valid: false });

@@ -11,6 +11,9 @@ import type { AppMountParameters, CoreStart } from '@kbn/core/public';
 import { App } from './app';
 import { getServices } from '../services';
 import { createSavedAppsClient } from './saved_apps_client';
+import { registerBuiltinCapabilities } from '../../common/capabilities/manifests';
+
+registerBuiltinCapabilities();
 
 export const renderApp = (
   core: CoreStart,

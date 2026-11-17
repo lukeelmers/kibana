@@ -14,7 +14,7 @@ import {
 } from './chat_integration';
 
 const document = appDocumentSchema.parse({
-  root: { type: 'heading', id: 'title', text: 'Service health' },
+  root: { type: 'header', id: 'title', text: 'Service health' },
 });
 
 describe('buildCustomAppContextAttachment', () => {

@@ -16,17 +16,18 @@ import {
 
 const { root } = appDocumentSchema.parse({
   root: {
-    type: 'stack',
+    type: 'section',
+    title: 'App',
     id: 'root',
     children: [
       { type: 'stat', id: 'users-stat', title: 'Users', query: 'FROM users | STATS COUNT(*)' },
-      { type: 'heading', id: 'title', text: 'Hi' },
+      { type: 'header', id: 'title', text: 'Hi' },
       { type: 'table', id: 'orders-table', query: 'FROM orders' },
       {
         type: 'flyout',
         id: 'detail',
         title: 'Detail',
-        children: [{ type: 'key_value', id: 'facts', query: 'FROM orders | WHERE id == ?id' }],
+        children: [{ type: 'fields', id: 'facts', query: 'FROM orders | WHERE id == ?id' }],
       },
     ],
   },
@@ -43,7 +44,12 @@ describe('collectQueries', () => {
 
   it('finds nothing in a document with no data components', () => {
     const plain = appDocumentSchema.parse({
-      root: { type: 'stack', id: 'root', children: [{ type: 'text', id: 'a', text: 'hi' }] },
+      root: {
+        type: 'section',
+        title: 'App',
+        id: 'root',
+        children: [{ type: 'markdown', id: 'a', text: 'hi' }],
+      },
     });
 
     expect(collectQueries(plain.root)).toEqual({});
@@ -52,7 +58,8 @@ describe('collectQueries', () => {
   it('keeps two components with the same query apart', () => {
     const twins = appDocumentSchema.parse({
       root: {
-        type: 'stack',
+        type: 'section',
+        title: 'App',
         id: 'root',
         children: [
           { type: 'stat', id: 'a', title: 'A', query: 'ROW 1' },
@@ -86,19 +93,26 @@ describe('isEmptyDocument', () => {
   const parse = (node: unknown) => appDocumentSchema.parse({ root: node });
 
   it('is true for a stack with nothing in it, which is how a new app starts', () => {
-    expect(isEmptyDocument(parse({ type: 'stack', id: 'root', children: [] }))).toBe(true);
+    expect(
+      isEmptyDocument(parse({ type: 'section', title: 'App', id: 'root', children: [] }))
+    ).toBe(true);
   });
 
   it('is false once there is a component, whatever it is', () => {
     expect(
       isEmptyDocument(
-        parse({ type: 'stack', id: 'root', children: [{ type: 'text', id: 't', text: '' }] })
+        parse({
+          type: 'section',
+          title: 'App',
+          id: 'root',
+          children: [{ type: 'markdown', id: 't', text: 'x' }],
+        })
       )
     ).toBe(false);
   });
 
   it('is false for a root that is a component itself, even a very small one', () => {
-    expect(isEmptyDocument(parse({ type: 'text', id: 't', text: '' }))).toBe(false);
+    expect(isEmptyDocument(parse({ type: 'markdown', id: 't', text: 'x' }))).toBe(false);
   });
 
   it('is false for a flyout with nothing in it, which is a component and not a blank app', () => {
@@ -140,9 +154,9 @@ describe('forms in the tree', () => {
 
   it('binds the value of an input, and nothing for what has none', () => {
     expect(
-      getNodeBindings({ type: 'search', id: 's', label: 'S', bind: 'q', onChange: [] })
+      getNodeBindings({ type: 'select', id: 's', label: 'S', bind: 'q', options: [{ value: 'a' }] })
     ).toEqual(['q']);
-    expect(getNodeBindings({ type: 'heading', id: 'h', text: 'H' })).toEqual([]);
+    expect(getNodeBindings({ type: 'header', id: 'h', text: 'H' })).toEqual([]);
   });
 
   it('runs its actions when it is submitted', () => {

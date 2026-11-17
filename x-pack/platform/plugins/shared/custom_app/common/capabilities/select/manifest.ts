@@ -6,7 +6,7 @@
  */
 
 import { z, lazySchema } from '@kbn/zod/v4';
-import { defineCapability, type CapabilityNodeOf } from '@kbn/custom-app-registry';
+import { defineCapability } from '@kbn/custom-app-registry';
 import { MAX_INPUT_OPTIONS, OPTIONS_SOURCE_SUFFIX } from '@kbn/custom-app-common';
 import { querySchema } from '@kbn/custom-app-common';
 import { describedInputProps, inputOptionSchema } from '@kbn/custom-app-common';
@@ -68,9 +68,3 @@ export const selectCapability = defineCapability({
   },
   filter: true,
 });
-
-declare module '@kbn/custom-app-registry' {
-  interface NodeTypeMap {
-    select: CapabilityNodeOf<typeof selectCapability>;
-  }
-}

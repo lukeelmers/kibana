@@ -9,6 +9,7 @@ import type { CoreStart } from '@kbn/core/public';
 import type { AgentBuilderPluginStart } from '@kbn/agent-builder-browser';
 import type { DataViewsPublicPluginStart } from '@kbn/data-views-plugin/public';
 import type { EmbeddableStart } from '@kbn/embeddable-plugin/public';
+import type { IsomerPluginStart } from '@kbn/isomer-plugin/public';
 import type { ISearchGeneric } from '@kbn/search-types';
 import type { SharePluginStart } from '@kbn/share-plugin/public';
 
@@ -17,6 +18,7 @@ interface Services {
   search: ISearchGeneric;
   embeddable: EmbeddableStart;
   dataViews: DataViewsPublicPluginStart;
+  isomer: IsomerPluginStart;
   /** Absent when Agent Builder is not available, in which case nothing offers chat. */
   agentBuilder: AgentBuilderPluginStart | undefined;
   /** Absent when Share is not available, in which case a link to Discover cannot be made. */
@@ -30,10 +32,11 @@ export const setServices = (
   search: ISearchGeneric,
   embeddable: EmbeddableStart,
   dataViews: DataViewsPublicPluginStart,
+  isomer: IsomerPluginStart,
   agentBuilder: AgentBuilderPluginStart | undefined,
   share?: SharePluginStart
 ) => {
-  services = { core, search, embeddable, dataViews, agentBuilder, share };
+  services = { core, search, embeddable, dataViews, isomer, agentBuilder, share };
 };
 
 export const getServices = (): Services => {

@@ -17,12 +17,14 @@ const document = parse({
     compact: { type: 'boolean', default: false },
   },
   root: {
-    type: 'stack',
+    type: 'section',
+    title: 'App',
     id: 'root',
     children: [
       { type: 'flyout', id: 'detail', title: 'Detail', children: [] },
       {
-        type: 'stack',
+        type: 'section',
+        title: 'App',
         id: 'wrap',
         children: [{ type: 'flyout', id: 'nested', title: 'N', children: [] }],
       },
@@ -331,7 +333,7 @@ describe('createAppRuntime', () => {
         users: { type: 'list', default: [] },
         service: { type: 'string', default: 'all' },
       },
-      root: { type: 'text', id: 't', text: 'x' },
+      root: { type: 'markdown', id: 't', text: 'x' },
     });
 
     it('starts as declared', () => {
@@ -455,7 +457,7 @@ describe('createAppRuntime', () => {
       runtime.setDocument(
         parse({
           state: { users: { type: 'string', default: 'none' } },
-          root: { type: 'text', id: 't', text: 'x' },
+          root: { type: 'markdown', id: 't', text: 'x' },
         })
       );
       expect(runtime.state$.getValue().users).toBe('none');
@@ -522,7 +524,7 @@ describe('createAppRuntime', () => {
       runtime.setDocument(
         parse({
           state: { service: { type: 'string', default: 'all' } },
-          root: { type: 'text', id: 'a', text: 'x' },
+          root: { type: 'markdown', id: 'a', text: 'x' },
         })
       );
 
@@ -539,7 +541,7 @@ describe('createAppRuntime', () => {
             limit: { type: 'string', default: 'none' },
             fresh: { type: 'number', default: 1 },
           },
-          root: { type: 'text', id: 'a', text: 'x' },
+          root: { type: 'markdown', id: 'a', text: 'x' },
         })
       );
 
@@ -553,7 +555,7 @@ describe('createAppRuntime', () => {
       runtime.setDocument(document);
       expect(runtime.openFlyoutId$.getValue()).toBe('detail');
 
-      runtime.setDocument(parse({ root: { type: 'text', id: 'a', text: 'x' } }));
+      runtime.setDocument(parse({ root: { type: 'markdown', id: 'a', text: 'x' } }));
       expect(runtime.openFlyoutId$.getValue()).toBeUndefined();
     });
 
