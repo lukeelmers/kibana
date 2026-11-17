@@ -44,7 +44,11 @@ import { i18n } from '@kbn/i18n';
 import { toMountPoint } from '@kbn/react-kibana-mount';
 import { getServices } from './services';
 import { createWorkflowClient, type WorkflowClient, type WorkflowSummary } from './workflow_client';
-import { getWorkflowId } from '../../../common/custom_app/run_workflow/manifest';
+import {
+  getWorkflowId,
+  getWorkflowRefLabel,
+  type WorkflowRef,
+} from '../../../common/custom_app/run_workflow/manifest';
 
 /** The id of the Workflows application, which an execution is looked at in. */
 const WORKFLOWS_APPLICATION_ID = 'workflows';
@@ -105,12 +109,25 @@ export const getWorkflowAvailability = (capabilities: Capabilities): WorkflowAva
  */
 export type WorkflowStatus = 'found' | 'missing' | 'unknown';
 
-/** The ids of the workflows that these actions run. */
-const getWorkflowIds = (actions: readonly Action[]): string[] =>
+type Workflows = ActionUiHost['workflows'];
+
+/** The workflow references of these actions. */
+const getWorkflowRefs = (actions: readonly Action[]): WorkflowRef[] =>
   actions.flatMap((action) => {
-    const { workflow } = action as { workflow?: string | { id: string } };
-    return workflow === undefined ? [] : [getWorkflowId({ workflow })];
+    const { workflow } = action as { workflow?: WorkflowRef };
+    return workflow === undefined ? [] : [workflow];
   });
+
+const getUnresolvedMessage = (workflow: WorkflowRef): string =>
+  i18n.translate('workflows.customApp.runWorkflow.unresolved', {
+    defaultMessage:
+      'The workflow "{workflow}" cannot be found. A workflow named by its file only resolves in an app installed from the package that has it.',
+    values: { workflow: getWorkflowRefLabel(workflow) },
+  });
+
+/** The ids of the workflows that these actions run, of those that resolve. */
+const getWorkflowIds = (actions: readonly Action[], workflows: Workflows): string[] =>
+  getWorkflowRefs(actions).flatMap((workflow) => getWorkflowId({ workflow }, workflows) ?? []);
 
 type Details =
   | { status: 'loading' }
@@ -345,7 +362,7 @@ const FINISHED = ['completed', 'failed', 'cancelled', 'timed_out', 'skipped'];
  * from, when there is one, and is sent with each run so it can be traced to the app.
  */
 export const RunWorkflowUi = ({
-  host: { appId, refreshData },
+  host: { appId, workflows, refreshData },
   children,
 }: {
   host: ActionUiHost;
@@ -497,14 +514,38 @@ export const RunWorkflowUi = ({
 
   const api = useMemo<ActionUiApi>(
     () => ({
-      request: (payloads, nodeId) => request(payloads as WorkflowRunRequest[], nodeId),
+      // The handler hands over the reference as it is written; what is run is the id it resolves to.
+      request: (payloads, nodeId) => {
+        const written = payloads as Array<{
+          workflow: WorkflowRef;
+          inputs: WorkflowRunRequest['inputs'];
+        }>;
+        const unresolved = written.find(
+          ({ workflow }) => getWorkflowId({ workflow }, workflows) === undefined
+        );
+        if (unresolved) {
+          core.notifications.toasts.addWarning(getUnresolvedMessage(unresolved.workflow));
+          return Promise.resolve(false);
+        }
+        return request(
+          written.map(({ workflow, inputs }) => ({
+            workflow: getWorkflowId({ workflow }, workflows) as string,
+            inputs,
+          })),
+          nodeId
+        );
+      },
       // Finding out whether a workflow is there is only worth the request for someone who may run it.
       watch: (actions) => {
-        if (availability.canRun) track(getWorkflowIds(actions));
+        if (availability.canRun) track(getWorkflowIds(actions, workflows));
       },
       gate: (actions) => {
         if (!availability.canRun) return availability.reason;
-        const missing = getWorkflowIds(actions).find(
+        const unresolved = getWorkflowRefs(actions).find(
+          (workflow) => getWorkflowId({ workflow }, workflows) === undefined
+        );
+        if (unresolved !== undefined) return getUnresolvedMessage(unresolved);
+        const missing = getWorkflowIds(actions, workflows).find(
           (id) => id !== '' && statuses[id] === 'missing'
         );
         return missing === undefined
@@ -516,7 +557,7 @@ export const RunWorkflowUi = ({
             });
       },
     }),
-    [availability, request, statuses, track]
+    [availability, core.notifications, request, statuses, track, workflows]
   );
 
   return (

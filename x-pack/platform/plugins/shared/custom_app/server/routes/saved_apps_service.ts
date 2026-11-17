@@ -5,9 +5,14 @@
  * 2.0.
  */
 
-import { SavedObjectsErrorHelpers, type SavedObjectsClientContract } from '@kbn/core/server';
+import {
+  SavedObjectsErrorHelpers,
+  SavedObjectsUtils,
+  type SavedObjectsClientContract,
+} from '@kbn/core/server';
 import { CUSTOM_APP_SAVED_OBJECT_TYPE } from '../../common/constants';
 import type { SavedAppInput } from '../../common/saved_app_schema';
+import { resolveWorkflowRefs, type ResolvedWorkflows } from '../workflows/resolve_workflow_refs';
 
 /** An app as it is written, and the package it was installed from, if it was. */
 type StoredApp = SavedAppInput & { package?: { name: string } };
@@ -18,6 +23,9 @@ export type SavedApp = StoredApp & {
   managed?: boolean;
   updatedAt?: string;
 };
+
+/** A saved app as it is opened, with the id of each workflow it names by reference. */
+export type OpenedApp = SavedApp & { workflows: ResolvedWorkflows };
 
 export interface SavedAppListItem {
   id: string;
@@ -44,6 +52,12 @@ const toSavedApp = (object: {
   ...(object.updated_at ? { updatedAt: object.updated_at } : {}),
 });
 
+const openApp = async (client: SavedObjectsClientContract, id: string): Promise<OpenedApp> => {
+  const app = toSavedApp(await client.get<StoredApp>(CUSTOM_APP_SAVED_OBJECT_TYPE, id));
+  const spaceId = SavedObjectsUtils.namespaceIdToString(client.getCurrentNamespace());
+  return { ...app, workflows: resolveWorkflowRefs(app, spaceId) };
+};
+
 /** A package's app is changed by the package: a change made here would be lost on its upgrade. */
 const assertNotManaged = async (client: SavedObjectsClientContract, id: string) => {
   const { managed, attributes } = await client.get<StoredApp>(CUSTOM_APP_SAVED_OBJECT_TYPE, id);
@@ -62,15 +76,14 @@ export const createSavedAppsService = (client: SavedObjectsClientContract) => ({
   create: async (input: SavedAppInput): Promise<SavedApp> =>
     toSavedApp(await client.create<StoredApp>(CUSTOM_APP_SAVED_OBJECT_TYPE, toStored(input))),
 
-  get: async (id: string): Promise<SavedApp> =>
-    toSavedApp(await client.get<StoredApp>(CUSTOM_APP_SAVED_OBJECT_TYPE, id)),
+  get: (id: string): Promise<OpenedApp> => openApp(client, id),
 
-  update: async (id: string, input: SavedAppInput): Promise<SavedApp> => {
+  update: async (id: string, input: SavedAppInput): Promise<OpenedApp> => {
     await assertNotManaged(client, id);
     const stored = toStored(input);
     await client.update<StoredApp>(CUSTOM_APP_SAVED_OBJECT_TYPE, id, stored);
     // Read back, so that the response is what is stored and not what was sent.
-    return toSavedApp(await client.get<StoredApp>(CUSTOM_APP_SAVED_OBJECT_TYPE, id));
+    return openApp(client, id);
   },
 
   remove: async (id: string): Promise<void> => {

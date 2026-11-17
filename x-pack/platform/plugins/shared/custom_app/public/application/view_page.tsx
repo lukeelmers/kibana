@@ -242,9 +242,16 @@ export const ViewPage = ({
   const clone = async () => {
     if (state.status !== 'ready') return;
     setIsSaving(true);
+    // Workflow names resolve in the package that installed the app, which the clone is not
+    const packageName = app.package?.name;
+    const document: AppDocument = JSON.parse(JSON.stringify(state.document), (key, value) =>
+      packageName && key === 'workflow' && typeof value === 'string' && !value.includes(':')
+        ? `${packageName}:${value}`
+        : value
+    );
     try {
       const { id: cloneId } = await client.create({
-        ...state.document,
+        ...document,
         title: i18n.translate('xpack.customApp.standalone.cloneTitle', {
           defaultMessage: '{title} (copy)',
           values: { title: app.title },
@@ -425,7 +432,7 @@ export const ViewPage = ({
             onUseExample={() => setDraft(createDefaultDocument())}
           />
         ) : (
-          <LiveApp document={shownDocument} appId={app.id} />
+          <LiveApp document={shownDocument} appId={app.id} workflows={app.workflows} />
         )}
       </EuiPageTemplate.Section>
 

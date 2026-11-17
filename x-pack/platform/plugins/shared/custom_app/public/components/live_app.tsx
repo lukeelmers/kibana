@@ -10,6 +10,7 @@ import { combineLatest } from 'rxjs';
 import type { FetchContext } from '@kbn/presentation-publishing';
 import { getESQLQueryVariables } from '@kbn/esql-utils';
 import { collectSources, type AppDocument } from '@kbn/custom-app-common';
+import type { ActionUiHost } from '@kbn/custom-app-registry';
 import { AppFrame } from './app_frame';
 import { AppBody } from './app_body';
 import { createDataLayer } from '../data/data_layer';
@@ -41,6 +42,8 @@ const toFetchContext = (timeRange: { from: string; to: string }): FetchContext =
 interface LiveAppProps {
   document: AppDocument;
   appId?: string;
+  /** The ids of the workflows the saved app names by reference. */
+  workflows?: ActionUiHost['workflows'];
   /**
    * How the app is to be seen, when where it is shown keeps that, as a page does in its URL: it is
    * what the app starts as, and what it follows when it changes from outside.
@@ -55,7 +58,7 @@ interface LiveAppProps {
  * it, it has its own period, the last day to begin with, which a Time range component in the app
  * changes; an app without one keeps it. It has its own state too: what is picked here stays here.
  */
-export const LiveApp = ({ document, appId, view, onViewChange }: LiveAppProps) => {
+export const LiveApp = ({ document, appId, workflows, view, onViewChange }: LiveAppProps) => {
   const { core, search } = getServices();
   // Read when the app is made, and not followed: a new document keeps the app as it is seen.
   const viewRef = useRef(view);
@@ -122,7 +125,7 @@ export const LiveApp = ({ document, appId, view, onViewChange }: LiveAppProps) =
         <AppRuntimeContext.Provider value={runtime}>
           <TimeRangeControlContext.Provider value={timeRangeControl}>
             <DataLayerContext.Provider value={dataLayer}>
-              <ActionUiProviders appId={appId}>
+              <ActionUiProviders appId={appId} workflows={workflows}>
                 <AppFrame>
                   <AppBody body={document.body} />
                 </AppFrame>

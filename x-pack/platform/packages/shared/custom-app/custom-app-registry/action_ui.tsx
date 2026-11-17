@@ -19,6 +19,8 @@ import type { Action } from '.';
 export interface ActionUiHost {
   /** The saved app, when there is one, so that what an action does can be traced to it. */
   appId?: string;
+  /** The id of each workflow the saved app names by reference, null for one that does not resolve. */
+  workflows?: Readonly<Record<string, string | null>>;
   /** Asks the app for its data again, as when what an action did can change what is shown. */
   refreshData: () => void;
 }

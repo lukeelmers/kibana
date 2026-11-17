@@ -10,7 +10,7 @@
 import { findReferences, resolveText } from '@kbn/custom-app-common';
 import type { ActionHandler } from '@kbn/custom-app-registry';
 import {
-  getWorkflowId,
+  getWorkflowRefLabel,
   type RunWorkflowAction,
 } from '../../../common/custom_app/run_workflow/manifest';
 
@@ -32,7 +32,7 @@ export const runWorkflowHandler: ActionHandler<RunWorkflowAction> = (
   action,
   { input, state, drop, request }
 ) => {
-  const workflow = getWorkflowId(action);
+  const { workflow } = action;
   const inputs: Record<string, PlainValue | readonly PlainValue[]> = {};
   // One input that cannot be had is reason enough not to run the workflow at all: it would be
   // handed less than it was written to be given.
@@ -50,7 +50,7 @@ export const runWorkflowHandler: ActionHandler<RunWorkflowAction> = (
     if (resolved === undefined) return false;
     const value = toWorkflowInput(resolved);
     if (value === undefined) {
-      drop(`The input "${name}" of "${workflow}" is not a plain value`);
+      drop(`The input "${name}" of "${getWorkflowRefLabel(workflow)}" is not a plain value`);
       return true;
     }
     inputs[name] = value;

@@ -18,6 +18,8 @@ export interface SavedApp {
   managed?: boolean;
   package?: { name: string };
   updatedAt?: string;
+  /** The id of each workflow the app names by reference, null for one that does not resolve. */
+  workflows?: Record<string, string | null>;
   [attribute: string]: unknown;
 }
 

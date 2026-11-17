@@ -5,14 +5,12 @@
  * 2.0.
  */
 
-import { createHash } from 'crypto';
-
 import type { Logger, SavedObject } from '@kbn/core/server';
 import pMap from 'p-map';
 import { isMap, parseDocument } from 'yaml';
-import { isValidId } from '@kbn/human-readable-id';
 import { MAX_WORKFLOW_YAML_LENGTH } from '@kbn/workflows';
 import { FLEET_PACKAGE_WORKFLOW_ID } from '@kbn/workflows/managed';
+import { getFleetPackageWorkflowId } from '@kbn/workflows/server';
 
 import { FleetError } from '../../../../errors';
 import type { ManagedWorkflowsClient } from '../../../app_context';
@@ -27,13 +25,6 @@ import { getPathParts } from '../../archive';
 const MAX_CONCURRENT_WORKFLOW_OPERATIONS = 5;
 
 const WORKFLOW_FILE_EXTENSION = '.yml';
-
-const ID_HASH_LENGTH = 16;
-
-const hashIdSegment = (value: string) =>
-  createHash('sha256').update(value).digest('hex').slice(0, ID_HASH_LENGTH);
-
-const normalizeIdSegment = (value: string) => value.toLowerCase().replace(/_/g, '-');
 
 const isYamlMapping = (yaml: string) => {
   const document = parseDocument(yaml);
@@ -56,12 +47,11 @@ export const isWorkflowAssetPath = (path: string) => {
   return service === 'kibana' && type === 'workflow' && path.endsWith(WORKFLOW_FILE_EXTENSION);
 };
 
-/**
- * Builds `<definition id>-<space hash>-<package hash>-<file name>`. The space and package name
- * are hashed because space ids are uncapped and allow hyphens, and package names differing only
- * by `-`/`_` normalize to the same file name prefix, so appending them as-is could collide.
- * Returns undefined when the file name cannot produce a valid workflow id.
- */
+/** The file name of a workflow asset without `.yml`, which is what an app names it by. */
+export const getWorkflowFileName = (path: string) =>
+  (path.split('/').pop() ?? '').slice(0, -WORKFLOW_FILE_EXTENSION.length);
+
+/** The id of a package workflow file; see `getFleetPackageWorkflowId`. */
 export const getPackageWorkflowId = ({
   spaceId,
   packageName,
@@ -70,19 +60,12 @@ export const getPackageWorkflowId = ({
   spaceId: string;
   packageName: string;
   path: string;
-}): string | undefined => {
-  const fileName = path.split('/').pop() ?? '';
-  const fileBase = fileName.slice(0, -WORKFLOW_FILE_EXTENSION.length);
-
-  const workflowId = [
-    FLEET_PACKAGE_WORKFLOW_ID,
-    hashIdSegment(spaceId),
-    hashIdSegment(packageName),
-    normalizeIdSegment(fileBase),
-  ].join('-');
-
-  return isValidId(workflowId) ? workflowId : undefined;
-};
+}): string | undefined =>
+  getFleetPackageWorkflowId({
+    spaceId,
+    packageName,
+    fileName: getWorkflowFileName(path),
+  });
 
 /** Removes the given workflow refs; failures are logged, or thrown when `strict` is set. */
 export const uninstallWorkflows = async ({

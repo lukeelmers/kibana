@@ -25,6 +25,7 @@ dependsOn:
   - '@kbn/zod'
   - '@kbn/custom-app-common'
   - '@kbn/custom-app-registry'
+  - '@kbn/workflows'
   - '@kbn/ui-actions-plugin'
   - '@kbn/ui-callout'
   - '@kbn/data-plugin'

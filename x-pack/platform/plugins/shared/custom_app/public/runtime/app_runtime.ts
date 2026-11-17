@@ -44,9 +44,12 @@ export type WorkflowInputValue =
   | null
   | ReadonlyArray<string | number | boolean | null>;
 
-/** A workflow that an action asks to be run, with every input already resolved. */
+/**
+ * A workflow that an action asks to be run, with every input already resolved. The workflow is the
+ * reference as it is written, which the part of the action that is drawn resolves to an id.
+ */
 export interface WorkflowRunRequest {
-  workflow: string;
+  workflow: string | { id: string };
   inputs: Readonly<Record<string, WorkflowInputValue>>;
 }
 

@@ -89,12 +89,13 @@ interface LibraryApp {
   title: string;
   description?: string;
   document: AppDocument;
+  workflows?: Record<string, string | null>;
 }
 
 /** An app of the library, checked as a panel checks its own: one that is not valid is not shown. */
 const loadLibraryApp = async (client: SavedAppsClient, id: string): Promise<LibraryApp> => {
   const app = await client.get(id);
-  const { title, description } = app;
+  const { title, description, workflows } = app;
   const parsed = appDocumentSchema.safeParse(app);
   if (!parsed.success) {
     throw new Error(
@@ -104,7 +105,7 @@ const loadLibraryApp = async (client: SavedAppsClient, id: string): Promise<Libr
       })
     );
   }
-  return { title, description, document: parsed.data };
+  return { title, description, document: parsed.data, workflows };
 };
 
 export const customAppEmbeddableFactory: EmbeddablePublicDefinition<
@@ -340,7 +341,7 @@ export const customAppEmbeddableFactory: EmbeddablePublicDefinition<
           <AppRuntimeContext.Provider value={runtime}>
             <TimeRangeControlContext.Provider value={timeRangeControl}>
               <DataLayerContext.Provider value={dataLayer}>
-                <ActionUiProviders appId={libraryId}>
+                <ActionUiProviders appId={libraryId} workflows={library?.workflows}>
                   {isEmptyDocument(document) ? (
                     <EmptyApp
                       canEdit={viewMode === 'edit'}

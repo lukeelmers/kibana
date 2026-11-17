@@ -30,7 +30,7 @@ export const runWorkflowAction = defineAction({
           z.object({ id: z.string().min(1).max(MAX_WORKFLOW_ID_LENGTH) }).strict(),
         ])
         .describe(
-          'The workflow: "<name>" for one of the package of the app, "<package>:<name>" for one of another package, or { "id": "<id>" } for one the Workflows application has.'
+          'The workflow: "<name>" for the file kibana/workflow/<name>.yml of the package the app is installed from, "<package>:<name>" for that file of another package, or { "id": "<id>" } for a workflow saved in the Workflows application. Only an app installed from a package can name workflows by file.'
         ),
       inputs: z
         .record(
@@ -70,9 +70,21 @@ export const runWorkflowAction = defineAction({
   },
 });
 
-/** The id a reference to a workflow names. A name is taken as the id until names are resolved. */
-export const getWorkflowId = ({ workflow }: { workflow: string | { id: string } }): string =>
+export type WorkflowRef = string | { id: string };
+
+/** How a reference to a workflow is shown: the name or the id it is written with. */
+export const getWorkflowRefLabel = (workflow: WorkflowRef): string =>
   typeof workflow === 'string' ? workflow : workflow.id;
+
+/**
+ * The id of the workflow a reference names: `{ id }` is that id, and a name is looked up in what
+ * the server resolved for the saved app. Undefined when it was not resolved.
+ */
+export const getWorkflowId = (
+  { workflow }: { workflow: WorkflowRef },
+  workflows: Readonly<Record<string, string | null>> = {}
+): string | undefined =>
+  typeof workflow === 'string' ? workflows[workflow] ?? undefined : workflow.id;
 
 declare module '@kbn/custom-app-registry' {
   interface ActionTypeMap {

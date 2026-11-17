@@ -43,6 +43,7 @@ import { appContextService } from '../../..';
 
 import { tagKibanaAssets } from './tag_assets';
 import {
+  checkCustomAppWorkflowRefs,
   isCustomAppAssetPath,
   isCustomAppAssetsFlagEnabled,
   toCustomAppAsset,
@@ -471,6 +472,9 @@ export async function installKibanaAssetsAndReferences({
   const installCustomApps = hasCustomApps && (await isCustomAppAssetsFlagEnabled());
   if (hasCustomApps && !installCustomApps) {
     logger.warn(`${ENABLE_CUSTOM_APP_ASSETS_FLAG} is off, skipping custom app assets`);
+  }
+  if (installCustomApps) {
+    await checkCustomAppWorkflowRefs(packageInstallContext);
   }
   // This is where the memory consumption is rising up in the first place
   const kibanaAssetsArchiveIterator = getKibanaAssetsArchiveIterator(

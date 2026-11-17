@@ -5,7 +5,7 @@
  * 2.0.
  */
 
-import React, { type ReactNode } from 'react';
+import React, { useMemo, type ReactNode } from 'react';
 import { z, lazySchema } from '@kbn/zod/v4';
 import {
   ActionUiBridge,
@@ -14,6 +14,7 @@ import {
   type Action,
   type ActionHandler,
   type ActionUiApi,
+  type ActionUiHost,
 } from '@kbn/custom-app-registry';
 import { findReferences, resolveText } from '@kbn/custom-app-common';
 
@@ -52,14 +53,19 @@ const standIn = defineAction({
   },
 });
 
-const workflowId = ({ workflow }: { workflow: string | { id: string } }): string =>
+type WorkflowRef = string | { id: string };
+
+const refLabel = (workflow: WorkflowRef): string =>
   typeof workflow === 'string' ? workflow : workflow.id;
 
+const workflowId = (workflow: WorkflowRef, workflows: ActionUiHost['workflows'] = {}) =>
+  typeof workflow === 'string' ? workflows[workflow] ?? undefined : workflow.id;
+
 const handler: ActionHandler<{
-  workflow: string | { id: string };
+  workflow: WorkflowRef;
   inputs?: Record<string, string>;
 }> = (action, { input, state, drop, request }) => {
-  const workflow = workflowId(action);
+  const { workflow } = action;
   const inputs: Record<string, unknown> = {};
   const missing = Object.entries(action.inputs ?? {}).find(([name, text]) => {
     const column = findReferences(text).find(
@@ -73,7 +79,7 @@ const handler: ActionHandler<{
     const isPlain = (value: unknown) =>
       value === null || ['string', 'boolean', 'number'].includes(typeof value);
     if (!isPlain(resolved) && !(Array.isArray(resolved) && resolved.every(isPlain))) {
-      drop(`The input "${name}" of "${workflow}" is not a plain value`);
+      drop(`The input "${name}" of "${refLabel(workflow)}" is not a plain value`);
       return true;
     }
     inputs[name] = resolved;
@@ -90,33 +96,36 @@ export const mockWorkflowRunner: {
   request: jest.Mock;
 } = { availability: { canRun: true }, statuses: {}, track: jest.fn(), request: jest.fn() };
 
-const ids = (actions: readonly Action[]): string[] =>
+const ids = (actions: readonly Action[], workflows: ActionUiHost['workflows']): string[] =>
   actions.flatMap((action) => {
-    const { workflow } = action as { workflow?: string | { id: string } };
-    return workflow === undefined ? [] : [workflowId({ workflow })];
+    const { workflow } = action as { workflow?: WorkflowRef };
+    return workflow === undefined ? [] : workflowId(workflow, workflows) ?? [];
   });
 
-const api: ActionUiApi = {
+const createApi = (workflows: ActionUiHost['workflows']): ActionUiApi => ({
   request: (payloads, nodeId) =>
     Promise.resolve(mockWorkflowRunner.request(payloads, nodeId) !== false),
   watch: (actions) => {
-    if (mockWorkflowRunner.availability.canRun) mockWorkflowRunner.track(ids(actions));
+    if (mockWorkflowRunner.availability.canRun) mockWorkflowRunner.track(ids(actions, workflows));
   },
   gate: (actions) => {
     const { availability, statuses } = mockWorkflowRunner;
     if (!availability.canRun) return availability.reason;
-    const missing = ids(actions).find((id) => id !== '' && statuses[id] === 'missing');
+    const missing = ids(actions, workflows).find((id) => id !== '' && statuses[id] === 'missing');
     return missing === undefined
       ? undefined
       : `The workflow "${missing}" has not been saved yet. Save it in the Workflows application and this will work.`;
   },
-};
+});
 
-const StandInUi = ({ children }: { host: unknown; children: ReactNode }) => (
-  <ActionUiBridge actionId="workflow" api={api}>
-    {children}
-  </ActionUiBridge>
-);
+const StandInUi = ({ host, children }: { host: ActionUiHost; children: ReactNode }) => {
+  const api = useMemo(() => createApi(host.workflows), [host.workflows]);
+  return (
+    <ActionUiBridge actionId="workflow" api={api}>
+      {children}
+    </ActionUiBridge>
+  );
+};
 
 export const registerRunWorkflowStandIn = (): void =>
   registerAction(standIn, handler as ActionHandler, StandInUi);

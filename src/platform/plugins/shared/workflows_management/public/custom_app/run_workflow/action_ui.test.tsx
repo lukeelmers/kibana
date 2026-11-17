@@ -17,11 +17,15 @@ import { getWorkflowAvailability, RunWorkflowUi, type WorkflowRunRequest } from 
 const useWorkflowRunner = () => {
   const api = useActionUis().workflow;
   return {
-    request: (requests: WorkflowRunRequest[], nodeId: string) => api.request(requests, nodeId),
+    request: (requests: WorkflowRunRequest[], nodeId: string) =>
+      api.request(
+        requests.map(({ workflow, inputs }) => ({ workflow: { id: workflow }, inputs })),
+        nodeId
+      ),
     track: (ids: readonly string[]) =>
-      api.watch?.(ids.map((workflow) => ({ workflow, inputs: {} }))),
+      api.watch?.(ids.map((id) => ({ workflow: { id }, inputs: {} }))),
     gate: (id: string) =>
-      api.gate?.([{ workflow: id, inputs: {} }]) === undefined ? 'saved' : 'missing',
+      api.gate?.([{ workflow: { id }, inputs: {} }]) === undefined ? 'saved' : 'missing',
   };
 };
 
