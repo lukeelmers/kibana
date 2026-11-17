@@ -12,6 +12,7 @@ import {
   type AnyAction,
   type AnyCapability,
   type CapabilityViewLoader,
+  type DataAdapter,
 } from './shared_store';
 import type { ActionManifest } from './define_action';
 import type { ActionHandler } from './action_handler';
@@ -102,3 +103,11 @@ export const registerEmbeddableDoc = (embeddableType: string, doc: CapabilityDoc
 
 export const listEmbeddableDocs = (): ReadonlyArray<readonly [string, CapabilityDoc]> =>
   Array.from(getStore().embeddableDocs.entries());
+
+/** Says how a query fills the props of a primitive of another plugin, by its type. */
+export const registerDataAdapter = (type: string, adapter: DataAdapter): void => {
+  getStore().dataAdapters.set(type, adapter);
+};
+
+export const getDataAdapter = (type: string): DataAdapter | undefined =>
+  getStore().dataAdapters.get(type);

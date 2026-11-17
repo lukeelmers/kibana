@@ -18,6 +18,7 @@ export {
   getActionHandler,
   getCapability,
   getCapabilityViewLoader,
+  getDataAdapter,
   listActions,
   listActionUiProviders,
   listCapabilities,
@@ -25,6 +26,7 @@ export {
   listEmbeddableDocs,
   registerAction,
   registerCapability,
+  registerDataAdapter,
   registerDocumentResolver,
   registerEmbeddableDoc,
 } from './capability_registry';

@@ -10,6 +10,7 @@ import type { AgenticInvestigationsPublicPluginStart } from '@kbn/agentic-invest
 import type { ChartsPluginStart } from '@kbn/charts-plugin/public';
 import type { CPSPluginStart } from '@kbn/cps/public';
 import type { InferencePublicStart } from '@kbn/inference-plugin/public';
+import type { IsomerPluginSetup } from '@kbn/isomer-plugin/public';
 import type { LicensingPluginStart } from '@kbn/licensing-plugin/public';
 import type { NightshiftInvestigationsPublicStart } from '@kbn/nightshift-investigations-plugin/public';
 import type { NightshiftSourcesPublicPluginStart } from '@kbn/nightshift-sources-plugin/public';
@@ -26,6 +27,7 @@ import type { UnifiedSearchPublicPluginStart } from '@kbn/unified-search-plugin/
 
 export interface NightshiftSetupDependencies {
   share: SharePluginSetup;
+  isomer?: IsomerPluginSetup;
 }
 
 export interface NightshiftStartDependencies {

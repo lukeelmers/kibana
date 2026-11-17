@@ -12,6 +12,7 @@ import type { ActionManifest } from './define_action';
 import type { ActionHandler } from './action_handler';
 import type { ActionUiProvider } from './action_ui';
 import type { CapabilityDoc } from './define_capability';
+import type { CapabilityQueryResult } from './capability_view_props';
 
 export type AnyCapability = CapabilityManifest<string, z.ZodRawShape>;
 
@@ -19,6 +20,12 @@ export type AnyCapability = CapabilityManifest<string, z.ZodRawShape>;
 export type CapabilityViewLoader = () => Promise<{ default: unknown }>;
 
 export type AnyAction = ActionManifest<string, z.ZodRawShape>;
+
+/** How a primitive that shows data takes it: the props its query fills, and from what. */
+export interface DataAdapter {
+  fills: readonly string[];
+  from: (result: CapabilityQueryResult, node: Record<string, unknown>) => Record<string, unknown>;
+}
 
 interface Store {
   capabilities: Map<string, AnyCapability>;
@@ -30,6 +37,7 @@ interface Store {
   actionUiContext?: unknown;
   views: Map<string, CapabilityViewLoader>;
   documentResolvers: DocumentResolver[];
+  dataAdapters: Map<string, DataAdapter>;
 }
 
 /**
@@ -52,6 +60,7 @@ export const getStore = (): Store => {
     embeddableDocs: new Map(),
     views: new Map(),
     documentResolvers: [],
+    dataAdapters: new Map(),
   };
   holder[STORE_KEY] = created;
   return created;

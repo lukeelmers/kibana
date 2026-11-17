@@ -9,6 +9,7 @@ import { z, lazySchema } from '@kbn/zod/v4';
 import type { AnyPrimitiveDefinition } from '@elastic/isomer-sdk';
 import {
   getCapability,
+  getDataAdapter,
   registerCapability,
   type AnyCapability,
   type CapabilityManifest,
@@ -286,18 +287,30 @@ export const BUILTIN_CONTAINERS = [
 
 /**
  * Registers the primitives of the runtime's packs that are not registered yet, such as those of
- * other plugins, with nothing beyond what every node of an app has.
+ * other plugins, with nothing beyond what every node of an app has. One with a data adapter shows
+ * data: its query fills the props the adapter says.
  */
 export const registerPackPrimitives = (primitives: readonly AnyPrimitiveDefinition[]): void =>
   primitives
     .filter(({ type }) => getCapability(type) === undefined)
-    .forEach((primitive) =>
+    .forEach((primitive) => {
+      const adapter = getDataAdapter(primitive.type);
+      const example = primitive.catalog.example as unknown as Record<string, unknown>;
       registerCapability(
         fromPrimitive(primitive, {
-          example: primitive.catalog.example as unknown as Record<string, unknown>,
+          fills: adapter?.fills,
+          data: adapter ? 'query' : undefined,
+          example: adapter
+            ? {
+                ...Object.fromEntries(
+                  Object.entries(example).filter(([key]) => !adapter.fills.includes(key))
+                ),
+                query: 'FROM <index> | ...',
+              }
+            : example,
         })
-      )
-    );
+      );
+    });
 
 /** Registers the capabilities that ship with custom apps. It can be called more than once. */
 export const registerBuiltinCapabilities = (): void => {

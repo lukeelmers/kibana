@@ -51,6 +51,13 @@ export class NightshiftPlugin
 
     pluginsSetup.share.url.locators.create(new NightshiftSettingsLocatorDefinition());
 
+    pluginsSetup.isomer?.registerPack(async () => {
+      const [{ createBrowserNightshiftPack, registerNightshiftDataAdapters }, [core, plugins]] =
+        await Promise.all([import('./isomer/pack'), startServicesPromise]);
+      registerNightshiftDataAdapters();
+      return createBrowserNightshiftPack(core, plugins);
+    });
+
     coreSetup.application.register({
       id: NIGHTSHIFT_APP_ID,
       title: i18n.translate('xpack.nightshift.appTitle', {

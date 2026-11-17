@@ -5,7 +5,7 @@
  * 2.0.
  */
 
-import type { CapabilityQueryResult } from '@kbn/custom-app-registry';
+import { getDataAdapter, type CapabilityQueryResult } from '@kbn/custom-app-registry';
 
 /** How a primitive that shows data takes it: the props its query fills, and from what. */
 export interface DataProps {
@@ -88,6 +88,6 @@ export const fillDataProps = <TNode extends { type: string }>(
   node: TNode,
   result: CapabilityQueryResult
 ): TNode => {
-  const props = DATA_PROPS[node.type];
+  const props = DATA_PROPS[node.type] ?? getDataAdapter(node.type);
   return props ? { ...node, ...props.from(result, node as Record<string, unknown>) } : node;
 };

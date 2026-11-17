@@ -6,6 +6,7 @@
  */
 
 import type { CoreSetup, Plugin, PluginInitializerContext } from '@kbn/core/server';
+import { registerNightshiftDataAdapters } from '../common/isomer/data_adapters';
 import { registerNightshiftFeature } from './register_feature';
 import type {
   NightshiftServerSetup,
@@ -30,6 +31,10 @@ export class NightshiftServerPlugin
     plugins: NightshiftServerSetupDependencies
   ): NightshiftServerSetup {
     registerNightshiftFeature(plugins.features);
+    registerNightshiftDataAdapters();
+    plugins.isomer?.registerPack(() =>
+      import('../common/isomer/pack').then((m) => m.nightshiftPack)
+    );
     return {};
   }
 

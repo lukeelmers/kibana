@@ -6,9 +6,11 @@
  */
 
 import type { FeaturesPluginSetup } from '@kbn/features-plugin/server';
+import type { IsomerPluginSetup } from '@kbn/isomer-plugin/server';
 
 export interface NightshiftServerSetupDependencies {
   features: FeaturesPluginSetup;
+  isomer?: IsomerPluginSetup;
 }
 
 export type NightshiftServerStartDependencies = Record<string, never>;
